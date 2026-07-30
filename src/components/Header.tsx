@@ -75,6 +75,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
   const langTheme = isHero ? "hero" : isLight ? "light" : "dark";
   const menuLabel = t.nav.menu ?? "Menu";
   const comingSoon = t.nav.comingSoon ?? "Coming soon";
+  const selectLanguage = t.nav.selectLanguage ?? "Select Language";
 
   const heroNavLinkClass = (href: string) =>
     `text-[15px] font-semibold uppercase tracking-[0.06em] px-2 py-2 whitespace-nowrap flex-shrink-0 transition-colors ${
@@ -171,6 +172,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
               locale={locale}
               theme={langTheme}
               comingSoonLabel={comingSoon}
+              selectLanguageLabel={selectLanguage}
             />
 
             <WhatsAppAssignLink
