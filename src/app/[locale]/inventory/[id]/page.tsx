@@ -8,6 +8,34 @@ import VehicleDetailClient from "@/components/VehicleDetailClient";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getLocalizedPath } from "@/lib/i18n";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>;
+}): Promise<Metadata> {
+  const { locale: localeParam, id } = await params;
+  const locale = localeParam as Locale;
+  const t = getTranslations(locale);
+  try {
+    const vehicle = await dbGetPublicVehicleById(id);
+    if (vehicle) {
+      const name =
+        vehicle.titleEn?.trim() || `${vehicle.brand} ${vehicle.model}`;
+      return {
+        title: `${name} | ${t.vehicleDetail.pageTitle}`,
+        description: `${name} — ${t.inventory.fobChina}`,
+      };
+    }
+  } catch {
+    // fall through
+  }
+  return {
+    title: t.vehicleDetail.pageTitle,
+    description: t.seo.inventoryDescription,
+  };
+}
 
 export default async function VehicleDetailPage({
   params,

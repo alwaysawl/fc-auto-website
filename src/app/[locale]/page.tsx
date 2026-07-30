@@ -1,5 +1,5 @@
 import { Locale } from "@/lib/types";
-import { getTranslations } from "@/lib/translations";
+import { getTranslations, getReviewText } from "@/lib/translations";
 import { getReviews } from "@/lib/data";
 import { dbGetPublicVehicles } from "@/lib/supabase/vehicle-queries";
 import { getLocalizedPath } from "@/lib/i18n";
@@ -8,9 +8,23 @@ import HomeVehicleShowcase from "@/components/HomeVehicleShowcase";
 import VehicleCard from "@/components/VehicleCard";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import Link from "next/link";
+import type { Metadata } from "next";
 
 /** Popular Models section currently shows 4 cards */
 const HOMEPAGE_SHOWCASE_LIMIT = 4;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  const t = getTranslations(localeParam as Locale);
+  return {
+    title: t.seo.homeTitle,
+    description: t.seo.homeDescription,
+  };
+}
 
 export default async function HomePage({
   params,
@@ -149,7 +163,7 @@ export default async function HomePage({
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-brand-slate tracking-tight mb-4 break-words">
               {t.reviews.title}
             </h2>
-            <p className="text-slate-500">Trusted by exporters across Africa.</p>
+            <p className="text-slate-500">{t.reviews.subtitle}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {reviews.map((review) => (
@@ -170,7 +184,7 @@ export default async function HomePage({
                   ))}
                 </div>
                 <p className="text-slate-600 text-sm leading-relaxed mb-6">
-                  &ldquo;{review.text[locale]}&rdquo;
+                  &ldquo;{getReviewText(review.text, locale)}&rdquo;
                 </p>
                 <div className="pt-4 border-t border-slate-100">
                   <p className="font-semibold text-brand-slate text-sm">{review.name}</p>

@@ -13,6 +13,7 @@ interface LanguageSwitcherProps {
   theme?: "light" | "dark" | "hero";
   comingSoonLabel?: string;
   selectLanguageLabel?: string;
+  closeLabel?: string;
 }
 
 const MOBILE_MQ = "(max-width: 767px)";
@@ -22,6 +23,7 @@ export default function LanguageSwitcher({
   theme = "dark",
   comingSoonLabel = "Coming soon",
   selectLanguageLabel = "Select Language",
+  closeLabel = "Close",
 }: LanguageSwitcherProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -194,7 +196,7 @@ export default function LanguageSwitcher({
               type="button"
               onClick={() => setOpen(false)}
               className="inline-flex items-center justify-center min-h-11 min-w-11 flex-shrink-0 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-              aria-label="Close"
+              aria-label={closeLabel}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

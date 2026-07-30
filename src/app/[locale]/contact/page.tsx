@@ -2,6 +2,20 @@ import { Locale } from "@/lib/types";
 import { getTranslations } from "@/lib/translations";
 import ContactForm from "@/components/ContactForm";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  const t = getTranslations(localeParam as Locale);
+  return {
+    title: t.seo.contactTitle,
+    description: t.seo.contactDescription,
+  };
+}
 
 export default async function ContactPage({
   params,

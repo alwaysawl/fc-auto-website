@@ -4,7 +4,7 @@ import type { Locale } from "@/lib/types";
 export type LanguageOption = {
   code: string;
   label: string;
-  /** Short code shown on the compact button (e.g. EN, FR) */
+  /** Short code shown on the compact button (e.g. EN, FR, 中文) */
   short: string;
   /** Maps to a routable Locale when available */
   locale?: Locale;
@@ -16,11 +16,10 @@ export type LanguageOption = {
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: "en", label: "English", short: "EN", locale: "en", available: true, visible: true },
   { code: "fr", label: "Français", short: "FR", locale: "fr", available: true, visible: true },
+  { code: "zh", label: "中文", short: "中文", locale: "zh", available: true, visible: true },
   { code: "es", label: "Español", short: "ES", available: false, visible: false },
   { code: "pt", label: "Português", short: "PT", available: false, visible: false },
   { code: "ar", label: "العربية", short: "AR", available: false, visible: false },
-  // /zh is not a live Locale yet — visible but disabled until fully implemented
-  { code: "zh", label: "中文", short: "中文", available: false, visible: true },
 ];
 
 /**
@@ -33,19 +32,22 @@ export const VISIBLE_LANGUAGE_OPTIONS: LanguageOption[] =
 /** Language-switcher chrome copy (prepared for locales beyond live routing). */
 export const LANGUAGE_SWITCHER_COPY: Record<
   string,
-  { selectLanguage: string; comingSoon: string }
+  { selectLanguage: string; comingSoon: string; close: string }
 > = {
   en: {
     selectLanguage: "Select Language",
     comingSoon: "Coming soon",
+    close: "Close",
   },
   fr: {
     selectLanguage: "Choisir la langue",
     comingSoon: "Bientôt disponible",
+    close: "Fermer",
   },
   zh: {
     selectLanguage: "选择语言",
     comingSoon: "即将推出",
+    close: "关闭",
   },
 };
 

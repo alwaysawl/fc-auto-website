@@ -111,3 +111,18 @@
     display: none;
   }
 }
+
+/* Simplified Chinese: prefer CJK sans, avoid decorative serif for UI text */
+html.locale-zh body {
+  font-family: var(--font-noto-sc), "PingFang SC", "Microsoft YaHei", system-ui,
+    sans-serif;
+  line-height: 1.7;
+}
+
+html.locale-zh .font-display,
+html.locale-zh .heading-display,
+html.locale-zh .heading-section {
+  font-family: var(--font-noto-sc), "PingFang SC", "Microsoft YaHei", system-ui,
+    sans-serif;
+  letter-spacing: 0;
+}

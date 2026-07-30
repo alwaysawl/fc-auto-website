@@ -38,7 +38,7 @@ export default function ShippingCalculator({
   vehicleReference,
 }: ShippingCalculatorProps) {
   const s = t.shipping;
-  const nameLocale = locale === "fr" ? "fr" : "en";
+  const nameLocale = locale === "fr" || locale === "zh" ? locale : "en";
 
   const [countryId, setCountryId] = useState("");
   const [portId, setPortId] = useState("");

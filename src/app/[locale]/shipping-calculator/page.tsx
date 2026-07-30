@@ -2,6 +2,20 @@ import { Locale } from "@/lib/types";
 import { getTranslations } from "@/lib/translations";
 import { getVehicles } from "@/lib/data";
 import ShippingCalculator from "@/components/ShippingCalculator";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params;
+  const t = getTranslations(localeParam as Locale);
+  return {
+    title: t.seo.shippingTitle,
+    description: t.seo.shippingDescription,
+  };
+}
 
 export default async function ShippingCalculatorPage({
   params,

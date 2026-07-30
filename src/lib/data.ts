@@ -179,6 +179,7 @@ export function getDefaultData(): StoreData {
         text: {
           en: "Excellent service! My Toyota RAV4 arrived in Douala in perfect condition. FC Auto Export handled everything professionally.",
           fr: "Excellent service ! Ma Toyota RAV4 est arrivée à Douala en parfait état. FC Auto Export a tout géré de manière professionnelle.",
+          zh: "服务非常出色！我的丰田 RAV4 完好抵达杜阿拉。FC Auto Export 全程处理专业高效。",
         },
         rating: 5,
       },
@@ -189,6 +190,7 @@ export function getDefaultData(): StoreData {
         text: {
           en: "Very transparent pricing and fast shipping to Dakar. I recommend FC Auto Export to anyone looking for quality used cars.",
           fr: "Prix très transparents et expédition rapide vers Dakar. Je recommande FC Auto Export à tous ceux qui cherchent des voitures d'occasion de qualité.",
+          zh: "价格非常透明，发往达喀尔的运输也很快。我向任何寻找优质二手车的客户推荐 FC Auto Export。",
         },
         rating: 5,
       },
@@ -199,6 +201,7 @@ export function getDefaultData(): StoreData {
         text: {
           en: "The team was responsive on WhatsApp throughout the entire process. My Mercedes arrived exactly as described.",
           fr: "L'équipe était réactive sur WhatsApp tout au long du processus. Ma Mercedes est arrivée exactement comme décrit.",
+          zh: "整个过程中团队在 WhatsApp 上响应及时。我的奔驰到货情况与描述完全一致。",
         },
         rating: 5,
       },

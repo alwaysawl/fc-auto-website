@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import { isLocale } from "@/lib/i18n";
+import { getTranslations } from "@/lib/translations";
 
 export default function WhatsAppButton() {
   const pathname = usePathname();
@@ -10,16 +12,20 @@ export default function WhatsAppButton() {
 
   if (isVehicleDetail) return null;
 
+  const segment = pathname.split("/").filter(Boolean)[0] ?? "en";
+  const locale = isLocale(segment) ? segment : "en";
+  const t = getTranslations(locale);
+
   return (
     <WhatsAppAssignLink
       sourcePage="floating-button"
       className="fixed right-4 z-[60] group bottom-[max(1.25rem,env(safe-area-inset-bottom))] sm:right-6 sm:bottom-6"
-      aria-label="Chat on WhatsApp"
+      aria-label={t.nav.whatsapp}
     >
       <span className="absolute inset-0 rounded-full bg-[#25D366] animate-pulse-gold opacity-75 pointer-events-none" />
       <span className="relative flex items-center gap-3">
         <span className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-charcoal-deeper/95 backdrop-blur-sm border border-white/10 text-white text-sm font-medium rounded-full shadow-elevated opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap">
-          Chat with us
+          {t.nav.whatsapp}
         </span>
         <span className="w-12 h-12 sm:w-14 sm:h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-lg hover:scale-110 hover:shadow-xl transition-all duration-300">
           <svg className="w-6 h-6 sm:w-7 sm:h-7 text-white" fill="currentColor" viewBox="0 0 24 24">

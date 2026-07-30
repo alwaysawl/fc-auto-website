@@ -73,7 +73,9 @@ export default function Footer({ locale, t }: FooterProps) {
                 </svg>
               </span>
               <span className="min-w-0">
-                <span className="block text-white group-hover:text-[#25D366] transition-colors">WhatsApp</span>
+                <span className="block text-white group-hover:text-[#25D366] transition-colors">
+                  {t.nav.whatsapp}
+                </span>
                 <span className="text-gray-500 break-all">+86 166 7636 4929</span>
               </span>
             </WhatsAppAssignLink>
@@ -82,7 +84,7 @@ export default function Footer({ locale, t }: FooterProps) {
 
         <div className="mt-12 sm:mt-16 pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-500 text-center sm:text-left">
           <p className="break-words">
-            {t.footer.copyright} {currentYear}. All rights reserved.
+            {t.footer.copyright} {currentYear}.
           </p>
           <div className="h-px w-8 bg-gold/40 hidden sm:block" />
         </div>

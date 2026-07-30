@@ -48,11 +48,11 @@ export const SHIPPING_METHODS: ShippingMethodId[] = ["roro", "container"];
 export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
   {
     countryId: "cm",
-    countryName: { en: "Cameroon", fr: "Cameroun" },
+    countryName: { en: "Cameroon", fr: "Cameroun", zh: "喀麦隆" },
     ports: [
       {
         portId: "douala",
-        portName: { en: "Douala", fr: "Douala" },
+        portName: { en: "Douala", fr: "Douala", zh: "杜阿拉" },
         sampleFreightUsd: {
           sedan: { roro: 1450, container: 2100 },
           suv: { roro: 1750, container: 2450 },
@@ -65,11 +65,11 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
   },
   {
     countryId: "gh",
-    countryName: { en: "Ghana", fr: "Ghana" },
+    countryName: { en: "Ghana", fr: "Ghana", zh: "加纳" },
     ports: [
       {
         portId: "tema",
-        portName: { en: "Tema", fr: "Tema" },
+        portName: { en: "Tema", fr: "Tema", zh: "特马" },
         sampleFreightUsd: {
           sedan: { roro: 1350, container: 2000 },
           suv: { roro: 1650, container: 2350 },
@@ -82,11 +82,11 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
   },
   {
     countryId: "ng",
-    countryName: { en: "Nigeria", fr: "Nigéria" },
+    countryName: { en: "Nigeria", fr: "Nigéria", zh: "尼日利亚" },
     ports: [
       {
         portId: "lagos",
-        portName: { en: "Lagos", fr: "Lagos" },
+        portName: { en: "Lagos", fr: "Lagos", zh: "拉各斯" },
         sampleFreightUsd: {
           sedan: { roro: 1500, container: 2200 },
           suv: { roro: 1800, container: 2550 },
@@ -99,11 +99,11 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
   },
   {
     countryId: "bj",
-    countryName: { en: "Benin", fr: "Bénin" },
+    countryName: { en: "Benin", fr: "Bénin", zh: "贝宁" },
     ports: [
       {
         portId: "cotonou",
-        portName: { en: "Cotonou", fr: "Cotonou" },
+        portName: { en: "Cotonou", fr: "Cotonou", zh: "科托努" },
         sampleFreightUsd: {
           sedan: { roro: 1400, container: 2050 },
           suv: { roro: 1700, container: 2400 },
@@ -116,11 +116,11 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
   },
   {
     countryId: "tg",
-    countryName: { en: "Togo", fr: "Togo" },
+    countryName: { en: "Togo", fr: "Togo", zh: "多哥" },
     ports: [
       {
         portId: "lome",
-        portName: { en: "Lomé", fr: "Lomé" },
+        portName: { en: "Lomé", fr: "Lomé", zh: "洛美" },
         sampleFreightUsd: {
           sedan: { roro: 1380, container: 2020 },
           suv: { roro: 1680, container: 2380 },
@@ -133,11 +133,11 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
   },
   {
     countryId: "ao",
-    countryName: { en: "Angola", fr: "Angola" },
+    countryName: { en: "Angola", fr: "Angola", zh: "安哥拉" },
     ports: [
       {
         portId: "luanda",
-        portName: { en: "Luanda", fr: "Luanda" },
+        portName: { en: "Luanda", fr: "Luanda", zh: "罗安达" },
         sampleFreightUsd: {
           sedan: { roro: 1950, container: 2800 },
           suv: { roro: 2300, container: 3200 },
@@ -150,11 +150,11 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
   },
   {
     countryId: "cg",
-    countryName: { en: "Congo", fr: "Congo" },
+    countryName: { en: "Congo", fr: "Congo", zh: "刚果" },
     ports: [
       {
         portId: "pointe-noire",
-        portName: { en: "Pointe-Noire", fr: "Pointe-Noire" },
+        portName: { en: "Pointe-Noire", fr: "Pointe-Noire", zh: "黑角" },
         sampleFreightUsd: {
           sedan: { roro: 1850, container: 2650 },
           suv: { roro: 2200, container: 3050 },
@@ -167,11 +167,11 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
   },
   {
     countryId: "cd",
-    countryName: { en: "DR Congo", fr: "RD Congo" },
+    countryName: { en: "DR Congo", fr: "RD Congo", zh: "刚果（金）" },
     ports: [
       {
         portId: "matadi",
-        portName: { en: "Matadi", fr: "Matadi" },
+        portName: { en: "Matadi", fr: "Matadi", zh: "马塔迪" },
         sampleFreightUsd: {
           sedan: { roro: 2100, container: 3000 },
           suv: { roro: 2500, container: 3450 },

@@ -1,0 +1,338 @@
+{
+  "nav": {
+    "home": "首页",
+    "inventory": "车辆库存",
+    "shipping": "运费计算",
+    "about": "关于我们",
+    "contact": "联系我们",
+    "menu": "菜单",
+    "comingSoon": "即将推出",
+    "selectLanguage": "选择语言",
+    "language": "语言",
+    "close": "关闭",
+    "whatsapp": "WhatsApp 咨询",
+    "tagline": "面向非洲的优质二手车出口"
+  },
+  "hero": {
+    "badge": "值得信赖的二手车出口商",
+    "titleLine1": "优质二手车",
+    "titleLine2": "从中国出口到",
+    "titleHighlight": "非洲",
+    "brands": "丰田 · 本田 · 日产 · 三菱",
+    "subtitle": "您值得信赖的优质二手车出口合作伙伴。",
+    "cta": "浏览车辆库存",
+    "ctaSecondary": "获取运费报价",
+    "whatsappCta": "WhatsApp 咨询",
+    "stats": [
+      { "value": "5000+", "label": "已出口车辆" },
+      { "value": "20+", "label": "非洲国家" },
+      { "value": "8+", "label": "年出口经验" },
+      { "value": "98%", "label": "客户满意度" }
+    ]
+  },
+  "homeShowcase": {
+    "title": "热门车型",
+    "subtitle": "非洲市场高需求二手车",
+    "hotBadge": "热门",
+    "saleBadge": "特惠",
+    "whatsapp": "WhatsApp 咨询"
+  },
+  "trustFeatures": {
+    "items": [
+      {
+        "title": "品质保障",
+        "description": "出口前进行严格车辆检查。"
+      },
+      {
+        "title": "全球出口",
+        "description": "运往非洲各国。"
+      },
+      {
+        "title": "安全运输",
+        "description": "专业装运与安全交付。"
+      },
+      {
+        "title": "全天候支持",
+        "description": "随时通过 WhatsApp 获取支持。"
+      }
+    ]
+  },
+  "intro": {
+    "title": "欢迎来到 FC Auto Export",
+    "description": "我们专注于将中国优质二手车出口至非洲市场。凭借多年出口经验与透明服务，我们帮助客户更简单、更安心、更高效地完成购车与出口。"
+  },
+  "whyUs": {
+    "title": "为什么选择我们",
+    "items": [
+      {
+        "title": "严格质检",
+        "description": "每台车辆出口前均经过全面细致的质量检查。"
+      },
+      {
+        "title": "价格透明",
+        "description": "清晰的中国离岸价，无隐藏费用，让您清楚掌握成本。"
+      },
+      {
+        "title": "深耕非洲市场",
+        "description": "熟悉主要非洲港口航线与出口流程，服务更专业。"
+      },
+      {
+        "title": "全程支持",
+        "description": "从询价到目的港交付，全程提供 WhatsApp 沟通与协助。"
+      }
+    ]
+  },
+  "latestVehicles": {
+    "title": "最新车辆",
+    "viewAll": "查看全部库存"
+  },
+  "shippingProcess": {
+    "title": "出口流程",
+    "steps": [
+      {
+        "title": "选择车辆",
+        "description": "浏览库存，挑选适合您需求的车辆。"
+      },
+      {
+        "title": "获取报价",
+        "description": "通过运费计算器了解离岸价与运输费用估算。"
+      },
+      {
+        "title": "确认并付款",
+        "description": "确认车辆与条款后，完成定金及付款安排。"
+      },
+      {
+        "title": "出口装运",
+        "description": "我们负责出口文件办理，并安排海运。"
+      },
+      {
+        "title": "目的港接收",
+        "description": "车辆抵达您的目的港口，准备清关提车。"
+      }
+    ]
+  },
+  "reviews": {
+    "title": "客户评价",
+    "subtitle": "深受非洲进口商与购车客户信赖。"
+  },
+  "cta": {
+    "title": "准备出口您的下一台车？",
+    "subtitle": "几分钟即可获取专属报价。我们的团队通常在数小时内通过 WhatsApp 回复——无需漫长等待，也无隐藏费用。",
+    "whatsapp": "立即 WhatsApp 咨询",
+    "browse": "浏览全部库存"
+  },
+  "inventory": {
+    "title": "可售车辆",
+    "subtitle": "浏览经过检查、可从中国出口的优质车辆。",
+    "filters": "筛选",
+    "clearFilters": "重置筛选",
+    "search": "搜索",
+    "keyword": "关键词",
+    "keywordPlaceholder": "搜索品牌、车型…",
+    "allBrands": "全部品牌",
+    "allModels": "全部车型",
+    "allYears": "全部年份",
+    "allFuels": "全部燃料类型",
+    "allTransmissions": "全部变速箱",
+    "allBodyTypes": "全部车身类型",
+    "bodyType": "车身类型",
+    "price": "价格",
+    "priceMin": "最低",
+    "priceMax": "最高",
+    "showFilters": "显示筛选",
+    "hideFilters": "隐藏筛选",
+    "vehicles": "辆车",
+    "vehicle": "辆车",
+    "prev": "上一页",
+    "next": "下一页",
+    "noResults": "暂未找到符合条件的车辆",
+    "emptyInventory": "暂无在售车辆",
+    "loadError": "车辆库存加载失败",
+    "loadingVehicles": "正在加载车辆",
+    "calculateShipping": "计算运费",
+    "viewDetails": "查看详情",
+    "fobPrice": "离岸价",
+    "fobChina": "中国离岸价",
+    "popular": "热门",
+    "mileage": "行驶里程",
+    "year": "年份",
+    "fuel": "燃料类型",
+    "transmission": "变速箱",
+    "steering": "方向盘位置",
+    "vin": "车架号",
+    "brand": "品牌",
+    "model": "车型",
+    "km": "公里",
+    "photos": "照片"
+  },
+  "vehicleDetail": {
+    "pageTitle": "车辆详情",
+    "specifications": "车辆参数",
+    "pricing": "价格信息",
+    "shippingTable": "运费价格表",
+    "quantity": "数量",
+    "shippingCost": "运费",
+    "totalCost": "合计（离岸价 + 运费）",
+    "contactUs": "WhatsApp 联系我们",
+    "vehicles": "辆",
+    "vehicle": "辆",
+    "engine": "发动机",
+    "drive": "驱动方式",
+    "color": "颜色",
+    "stockId": "库存编号",
+    "requestQuote": "获取报价",
+    "getBestFob": "获取最优离岸价",
+    "contactWhatsapp": "WhatsApp 联系",
+    "whatsappInquiry": "WhatsApp 询价",
+    "similarVehicles": "相似车辆",
+    "inStock": "有现货",
+    "sold": "已售",
+    "unavailable": "已下架",
+    "draft": "草稿",
+    "available": "有现货",
+    "shippingEstimate": "运费估算",
+    "bodyType": "车身类型",
+    "seats": "座位数",
+    "exportPort": "出口港口",
+    "status": "状态",
+    "availability": "供应情况",
+    "basicInfo": "基本信息",
+    "exportInfo": "出口信息",
+    "overview": "车辆概述",
+    "features": "车辆亮点",
+    "inquiryForm": "询价表单",
+    "country": "国家/地区",
+    "trustInspection": "专业检测",
+    "trustDocuments": "出口文件齐全",
+    "trustShipping": "安全运输",
+    "trustSupport": "快速 WhatsApp 支持",
+    "defaultMessage": "我对这台车辆感兴趣。"
+  },
+  "shipping": {
+    "title": "运费计算器",
+    "subtitle": "估算车辆从中国运往目的地的运输费用。",
+    "destinationCountry": "目的国家",
+    "destinationPort": "目的港口",
+    "vehicleType": "车辆类型",
+    "shippingMethod": "运输方式",
+    "optionalFob": "可选车辆离岸价格（美元）",
+    "optionalFobHint": "如仅需运费估算，可留空。",
+    "selectCountry": "选择国家",
+    "selectPort": "选择港口",
+    "calculate": "计算运费",
+    "resultTitle": "运费估算结果",
+    "sampleBadge": "示例估算",
+    "estimatedFreight": "预估海运费",
+    "fobPrice": "车辆离岸价格",
+    "fobPlusFreight": "预估车辆与运费总计",
+    "currency": "货币",
+    "requestQuote": "获取最终运费报价",
+    "whatsappCta": "WhatsApp 咨询",
+    "disclaimer": "运费仅为估算，可能因车辆尺寸、船期、燃油附加费及船公司报价而发生变化。",
+    "vehicleTypes": {
+      "sedan": "轿车",
+      "suv": "SUV",
+      "pickup": "皮卡",
+      "minivan": "MPV",
+      "van": "厢式车"
+    },
+    "methods": {
+      "roro": "滚装船",
+      "container": "集装箱"
+    },
+    "vehicleReference": "车辆参考信息",
+    "selectVehicle": "选择车辆",
+    "quantity": "数量",
+    "shippingCost": "运费",
+    "totalCost": "合计",
+    "priceTable": "运费价格表",
+    "note": "运费仅为估算，可能因车辆尺寸、船期、燃油附加费及船公司报价而发生变化。",
+    "getQuote": "获取最终运费报价"
+  },
+  "about": {
+    "title": "关于 FC Auto Export",
+    "subtitle": "您在非洲二手车出口市场值得信赖的合作伙伴。",
+    "mission": {
+      "title": "我们的使命",
+      "description": "通过透明、可靠的出口服务，帮助非洲客户获得高品质、高性价比的二手车。我们相信，每一位客户都值得拥有可靠的车辆与公平的价格。"
+    },
+    "story": {
+      "title": "我们的故事",
+      "description": "FC Auto Export 致力于连接中国汽车市场与非洲日益增长的优质二手车需求。如今，我们已服务喀麦隆、尼日利亚、塞内加尔、加纳、肯尼亚等多个国家的客户，成为非洲汽车进口领域值得信赖的品牌。"
+    },
+    "values": {
+      "title": "我们的价值观",
+      "items": [
+        {
+          "title": "诚信",
+          "description": "始终坚持诚实报价与准确车况描述。"
+        },
+        {
+          "title": "品质",
+          "description": "只出口通过严格检测标准的车辆。"
+        },
+        {
+          "title": "可靠",
+          "description": "按时发运，并在全过程保持清晰沟通。"
+        },
+        {
+          "title": "客户至上",
+          "description": "以客户满意作为每一项决策的出发点。"
+        }
+      ]
+    },
+    "stats": [
+      { "value": "500+", "label": "已出口车辆" },
+      { "value": "15+", "label": "非洲国家" },
+      { "value": "98%", "label": "客户满意度" },
+      { "value": "5+", "label": "年出口经验" }
+    ]
+  },
+  "contact": {
+    "title": "联系我们",
+    "subtitle": "欢迎联系我们的团队，我们将协助您找到合适的出口车辆。",
+    "whatsapp": "WhatsApp",
+    "whatsappDesc": "联系我们最快的方式，每周七天均可沟通。",
+    "chatNow": "立即 WhatsApp 咨询",
+    "email": "电子邮箱",
+    "emailDesc": "发送详细询盘，我们通常在 24 小时内回复。",
+    "location": "所在地",
+    "locationDesc": "立足中国，服务非洲各地客户。",
+    "form": {
+      "name": "您的姓名",
+      "email": "电子邮箱",
+      "phone": "电话 / WhatsApp",
+      "message": "留言内容",
+      "submit": "发送留言",
+      "success": "感谢您的留言！我们会尽快与您联系。",
+      "required": "请填写必填项",
+      "invalidEmail": "请输入有效的电子邮箱"
+    }
+  },
+  "footer": {
+    "company": "FC Auto Export",
+    "copyright": "© FC Auto Export",
+    "tagline": "面向非洲的国际优质汽车出口服务",
+    "quickLinks": "快速链接",
+    "contactInfo": "联系方式"
+  },
+  "common": {
+    "learnMore": "了解更多",
+    "backToInventory": "返回车辆库存",
+    "loading": "加载中…",
+    "error": "出错了，请稍后重试",
+    "close": "关闭"
+  },
+  "seo": {
+    "homeTitle": "FC Auto Export｜中国二手车出口非洲",
+    "homeDescription": "FC Auto Export —— 值得信赖的国际二手车出口商。提供中国优质二手车出口非洲服务，支持浏览库存、运费估算与 WhatsApp 快速询价。",
+    "inventoryTitle": "车辆库存｜FC Auto Export",
+    "inventoryDescription": "浏览经过检查、可从中国出口的优质二手车库存。",
+    "shippingTitle": "运费计算器｜FC Auto Export",
+    "shippingDescription": "估算车辆从中国运往非洲主要港口的海运费用。",
+    "aboutTitle": "关于我们｜FC Auto Export",
+    "aboutDescription": "了解 FC Auto Export —— 专注中国二手车出口非洲的专业出口团队。",
+    "contactTitle": "联系我们｜FC Auto Export",
+    "contactDescription": "通过 WhatsApp 或表单联系 FC Auto Export，获取车辆与运费报价。"
+  }
+}

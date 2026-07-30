@@ -1,4 +1,4 @@
-export type Locale = "en" | "fr";
+export type Locale = "en" | "fr" | "zh";
 
 export interface ShippingTier {
   quantity: number;
@@ -47,7 +47,7 @@ export interface Review {
   id: string;
   name: string;
   country: string;
-  text: { en: string; fr: string };
+  text: { en: string; fr: string; zh?: string };
   rating: number;
 }
 
@@ -56,7 +56,7 @@ export interface StoreData {
   reviews: Review[];
 }
 
-export const locales: Locale[] = ["en", "fr"];
+export const locales: Locale[] = ["en", "fr", "zh"];
 export const defaultLocale: Locale = "en";
 
 export const WHATSAPP_NUMBER = "8616676364929";

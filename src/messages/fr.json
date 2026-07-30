@@ -8,7 +8,10 @@
     "menu": "Menu",
     "comingSoon": "Bientôt disponible",
     "selectLanguage": "Choisir la langue",
-    "tagline": "Voitures d'Occasion Premium pour l'Afrique"
+    "tagline": "Voitures d'Occasion Premium pour l'Afrique",
+    "language": "Langue",
+    "close": "Fermer",
+    "whatsapp": "WhatsApp"
   },
   "hero": {
     "badge": "Exportateur de Voitures d'Occasion de Confiance",
@@ -21,10 +24,22 @@
     "ctaSecondary": "Devis d'Expédition",
     "whatsappCta": "WhatsApp",
     "stats": [
-      { "value": "5000+", "label": "Véhicules Exportés" },
-      { "value": "20+", "label": "Pays Africains" },
-      { "value": "8+", "label": "Années d'Expérience" },
-      { "value": "98%", "label": "Satisfaction Client" }
+      {
+        "value": "5000+",
+        "label": "Véhicules Exportés"
+      },
+      {
+        "value": "20+",
+        "label": "Pays Africains"
+      },
+      {
+        "value": "8+",
+        "label": "Années d'Expérience"
+      },
+      {
+        "value": "98%",
+        "label": "Satisfaction Client"
+      }
     ]
   },
   "homeShowcase": {
@@ -109,7 +124,8 @@
     ]
   },
   "reviews": {
-    "title": "Avis Clients"
+    "title": "Avis Clients",
+    "subtitle": "La confiance des importateurs à travers l'Afrique."
   },
   "cta": {
     "title": "Prêt à Exporter Votre Prochain Véhicule ?",
@@ -153,7 +169,13 @@
     "brand": "Marque",
     "model": "Modèle",
     "km": "km",
-    "photos": "Photos"
+    "photos": "Photos",
+    "search": "Rechercher",
+    "emptyInventory": "Aucun véhicule disponible.",
+    "loadError": "Échec du chargement de l'inventaire",
+    "loadingVehicles": "Chargement des véhicules",
+    "fobChina": "FOB Chine",
+    "popular": "Populaire"
   },
   "vehicleDetail": {
     "specifications": "Spécifications",
@@ -164,7 +186,39 @@
     "totalCost": "Coût Total (FOB + Expédition)",
     "contactUs": "Contactez-nous sur WhatsApp",
     "vehicles": "véhicules",
-    "vehicle": "véhicule"
+    "vehicle": "véhicule",
+    "pageTitle": "Détails du Véhicule",
+    "engine": "Moteur",
+    "drive": "Transmission",
+    "color": "Couleur",
+    "stockId": "N° de stock",
+    "requestQuote": "Demander un devis",
+    "getBestFob": "Obtenir le meilleur prix FOB",
+    "contactWhatsapp": "Contacter sur WhatsApp",
+    "whatsappInquiry": "Demande WhatsApp",
+    "similarVehicles": "Véhicules similaires",
+    "inStock": "En stock",
+    "sold": "Vendu",
+    "unavailable": "Indisponible",
+    "draft": "Brouillon",
+    "available": "Disponible",
+    "shippingEstimate": "Estimation d'expédition",
+    "bodyType": "Type de carrosserie",
+    "seats": "Sièges",
+    "exportPort": "Port d'exportation",
+    "status": "Statut",
+    "availability": "Disponibilité",
+    "basicInfo": "Informations de base",
+    "exportInfo": "Informations d'exportation",
+    "overview": "Aperçu du véhicule",
+    "features": "Caractéristiques",
+    "inquiryForm": "Formulaire de demande",
+    "country": "Pays",
+    "trustInspection": "Inspection professionnelle",
+    "trustDocuments": "Documents d'exportation",
+    "trustShipping": "Expédition sécurisée",
+    "trustSupport": "Support WhatsApp rapide",
+    "defaultMessage": "Je suis intéressé par ce véhicule."
   },
   "shipping": {
     "title": "Calculateur d'Expédition",
@@ -240,10 +294,22 @@
       ]
     },
     "stats": [
-      { "value": "500+", "label": "Véhicules Exportés" },
-      { "value": "15+", "label": "Pays Africains" },
-      { "value": "98%", "label": "Satisfaction Client" },
-      { "value": "5+", "label": "Années d'Expérience" }
+      {
+        "value": "500+",
+        "label": "Véhicules Exportés"
+      },
+      {
+        "value": "15+",
+        "label": "Pays Africains"
+      },
+      {
+        "value": "98%",
+        "label": "Satisfaction Client"
+      },
+      {
+        "value": "5+",
+        "label": "Années d'Expérience"
+      }
     ]
   },
   "contact": {
@@ -262,7 +328,9 @@
       "phone": "Téléphone / WhatsApp",
       "message": "Votre Message",
       "submit": "Envoyer le Message",
-      "success": "Merci ! Nous vous répondrons bientôt."
+      "success": "Merci ! Nous vous répondrons bientôt.",
+      "required": "Veuillez remplir tous les champs obligatoires",
+      "invalidEmail": "Veuillez entrer une adresse e-mail valide"
     }
   },
   "footer": {
@@ -276,6 +344,19 @@
     "learnMore": "En Savoir Plus",
     "backToInventory": "Retour à l'Inventaire",
     "loading": "Chargement...",
-    "error": "Une erreur s'est produite"
+    "error": "Une erreur s'est produite",
+    "close": "Fermer"
+  },
+  "seo": {
+    "homeTitle": "FC Auto Export | Voitures d'occasion exportées de Chine vers l'Afrique",
+    "homeDescription": "FC Auto Export — Votre exportateur automobile international de confiance. Véhicules d'occasion premium depuis la Chine, expédiés vers l'Afrique.",
+    "inventoryTitle": "Véhicules disponibles | FC Auto Export",
+    "inventoryDescription": "Parcourez des véhicules inspectés prêts à l'exportation depuis la Chine.",
+    "shippingTitle": "Calculateur d'expédition | FC Auto Export",
+    "shippingDescription": "Estimez le fret maritime de la Chine vers les principaux ports africains.",
+    "aboutTitle": "À propos | FC Auto Export",
+    "aboutDescription": "Découvrez FC Auto Export — votre partenaire de confiance pour l'export de voitures d'occasion vers l'Afrique.",
+    "contactTitle": "Contact | FC Auto Export",
+    "contactDescription": "Contactez FC Auto Export par WhatsApp ou formulaire pour un devis véhicule et expédition."
   }
 }

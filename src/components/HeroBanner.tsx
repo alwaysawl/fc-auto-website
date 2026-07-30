@@ -35,7 +35,7 @@ export default function HeroBanner({ locale, t }: HeroBannerProps) {
           <div className="w-full max-w-md md:max-w-lg lg:max-w-xl pt-20 pb-14 md:pt-20 md:pb-32">
             <div className="flex items-start gap-3 mb-4 md:mb-5 min-w-0">
               <span className="w-8 h-0.5 bg-accent-yellow mt-1.5 flex-shrink-0" aria-hidden />
-              <span className="text-white/90 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.12em] md:tracking-[0.15em] leading-snug min-w-0 break-words">
+              <span className={`text-white/90 text-[11px] sm:text-xs font-semibold leading-snug min-w-0 break-words ${locale === "zh" ? "tracking-wide" : "uppercase tracking-[0.12em] md:tracking-[0.15em]"}`}>
                 {t.hero.badge}
               </span>
             </div>

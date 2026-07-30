@@ -8,7 +8,10 @@
     "menu": "Menu",
     "comingSoon": "Coming soon",
     "selectLanguage": "Select Language",
-    "tagline": "Premium Used Cars for Africa"
+    "tagline": "Premium Used Cars for Africa",
+    "language": "Language",
+    "close": "Close",
+    "whatsapp": "WhatsApp"
   },
   "hero": {
     "badge": "Trusted Used Cars Exporter",
@@ -21,10 +24,22 @@
     "ctaSecondary": "Get Shipping Quote",
     "whatsappCta": "WhatsApp Now",
     "stats": [
-      { "value": "5000+", "label": "Vehicles Exported" },
-      { "value": "20+", "label": "African Countries" },
-      { "value": "8+", "label": "Years Experience" },
-      { "value": "98%", "label": "Customer Satisfaction" }
+      {
+        "value": "5000+",
+        "label": "Vehicles Exported"
+      },
+      {
+        "value": "20+",
+        "label": "African Countries"
+      },
+      {
+        "value": "8+",
+        "label": "Years Experience"
+      },
+      {
+        "value": "98%",
+        "label": "Customer Satisfaction"
+      }
     ]
   },
   "homeShowcase": {
@@ -109,7 +124,8 @@
     ]
   },
   "reviews": {
-    "title": "Customer Reviews"
+    "title": "Customer Reviews",
+    "subtitle": "Trusted by exporters across Africa."
   },
   "cta": {
     "title": "Ready to Export Your Next Vehicle?",
@@ -153,7 +169,13 @@
     "brand": "Brand",
     "model": "Model",
     "km": "km",
-    "photos": "Photos"
+    "photos": "Photos",
+    "search": "Search",
+    "emptyInventory": "No vehicles available.",
+    "loadError": "Failed to load inventory",
+    "loadingVehicles": "Loading vehicles",
+    "fobChina": "FOB China",
+    "popular": "Popular"
   },
   "vehicleDetail": {
     "specifications": "Specifications",
@@ -164,7 +186,39 @@
     "totalCost": "Total Cost (FOB + Shipping)",
     "contactUs": "Contact Us on WhatsApp",
     "vehicles": "vehicles",
-    "vehicle": "vehicle"
+    "vehicle": "vehicle",
+    "pageTitle": "Vehicle Details",
+    "engine": "Engine",
+    "drive": "Drive",
+    "color": "Color",
+    "stockId": "Stock ID",
+    "requestQuote": "Request Quote",
+    "getBestFob": "Get Best FOB Price",
+    "contactWhatsapp": "Contact on WhatsApp",
+    "whatsappInquiry": "WhatsApp Inquiry",
+    "similarVehicles": "Similar Vehicles",
+    "inStock": "In Stock",
+    "sold": "Sold",
+    "unavailable": "Unavailable",
+    "draft": "Draft",
+    "available": "Available",
+    "shippingEstimate": "Shipping estimate",
+    "bodyType": "Body Type",
+    "seats": "Seats",
+    "exportPort": "Export Port",
+    "status": "Status",
+    "availability": "Availability",
+    "basicInfo": "Basic Information",
+    "exportInfo": "Export Information",
+    "overview": "Vehicle Overview",
+    "features": "Features",
+    "inquiryForm": "Inquiry Form",
+    "country": "Country",
+    "trustInspection": "Professional Inspection",
+    "trustDocuments": "Export Documents",
+    "trustShipping": "Secure Shipping",
+    "trustSupport": "Fast WhatsApp Support",
+    "defaultMessage": "I am interested in this vehicle."
   },
   "shipping": {
     "title": "Shipping Calculator",
@@ -240,10 +294,22 @@
       ]
     },
     "stats": [
-      { "value": "500+", "label": "Vehicles Exported" },
-      { "value": "15+", "label": "African Countries" },
-      { "value": "98%", "label": "Customer Satisfaction" },
-      { "value": "5+", "label": "Years Experience" }
+      {
+        "value": "500+",
+        "label": "Vehicles Exported"
+      },
+      {
+        "value": "15+",
+        "label": "African Countries"
+      },
+      {
+        "value": "98%",
+        "label": "Customer Satisfaction"
+      },
+      {
+        "value": "5+",
+        "label": "Years Experience"
+      }
     ]
   },
   "contact": {
@@ -262,7 +328,9 @@
       "phone": "Phone / WhatsApp",
       "message": "Your Message",
       "submit": "Send Message",
-      "success": "Thank you! We'll get back to you soon."
+      "success": "Thank you! We'll get back to you soon.",
+      "required": "Please fill in all required fields",
+      "invalidEmail": "Please enter a valid email address"
     }
   },
   "footer": {
@@ -276,6 +344,19 @@
     "learnMore": "Learn More",
     "backToInventory": "Back to Inventory",
     "loading": "Loading...",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "close": "Close"
+  },
+  "seo": {
+    "homeTitle": "FC Auto Export | Used Cars Exported from China to Africa",
+    "homeDescription": "FC Auto Export — Your trusted international automobile exporter. Premium pre-owned vehicles from China, shipped worldwide to Africa. Browse inventory, calculate shipping, and get instant quotes on WhatsApp.",
+    "inventoryTitle": "Available Vehicles | FC Auto Export",
+    "inventoryDescription": "Browse quality inspected vehicles ready for export from China.",
+    "shippingTitle": "Shipping Calculator | FC Auto Export",
+    "shippingDescription": "Estimate ocean freight from China to major African ports.",
+    "aboutTitle": "About Us | FC Auto Export",
+    "aboutDescription": "Learn about FC Auto Export — your trusted partner for used car exports from China to Africa.",
+    "contactTitle": "Contact Us | FC Auto Export",
+    "contactDescription": "Contact FC Auto Export by WhatsApp or form for vehicle and shipping quotes."
   }
 }
