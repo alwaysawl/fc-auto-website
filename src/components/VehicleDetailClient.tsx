@@ -7,6 +7,7 @@ import { Vehicle, Locale } from "@/lib/types";
 import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import AddToCartButton from "@/components/AddToCartButton";
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle;
@@ -317,6 +318,13 @@ export default function VehicleDetailClient({
             </dl>
 
             <div className="hidden lg:grid grid-cols-1 gap-2.5 mb-6">
+              <AddToCartButton
+                vehicle={vehicle}
+                addLabel={t.cart.addToCart}
+                addedLabel={t.cart.addedToCart}
+                toastLabel={t.cart.addedToast}
+                className="h-11 inline-flex items-center justify-center px-4 border border-brand-slate/20 bg-white text-brand-slate text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors disabled:bg-slate-100 disabled:text-slate-500"
+              />
               <WhatsAppAssignLink
                 sourcePage="vehicle-detail-quote"
                 vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
@@ -523,13 +531,20 @@ export default function VehicleDetailClient({
 
       {/* Mobile sticky CTA bar */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-3 safe-area-pb">
-        <div className="grid grid-cols-2 gap-2 max-w-lg mx-auto">
+        <div className="grid grid-cols-3 gap-2 max-w-lg mx-auto">
+          <AddToCartButton
+            vehicle={vehicle}
+            addLabel={t.cart.addToCart}
+            addedLabel={t.cart.addedToCart}
+            toastLabel={t.cart.addedToast}
+            className="min-h-11 inline-flex items-center justify-center border border-brand-slate/20 bg-white text-brand-slate text-[11px] sm:text-sm font-semibold rounded-lg px-1 text-center disabled:bg-slate-100 disabled:text-slate-500"
+          />
           <WhatsAppAssignLink
             sourcePage="vehicle-detail-quote-mobile"
             vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
             vehicleYear={String(vehicle.year)}
             stockNumber={stockNumber}
-            className="min-h-11 inline-flex items-center justify-center bg-accent-yellow text-brand-slate text-sm font-semibold rounded-lg px-2 text-center"
+            className="min-h-11 inline-flex items-center justify-center bg-accent-yellow text-brand-slate text-[11px] sm:text-sm font-semibold rounded-lg px-1 text-center"
           >
             {t.vehicleDetail.requestQuote}
           </WhatsAppAssignLink>
@@ -538,7 +553,7 @@ export default function VehicleDetailClient({
             vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
             vehicleYear={String(vehicle.year)}
             stockNumber={stockNumber}
-            className="min-h-11 inline-flex items-center justify-center gap-1.5 bg-[#25D366] text-white text-sm font-semibold rounded-lg px-2"
+            className="min-h-11 inline-flex items-center justify-center gap-1 bg-[#25D366] text-white text-[11px] sm:text-sm font-semibold rounded-lg px-1"
           >
             {t.nav.whatsapp}
           </WhatsAppAssignLink>

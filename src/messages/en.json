@@ -11,7 +11,8 @@
     "tagline": "Premium Used Cars for Africa",
     "language": "Language",
     "close": "Close",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp",
+    "cart": "Cart"
   },
   "hero": {
     "badge": "Trusted Used Cars Exporter",
@@ -358,5 +359,30 @@
     "aboutDescription": "Learn about FC Auto Export — your trusted partner for used car exports from China to Africa.",
     "contactTitle": "Contact Us | FC Auto Export",
     "contactDescription": "Contact FC Auto Export by WhatsApp or form for vehicle and shipping quotes."
+  },
+  "cart": {
+    "pageTitle": "Cart",
+    "pageSubtitle": "Review selected vehicles, estimate shipping, and request a final quotation on WhatsApp.",
+    "pageDescription": "Review your selected vehicles and estimate shipping with FC Auto Export.",
+    "emptyTitle": "Your cart is empty",
+    "emptySubtitle": "Browse inventory and add vehicles to build a quotation list.",
+    "browseInventory": "Browse Inventory",
+    "shippingOptions": "Shipping destination",
+    "stockId": "Stock ID",
+    "fobChina": "FOB China",
+    "estimatedFreight": "Estimated Freight",
+    "subtotal": "Subtotal",
+    "remove": "Remove",
+    "viewDetails": "View Details",
+    "summaryTitle": "Order summary",
+    "vehicleTotal": "Vehicle Total",
+    "shippingTotal": "Shipping Total",
+    "estimatedTotal": "Estimated Total",
+    "estimateNote": "Shipping is estimated only.\nFinal quotation will be confirmed via WhatsApp.",
+    "sendWhatsApp": "Send via WhatsApp",
+    "addToCart": "Add to Cart",
+    "addedToCart": "Added to Cart",
+    "addedToast": "Vehicle added to cart",
+    "vehicleType": "Vehicle Type"
   }
 }

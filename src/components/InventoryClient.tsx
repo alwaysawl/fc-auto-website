@@ -7,6 +7,7 @@ import { Vehicle, Locale } from "@/lib/types";
 import { Translations } from "@/lib/translations";
 import { getLocalizedPath } from "@/lib/i18n";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import AddToCartButton from "@/components/AddToCartButton";
 
 const PAGE_SIZE = 9;
 
@@ -103,6 +104,15 @@ export default function InventoryClient({
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  useEffect(() => {
+    if (!mobileFiltersOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileFiltersOpen]);
+
   const paged = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
@@ -123,21 +133,21 @@ export default function InventoryClient({
   const labelClass = "block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1";
 
   const filterPanel = (
-    <div className="bg-white border border-slate-100 rounded-xl shadow-soft p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-bold text-brand-slate uppercase tracking-wide">
+    <div className="bg-white border border-slate-100 rounded-2xl shadow-soft p-5">
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <h2 className="text-sm font-bold text-brand-slate tracking-wide">
           {t.inventory.filters}
         </h2>
         <button
           type="button"
           onClick={clearFilters}
-          className="text-xs font-semibold text-slate-500 hover:text-brand-slate transition-colors"
+          className="min-h-9 px-2.5 rounded-lg text-xs font-semibold text-brand-slate bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors"
         >
           {t.inventory.clearFilters}
         </button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         <div>
           <label className={labelClass} htmlFor="filter-keyword">
             {t.inventory.keyword}
@@ -291,7 +301,7 @@ export default function InventoryClient({
         <button
           type="button"
           onClick={clearFilters}
-          className="w-full mt-1 px-3 py-2 text-sm font-semibold text-brand-slate bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+          className="w-full min-h-11 mt-1 px-3 py-2.5 text-sm font-semibold text-brand-slate bg-accent-yellow hover:bg-accent-yellow-hover rounded-lg transition-colors"
         >
           {t.inventory.clearFilters}
         </button>
@@ -300,10 +310,10 @@ export default function InventoryClient({
   );
 
   return (
-    <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6 xl:gap-8">
-      {/* Desktop sidebar — left, sticky */}
+    <div className="lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-7 xl:gap-8">
+      {/* Desktop fixed-width sticky sidebar */}
       <aside className="hidden lg:block">
-        <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
+        <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
           {filterPanel}
         </div>
       </aside>
@@ -315,82 +325,124 @@ export default function InventoryClient({
           </p>
         ) : (
           <>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-          <p className="text-sm text-slate-500">
-            <span className="font-semibold text-brand-slate">{filtered.length}</span>{" "}
-            {filtered.length === 1 ? t.inventory.vehicle : t.inventory.vehicles}
-          </p>
-          <button
-            type="button"
-            onClick={() => setMobileFiltersOpen((open) => !open)}
-            className="lg:hidden min-h-11 px-4 py-2.5 text-sm font-semibold text-brand-slate bg-white border border-slate-200 rounded-lg shadow-soft"
-          >
-            {mobileFiltersOpen ? t.inventory.hideFilters : t.inventory.showFilters}
-          </button>
-        </div>
-
-        {mobileFiltersOpen && <div className="lg:hidden mb-6">{filterPanel}</div>}
-
-        {vehicles.length === 0 ? (
-          <p className="text-center text-slate-500 py-20 bg-slate-50 rounded-xl border border-slate-100">
-            {t.inventory.emptyInventory}
-          </p>
-        ) : filtered.length === 0 ? (
-          <p className="text-center text-slate-500 py-20 bg-slate-50 rounded-xl border border-slate-100">
-            {t.inventory.noResults}
-          </p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-              {paged.map((vehicle) => (
-                <InventoryVehicleCard
-                  key={vehicle.id}
-                  vehicle={vehicle}
-                  locale={locale}
-                  t={t}
-                />
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <p className="text-sm text-slate-500">
+                <span className="font-semibold text-brand-slate">
+                  {filtered.length}
+                </span>{" "}
+                {filtered.length === 1
+                  ? t.inventory.vehicle
+                  : t.inventory.vehicles}
+              </p>
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(true)}
+                className="lg:hidden min-h-11 px-4 py-2.5 text-sm font-semibold text-brand-slate bg-white border border-slate-200 rounded-lg shadow-soft"
+              >
+                {t.inventory.showFilters}
+              </button>
             </div>
 
-            {totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="min-h-11 px-3 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-brand-slate disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-                >
-                  {t.inventory.prev}
-                </button>
-                {Array.from({ length: totalPages }).map((_, index) => {
-                  const pageNumber = index + 1;
-                  return (
-                    <button
-                      key={pageNumber}
-                      type="button"
-                      onClick={() => setPage(pageNumber)}
-                      className={`min-h-11 min-w-11 text-sm font-semibold rounded-lg transition-colors ${
-                        page === pageNumber
-                          ? "bg-accent-yellow text-brand-slate"
-                          : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {pageNumber}
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="min-h-11 px-3 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-brand-slate disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-                >
-                  {t.inventory.next}
-                </button>
+            {/* Mobile filter slide-over drawer */}
+            <div
+              className={`lg:hidden fixed inset-0 z-[180] ${
+                mobileFiltersOpen ? "pointer-events-auto" : "pointer-events-none"
+              }`}
+              aria-hidden={!mobileFiltersOpen}
+            >
+              <button
+                type="button"
+                className={`absolute inset-0 bg-black/45 transition-opacity duration-300 ${
+                  mobileFiltersOpen ? "opacity-100" : "opacity-0"
+                }`}
+                aria-label={t.common.close}
+                onClick={() => setMobileFiltersOpen(false)}
+              />
+              <div
+                className={`absolute inset-y-0 left-0 w-[min(100vw,20rem)] max-w-full bg-[#F7F8FA] shadow-elevated overflow-y-auto overflow-x-hidden transition-transform duration-300 ease-out ${
+                  mobileFiltersOpen ? "translate-x-0" : "-translate-x-full"
+                }`}
+                role="dialog"
+                aria-modal="true"
+                aria-label={t.inventory.filters}
+              >
+                <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-3 bg-brand-slate text-white">
+                  <h2 className="font-semibold text-sm">{t.inventory.filters}</h2>
+                  <button
+                    type="button"
+                    onClick={() => setMobileFiltersOpen(false)}
+                    className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg hover:bg-white/10"
+                    aria-label={t.common.close}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="p-4 pb-8">{filterPanel}</div>
               </div>
+            </div>
+
+            {vehicles.length === 0 ? (
+              <p className="text-center text-slate-500 py-20 bg-slate-50 rounded-xl border border-slate-100">
+                {t.inventory.emptyInventory}
+              </p>
+            ) : filtered.length === 0 ? (
+              <p className="text-center text-slate-500 py-20 bg-slate-50 rounded-xl border border-slate-100">
+                {t.inventory.noResults}
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+                  {paged.map((vehicle) => (
+                    <InventoryVehicleCard
+                      key={vehicle.id}
+                      vehicle={vehicle}
+                      locale={locale}
+                      t={t}
+                    />
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="min-h-11 px-3 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-brand-slate disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                    >
+                      {t.inventory.prev}
+                    </button>
+                    {Array.from({ length: totalPages }).map((_, index) => {
+                      const pageNumber = index + 1;
+                      return (
+                        <button
+                          key={pageNumber}
+                          type="button"
+                          onClick={() => setPage(pageNumber)}
+                          className={`min-h-11 min-w-11 text-sm font-semibold rounded-lg transition-colors ${
+                            page === pageNumber
+                              ? "bg-accent-yellow text-brand-slate"
+                              : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {pageNumber}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="min-h-11 px-3 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-brand-slate disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                    >
+                      {t.inventory.next}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
           </>
         )}
       </div>
@@ -472,25 +524,34 @@ function InventoryVehicleCard({
             {formatPrice(vehicle.fobPrice)}
           </p>
 
-          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2">
-            <Link
-              href={getLocalizedPath(`/inventory/${vehicle.id}`, locale)}
-              className="min-h-11 inline-flex items-center justify-center px-2 bg-accent-yellow text-brand-slate text-xs sm:text-sm font-semibold rounded-lg hover:bg-accent-yellow-hover transition-colors"
-            >
-              {t.inventory.viewDetails}
-            </Link>
-            <WhatsAppAssignLink
-              sourcePage="inventory"
-              vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
-              vehicleYear={String(vehicle.year)}
-              stockNumber={vehicle.vin || vehicle.id}
-              className="min-h-11 inline-flex items-center justify-center gap-1.5 px-2 bg-[#25D366] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#20BD5A] transition-colors"
-            >
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.884 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-              </svg>
-              {t.nav.whatsapp}
-            </WhatsAppAssignLink>
+          <div className="grid grid-cols-1 gap-2">
+            <AddToCartButton
+              vehicle={vehicle}
+              addLabel={t.cart.addToCart}
+              addedLabel={t.cart.addedToCart}
+              toastLabel={t.cart.addedToast}
+              className="min-h-11 inline-flex items-center justify-center px-2 border border-brand-slate/20 bg-white text-brand-slate text-xs sm:text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors disabled:bg-slate-100 disabled:text-slate-500"
+            />
+            <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2">
+              <Link
+                href={getLocalizedPath(`/inventory/${vehicle.id}`, locale)}
+                className="min-h-11 inline-flex items-center justify-center px-2 bg-accent-yellow text-brand-slate text-xs sm:text-sm font-semibold rounded-lg hover:bg-accent-yellow-hover transition-colors"
+              >
+                {t.inventory.viewDetails}
+              </Link>
+              <WhatsAppAssignLink
+                sourcePage="inventory"
+                vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
+                vehicleYear={String(vehicle.year)}
+                stockNumber={vehicle.id}
+                className="min-h-11 inline-flex items-center justify-center gap-1.5 px-2 bg-[#25D366] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#20BD5A] transition-colors"
+              >
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.884 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                {t.nav.whatsapp}
+              </WhatsAppAssignLink>
+            </div>
           </div>
         </div>
       </div>

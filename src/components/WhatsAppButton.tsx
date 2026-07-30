@@ -9,8 +9,9 @@ export default function WhatsAppButton() {
   const pathname = usePathname();
   // Hide floating FAB on vehicle detail pages — sticky CTA bar already has WhatsApp
   const isVehicleDetail = /\/inventory\/[^/]+\/?$/.test(pathname);
+  const isCartPage = /\/cart\/?$/.test(pathname);
 
-  if (isVehicleDetail) return null;
+  if (isVehicleDetail || isCartPage) return null;
 
   const segment = pathname.split("/").filter(Boolean)[0] ?? "en";
   const locale = isLocale(segment) ? segment : "en";

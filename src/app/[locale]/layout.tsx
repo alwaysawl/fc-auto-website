@@ -5,6 +5,8 @@ import MainWrapper from "@/components/MainWrapper";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import LocaleDocumentSync from "@/components/LocaleDocumentSync";
+import { CartProvider } from "@/components/CartProvider";
+import CartToast from "@/components/CartToast";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -48,12 +50,13 @@ export default async function LocaleLayout({
   const t = getTranslations(locale);
 
   return (
-    <>
+    <CartProvider>
       <LocaleDocumentSync locale={locale} />
       <HeaderWrapper locale={locale} t={t} />
       <MainWrapper locale={locale}>{children}</MainWrapper>
       <Footer locale={locale} t={t} />
       <WhatsAppButton />
-    </>
+      <CartToast />
+    </CartProvider>
   );
 }

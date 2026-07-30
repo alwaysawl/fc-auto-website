@@ -11,7 +11,8 @@
     "tagline": "Voitures d'Occasion Premium pour l'Afrique",
     "language": "Langue",
     "close": "Fermer",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp",
+    "cart": "Panier"
   },
   "hero": {
     "badge": "Exportateur de Voitures d'Occasion de Confiance",
@@ -358,5 +359,30 @@
     "aboutDescription": "Découvrez FC Auto Export — votre partenaire de confiance pour l'export de voitures d'occasion vers l'Afrique.",
     "contactTitle": "Contact | FC Auto Export",
     "contactDescription": "Contactez FC Auto Export par WhatsApp ou formulaire pour un devis véhicule et expédition."
+  },
+  "cart": {
+    "pageTitle": "Panier",
+    "pageSubtitle": "Vérifiez les véhicules sélectionnés, estimez l'expédition et demandez un devis final sur WhatsApp.",
+    "pageDescription": "Consultez vos véhicules sélectionnés et estimez l'expédition avec FC Auto Export.",
+    "emptyTitle": "Votre panier est vide",
+    "emptySubtitle": "Parcourez l'inventaire et ajoutez des véhicules pour préparer un devis.",
+    "browseInventory": "Parcourir l'inventaire",
+    "shippingOptions": "Destination d'expédition",
+    "stockId": "N° de stock",
+    "fobChina": "FOB Chine",
+    "estimatedFreight": "Fret estimé",
+    "subtotal": "Sous-total",
+    "remove": "Retirer",
+    "viewDetails": "Voir les détails",
+    "summaryTitle": "Récapitulatif",
+    "vehicleTotal": "Total véhicules",
+    "shippingTotal": "Total transport",
+    "estimatedTotal": "Total estimé",
+    "estimateNote": "Le coût du transport est estimatif.\nLe devis final sera confirmé via WhatsApp.",
+    "sendWhatsApp": "Envoyer via WhatsApp",
+    "addToCart": "Ajouter au panier",
+    "addedToCart": "Ajouté au panier",
+    "addedToast": "Véhicule ajouté au panier",
+    "vehicleType": "Type de véhicule"
   }
 }

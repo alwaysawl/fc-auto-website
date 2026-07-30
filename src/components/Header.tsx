@@ -8,6 +8,7 @@ import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
 import LanguageSwitcher from "./LanguageSwitcher";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import { useCart } from "@/components/CartProvider";
 
 interface HeaderProps {
   locale: Locale;
@@ -24,6 +25,9 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
   const pathname = usePathname();
   const isHero = variant === "hero";
   const isLight = variant === "light";
+  const { count } = useCart();
+  const cartHref = getLocalizedPath("/cart", locale);
+  const cartLabel = t.nav.cart ?? "Cart";
 
   useEffect(() => {
     const updateScroll = () => {
@@ -178,6 +182,37 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
           </nav>
 
           <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0 ml-auto">
+            <Link
+              href={cartHref}
+              className={`relative inline-flex items-center gap-1.5 min-h-11 px-2 sm:px-2.5 rounded-lg text-sm font-semibold transition-colors flex-shrink-0 ${
+                isHero
+                  ? isActive(cartHref)
+                    ? "text-accent-yellow bg-white/10"
+                    : "text-white hover:bg-white/10"
+                  : isLight
+                    ? isActive(cartHref)
+                      ? "text-brand-slate bg-slate-100"
+                      : "text-brand-slate hover:bg-white/60"
+                    : isActive(cartHref)
+                      ? "text-accent-yellow bg-white/10"
+                      : "text-white hover:bg-white/10"
+              }`}
+              aria-label={count > 0 ? `${cartLabel} (${count})` : cartLabel}
+            >
+              <span className="text-base leading-none" aria-hidden>
+                🛒
+              </span>
+              <span className="hidden min-[400px]:inline whitespace-nowrap">
+                {cartLabel}
+                {count > 0 ? ` (${count})` : ""}
+              </span>
+              {count > 0 && (
+                <span className="min-[400px]:hidden absolute -top-0.5 -right-0.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-accent-yellow text-brand-slate text-[10px] font-bold flex items-center justify-center">
+                  {count > 99 ? "99+" : count}
+                </span>
+              )}
+            </Link>
+
             <LanguageSwitcher
               locale={locale}
               theme={langTheme}
@@ -274,6 +309,22 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
               {link.label}
             </Link>
           ))}
+          <Link
+            href={cartHref}
+            onClick={() => setMobileOpen(false)}
+            className={`flex items-center justify-between min-h-11 py-3 text-base font-medium border-b transition-colors ${
+              isHero || !isLight
+                ? isActive(cartHref)
+                  ? "text-accent-yellow border-white/10"
+                  : "text-white/85 hover:text-white border-white/10"
+                : "text-slate-600 hover:text-brand-slate border-slate-100"
+            }`}
+          >
+            <span>
+              🛒 {cartLabel}
+              {count > 0 ? ` (${count})` : ""}
+            </span>
+          </Link>
           <WhatsAppAssignLink
             sourcePage="header-mobile"
             className="mt-3 mb-1 flex items-center justify-center gap-2 min-h-11 py-3 bg-[#25D366] text-white text-sm font-semibold rounded-lg w-full"

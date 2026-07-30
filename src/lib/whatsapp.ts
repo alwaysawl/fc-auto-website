@@ -63,8 +63,6 @@ export function buildWhatsAppMessage(context: WhatsAppMessageContext): string {
   lines.push("");
 
   if (inquiryNote) {
-    lines.push("I would like a final shipping quote.");
-    lines.push("");
     lines.push(inquiryNote);
     lines.push("");
     if (vehicleTitle && !inquiryNote.includes(vehicleTitle)) {

@@ -11,7 +11,8 @@
     "language": "语言",
     "close": "关闭",
     "whatsapp": "WhatsApp 咨询",
-    "tagline": "面向非洲的优质二手车出口"
+    "tagline": "面向非洲的优质二手车出口",
+    "cart": "购物车"
   },
   "hero": {
     "badge": "值得信赖的二手车出口商",
@@ -24,10 +25,22 @@
     "ctaSecondary": "获取运费报价",
     "whatsappCta": "WhatsApp 咨询",
     "stats": [
-      { "value": "5000+", "label": "已出口车辆" },
-      { "value": "20+", "label": "非洲国家" },
-      { "value": "8+", "label": "年出口经验" },
-      { "value": "98%", "label": "客户满意度" }
+      {
+        "value": "5000+",
+        "label": "已出口车辆"
+      },
+      {
+        "value": "20+",
+        "label": "非洲国家"
+      },
+      {
+        "value": "8+",
+        "label": "年出口经验"
+      },
+      {
+        "value": "98%",
+        "label": "客户满意度"
+      }
     ]
   },
   "homeShowcase": {
@@ -282,10 +295,22 @@
       ]
     },
     "stats": [
-      { "value": "500+", "label": "已出口车辆" },
-      { "value": "15+", "label": "非洲国家" },
-      { "value": "98%", "label": "客户满意度" },
-      { "value": "5+", "label": "年出口经验" }
+      {
+        "value": "500+",
+        "label": "已出口车辆"
+      },
+      {
+        "value": "15+",
+        "label": "非洲国家"
+      },
+      {
+        "value": "98%",
+        "label": "客户满意度"
+      },
+      {
+        "value": "5+",
+        "label": "年出口经验"
+      }
     ]
   },
   "contact": {
@@ -334,5 +359,30 @@
     "aboutDescription": "了解 FC Auto Export —— 专注中国二手车出口非洲的专业出口团队。",
     "contactTitle": "联系我们｜FC Auto Export",
     "contactDescription": "通过 WhatsApp 或表单联系 FC Auto Export，获取车辆与运费报价。"
+  },
+  "cart": {
+    "pageTitle": "购物车",
+    "pageSubtitle": "查看已选车辆、估算运费，并通过 WhatsApp 获取最终报价。",
+    "pageDescription": "查看已选车辆并估算运费 — FC Auto Export。",
+    "emptyTitle": "购物车是空的",
+    "emptySubtitle": "浏览车辆库存，将车辆加入购物车以准备报价清单。",
+    "browseInventory": "浏览车辆库存",
+    "shippingOptions": "运输目的地",
+    "stockId": "库存编号",
+    "fobChina": "中国离岸价",
+    "estimatedFreight": "预估运费",
+    "subtotal": "小计",
+    "remove": "移除",
+    "viewDetails": "查看详情",
+    "summaryTitle": "订单汇总",
+    "vehicleTotal": "车辆合计",
+    "shippingTotal": "运费合计",
+    "estimatedTotal": "预估总计",
+    "estimateNote": "运费仅供参考，\n最终报价请通过 WhatsApp 与我们确认。",
+    "sendWhatsApp": "WhatsApp 联系我们",
+    "addToCart": "加入购物车",
+    "addedToCart": "已加入购物车",
+    "addedToast": "车辆已加入购物车",
+    "vehicleType": "车辆类型"
   }
 }
