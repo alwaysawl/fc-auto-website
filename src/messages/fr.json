@@ -385,6 +385,14 @@
     "addedToast": "Véhicule ajouté au panier",
     "vehicleType": "Type de véhicule",
     "removeFromCart": "Retirer du panier",
-    "removedToast": "Véhicule retiré du panier"
+    "removedToast": "Véhicule retiré du panier",
+    "freightCalculation": "Calcul du transport",
+    "freightCalcSingle": "Transport d'un seul véhicule",
+    "freightCalcOneContainer": "1 conteneur de 40 pieds",
+    "freightCalcManyContainers": "{count} conteneurs de 40 pieds",
+    "freightCalcOneContainerPlusSingle": "1 conteneur de 40 pieds + {singles} véhicule individuel",
+    "freightCalcManyContainersPlusSingle": "{containers} conteneurs de 40 pieds + {singles} véhicule individuel",
+    "multiVehicleFreightNotice": "Deux à quatre véhicules nécessitent un conteneur de 40 pieds. Le fret estimé est donc identique pour deux, trois ou quatre véhicules. Un conteneur de 40 pieds peut contenir jusqu'à quatre véhicules de dimensions standard. La capacité réelle peut varier selon les dimensions des véhicules et le fret final doit être confirmé par la compagnie maritime.",
+    "capacityDisclaimer": "La capacité réelle peut varier selon les dimensions des véhicules."
   }
 }

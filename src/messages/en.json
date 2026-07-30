@@ -385,6 +385,14 @@
     "addedToast": "Vehicle added to cart",
     "vehicleType": "Vehicle Type",
     "removeFromCart": "Remove from Cart",
-    "removedToast": "Vehicle removed from cart"
+    "removedToast": "Vehicle removed from cart",
+    "freightCalculation": "Freight calculation",
+    "freightCalcSingle": "Single vehicle shipping",
+    "freightCalcOneContainer": "1 × 40-foot container",
+    "freightCalcManyContainers": "{count} × 40-foot containers",
+    "freightCalcOneContainerPlusSingle": "1 × 40-foot container + {singles} single vehicle",
+    "freightCalcManyContainersPlusSingle": "{containers} × 40-foot containers + {singles} single vehicle",
+    "multiVehicleFreightNotice": "Two to four vehicles require one 40-foot container, so the estimated freight is the same for two, three or four vehicles. One 40-foot container can hold up to four standard-size vehicles. Actual loading capacity may vary according to vehicle dimensions, and the final freight is subject to confirmation by the shipping company.",
+    "capacityDisclaimer": "Actual loading capacity may vary according to vehicle dimensions."
   }
 }

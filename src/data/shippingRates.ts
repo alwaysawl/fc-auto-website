@@ -1,9 +1,16 @@
 /**
- * SAMPLE estimated ocean freight rates (USD) for the public Shipping Calculator.
+ * SAMPLE estimated ocean freight rates (USD) for the public Shipping Calculator
+ * and the cart multi-vehicle freight grouping.
  *
  * IMPORTANT: These are illustrative estimates for UX testing only.
  * They are NOT guaranteed quotations. Update values here as commercial
  * schedules and carrier pricing change.
+ *
+ * EDITABLE CART FREIGHT (per port):
+ *   sampleCartFreightUsd.singleVehicle  — single-vehicle ocean freight (RoRo / Container)
+ *   sampleCartFreightUsd.container40ft  — one 40-foot container freight (RoRo / Container)
+ * Do NOT derive container40ft by multiplying singleVehicle unless you intentionally
+ * have no separate container rate yet.
  */
 
 export type VehicleTypeId = "sedan" | "suv" | "pickup" | "minivan" | "van";
@@ -22,8 +29,18 @@ export type LocalizedName = {
 export type PortRate = {
   portId: string;
   portName: LocalizedName;
-  /** SAMPLE estimated ocean freight in USD by vehicle type + method */
+  /** SAMPLE estimated ocean freight in USD by vehicle type + method (shipping calculator) */
   sampleFreightUsd: Record<VehicleTypeId, Record<ShippingMethodId, number>>;
+  /**
+   * SAMPLE cart multi-vehicle freight (USD) by shipping method.
+   * Edit these independently — do NOT assume container40ft = 4 × singleVehicle.
+   * - singleVehicle: one vehicle ocean freight estimate
+   * - container40ft: one 40-foot container load estimate (up to ~4 standard vehicles)
+   */
+  sampleCartFreightUsd: {
+    singleVehicle: Record<ShippingMethodId, number>;
+    container40ft: Record<ShippingMethodId, number>;
+  };
 };
 
 export type ShippingDestination = {
@@ -60,6 +77,11 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
           minivan: { roro: 1900, container: 2600 },
           van: { roro: 2000, container: 2750 },
         },
+        // SAMPLE — edit singleVehicle / container40ft independently (not guaranteed prices)
+        sampleCartFreightUsd: {
+          singleVehicle: { roro: 1750, container: 2450 },
+          container40ft: { roro: 5200, container: 6800 },
+        },
       },
     ],
   },
@@ -76,6 +98,10 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
           pickup: { roro: 1750, container: 2450 },
           minivan: { roro: 1800, container: 2500 },
           van: { roro: 1900, container: 2650 },
+        },
+        sampleCartFreightUsd: {
+          singleVehicle: { roro: 1650, container: 2350 },
+          container40ft: { roro: 4900, container: 6500 },
         },
       },
     ],
@@ -94,6 +120,10 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
           minivan: { roro: 1950, container: 2700 },
           van: { roro: 2050, container: 2850 },
         },
+        sampleCartFreightUsd: {
+          singleVehicle: { roro: 1800, container: 2550 },
+          container40ft: { roro: 5400, container: 7100 },
+        },
       },
     ],
   },
@@ -110,6 +140,10 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
           pickup: { roro: 1800, container: 2500 },
           minivan: { roro: 1850, container: 2550 },
           van: { roro: 1950, container: 2700 },
+        },
+        sampleCartFreightUsd: {
+          singleVehicle: { roro: 1700, container: 2400 },
+          container40ft: { roro: 5100, container: 6700 },
         },
       },
     ],
@@ -128,6 +162,10 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
           minivan: { roro: 1830, container: 2530 },
           van: { roro: 1930, container: 2680 },
         },
+        sampleCartFreightUsd: {
+          singleVehicle: { roro: 1680, container: 2380 },
+          container40ft: { roro: 5000, container: 6600 },
+        },
       },
     ],
   },
@@ -144,6 +182,10 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
           pickup: { roro: 2400, container: 3350 },
           minivan: { roro: 2450, container: 3400 },
           van: { roro: 2600, container: 3600 },
+        },
+        sampleCartFreightUsd: {
+          singleVehicle: { roro: 2300, container: 3200 },
+          container40ft: { roro: 6900, container: 9000 },
         },
       },
     ],
@@ -162,6 +204,10 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
           minivan: { roro: 2350, container: 3250 },
           van: { roro: 2500, container: 3450 },
         },
+        sampleCartFreightUsd: {
+          singleVehicle: { roro: 2200, container: 3050 },
+          container40ft: { roro: 6600, container: 8600 },
+        },
       },
     ],
   },
@@ -178,6 +224,10 @@ export const SHIPPING_DESTINATIONS: ShippingDestination[] = [
           pickup: { roro: 2600, container: 3600 },
           minivan: { roro: 2650, container: 3650 },
           van: { roro: 2800, container: 3850 },
+        },
+        sampleCartFreightUsd: {
+          singleVehicle: { roro: 2500, container: 3450 },
+          container40ft: { roro: 7500, container: 9800 },
         },
       },
     ],
@@ -215,4 +265,20 @@ export function getSampleFreightUsd(
   const port = findPort(dest, portId);
   if (!port) return null;
   return port.sampleFreightUsd[vehicleType]?.[method] ?? null;
+}
+
+/** SAMPLE cart rates for multi-vehicle grouping — edit port.sampleCartFreightUsd */
+export function getCartSampleFreightUsd(
+  countryId: string,
+  portId: string,
+  method: ShippingMethodId
+): { singleVehicle: number; container40ft: number } | null {
+  const dest = findDestination(countryId);
+  if (!dest) return null;
+  const port = findPort(dest, portId);
+  if (!port?.sampleCartFreightUsd) return null;
+  const singleVehicle = port.sampleCartFreightUsd.singleVehicle[method];
+  const container40ft = port.sampleCartFreightUsd.container40ft[method];
+  if (singleVehicle == null || container40ft == null) return null;
+  return { singleVehicle, container40ft };
 }
