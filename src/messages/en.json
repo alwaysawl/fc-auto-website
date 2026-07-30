@@ -5,6 +5,8 @@
     "shipping": "Shipping Calculator",
     "about": "About Us",
     "contact": "Contact",
+    "menu": "Menu",
+    "comingSoon": "Coming soon",
     "tagline": "Premium Used Cars for Africa"
   },
   "hero": {
@@ -165,15 +167,44 @@
   },
   "shipping": {
     "title": "Shipping Calculator",
-    "subtitle": "Calculate your total cost including FOB price and shipping to Africa.",
+    "subtitle": "Get a sample estimate for ocean freight from China to major African ports.",
+    "destinationCountry": "Destination Country",
+    "destinationPort": "Destination Port",
+    "vehicleType": "Vehicle Type",
+    "shippingMethod": "Shipping Method",
+    "optionalFob": "Optional FOB vehicle price (USD)",
+    "optionalFobHint": "Leave blank if you only need a freight estimate.",
+    "selectCountry": "Select country",
+    "selectPort": "Select port",
+    "calculate": "Calculate estimate",
+    "resultTitle": "Sample shipping estimate",
+    "sampleBadge": "SAMPLE estimate",
+    "estimatedFreight": "Estimated ocean freight",
+    "fobPrice": "FOB vehicle price",
+    "fobPlusFreight": "Estimated FOB + freight total",
+    "currency": "Currency",
+    "requestQuote": "Request Final Shipping Quote",
+    "whatsappCta": "WhatsApp",
+    "disclaimer": "Shipping rates are estimates only and may change according to vehicle dimensions, vessel schedules, fuel surcharges and shipping company quotations.",
+    "vehicleTypes": {
+      "sedan": "Sedan",
+      "suv": "SUV",
+      "pickup": "Pickup",
+      "minivan": "Minivan",
+      "van": "Van"
+    },
+    "methods": {
+      "roro": "RoRo",
+      "container": "Container"
+    },
+    "vehicleReference": "Vehicle reference",
     "selectVehicle": "Select Vehicle",
     "quantity": "Quantity",
-    "fobPrice": "FOB Price",
     "shippingCost": "Shipping Cost",
     "totalCost": "Total Cost",
     "priceTable": "Shipping Price Table",
-    "note": "Shipping prices are based on our tier pricing table, not per-unit multiplication.",
-    "getQuote": "Get Quote on WhatsApp"
+    "note": "Shipping rates are estimates only and may change according to vehicle dimensions, vessel schedules, fuel surcharges and shipping company quotations.",
+    "getQuote": "Request Final Shipping Quote"
   },
   "about": {
     "title": "About FC Auto Export",

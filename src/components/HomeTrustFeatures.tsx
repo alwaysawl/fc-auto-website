@@ -33,9 +33,9 @@ export default function HomeTrustFeatures({ t, variant = "bar" }: HomeTrustFeatu
     return (
       <section className="bg-slate-50 px-4 sm:px-6 lg:px-8 py-10 md:py-14 border-t border-slate-100">
         <div className="container-max">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {t.trustFeatures.items.map((item, index) => (
-              <div key={index} className="flex flex-col items-center text-center px-2">
+              <div key={index} className="flex flex-col items-center text-center px-2 min-w-0">
                 <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 shadow-soft flex items-center justify-center mb-4">
                   {icons[index]}
                 </div>
@@ -51,10 +51,10 @@ export default function HomeTrustFeatures({ t, variant = "bar" }: HomeTrustFeatu
 
   return (
     <div className="container-max">
-      <div className="bg-[#1a2332] rounded-xl shadow-lg border border-white/5 px-4 sm:px-6 py-8 md:py-9">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 md:gap-8">
+      <div className="bg-[#1a2332] rounded-xl shadow-lg border border-white/5 px-3 sm:px-6 py-5 sm:py-8 md:py-9">
+        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-8">
           {t.trustFeatures.items.map((item, index) => (
-            <div key={index} className="flex items-start gap-4 min-w-0 py-1">
+            <div key={index} className="flex items-start gap-3 sm:gap-4 min-w-0 py-1">
               <div className="flex-shrink-0 mt-1">{icons[index]}</div>
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-white leading-tight mb-1">{item.title}</h3>

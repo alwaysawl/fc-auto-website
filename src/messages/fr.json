@@ -5,6 +5,8 @@
     "shipping": "Calculateur d'Expédition",
     "about": "À Propos",
     "contact": "Contact",
+    "menu": "Menu",
+    "comingSoon": "Bientôt disponible",
     "tagline": "Voitures d'Occasion Premium pour l'Afrique"
   },
   "hero": {
@@ -165,15 +167,44 @@
   },
   "shipping": {
     "title": "Calculateur d'Expédition",
-    "subtitle": "Calculez votre coût total incluant le prix FOB et l'expédition vers l'Afrique.",
+    "subtitle": "Obtenez une estimation indicative du fret maritime de la Chine vers les principaux ports africains.",
+    "destinationCountry": "Pays de destination",
+    "destinationPort": "Port de destination",
+    "vehicleType": "Type de véhicule",
+    "shippingMethod": "Méthode d'expédition",
+    "optionalFob": "Prix FOB du véhicule (optionnel, USD)",
+    "optionalFobHint": "Laissez vide si vous souhaitez uniquement une estimation du fret.",
+    "selectCountry": "Sélectionner un pays",
+    "selectPort": "Sélectionner un port",
+    "calculate": "Calculer l'estimation",
+    "resultTitle": "Estimation d'expédition indicative",
+    "sampleBadge": "Estimation EXEMPLE",
+    "estimatedFreight": "Fret maritime estimé",
+    "fobPrice": "Prix FOB du véhicule",
+    "fobPlusFreight": "Total estimé FOB + fret",
+    "currency": "Devise",
+    "requestQuote": "Demander un devis d'expédition définitif",
+    "whatsappCta": "WhatsApp",
+    "disclaimer": "Les frais d'expédition sont uniquement des estimations et peuvent varier selon les dimensions du véhicule, les horaires des navires, les suppléments carburant et les devis des compagnies maritimes.",
+    "vehicleTypes": {
+      "sedan": "Berline",
+      "suv": "SUV",
+      "pickup": "Pick-up",
+      "minivan": "Minivan",
+      "van": "Fourgon"
+    },
+    "methods": {
+      "roro": "RoRo",
+      "container": "Conteneur"
+    },
+    "vehicleReference": "Référence véhicule",
     "selectVehicle": "Sélectionner un Véhicule",
     "quantity": "Quantité",
-    "fobPrice": "Prix FOB",
     "shippingCost": "Coût d'Expédition",
     "totalCost": "Coût Total",
     "priceTable": "Tableau des Prix d'Expédition",
-    "note": "Les prix d'expédition sont basés sur notre tableau de tarification, pas sur une multiplication par unité.",
-    "getQuote": "Obtenir un Devis sur WhatsApp"
+    "note": "Les frais d'expédition sont uniquement des estimations et peuvent varier selon les dimensions du véhicule, les horaires des navires, les suppléments carburant et les devis des compagnies maritimes.",
+    "getQuote": "Demander un devis d'expédition définitif"
   },
   "about": {
     "title": "À Propos de FC Auto Export",

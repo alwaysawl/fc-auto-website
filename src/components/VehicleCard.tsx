@@ -68,9 +68,9 @@ export default function VehicleCard({
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <h3
-          className={`text-xl font-bold mb-2 transition-colors duration-300 ${
+          className={`text-lg sm:text-xl font-bold mb-2 transition-colors duration-300 break-words ${
             isLight
               ? "text-brand-slate group-hover:text-slate-600"
               : "font-display text-white group-hover:text-gold"

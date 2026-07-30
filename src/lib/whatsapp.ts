@@ -4,6 +4,8 @@ export type WhatsAppAssignRequest = {
   vehicleTitle?: string;
   vehicleYear?: string;
   stockNumber?: string;
+  /** Client-side only: appended to the WhatsApp message (not persisted). */
+  inquiryNote?: string;
 };
 
 export type WhatsAppAssignment = {
@@ -31,6 +33,7 @@ export type WhatsAppMessageContext = {
   vehicleTitle?: string;
   vehicleYear?: string;
   stockNumber?: string;
+  inquiryNote?: string;
 };
 
 function cleanOptional(value: string | undefined | null): string | undefined {
@@ -51,6 +54,7 @@ export function buildWhatsAppMessage(context: WhatsAppMessageContext): string {
   const vehicleTitle = cleanOptional(context.vehicleTitle);
   const vehicleYear = cleanOptional(context.vehicleYear);
   const stockNumber = cleanOptional(context.stockNumber);
+  const inquiryNote = cleanOptional(context.inquiryNote);
 
   const isVehicleInquiry = Boolean(vehicleTitle || vehicleYear || stockNumber);
   const lines: string[] = [];
@@ -58,7 +62,17 @@ export function buildWhatsAppMessage(context: WhatsAppMessageContext): string {
   lines.push(`Hello ${agentName},`);
   lines.push("");
 
-  if (isVehicleInquiry) {
+  if (inquiryNote) {
+    lines.push("I would like a final shipping quote.");
+    lines.push("");
+    lines.push(inquiryNote);
+    lines.push("");
+    if (vehicleTitle && !inquiryNote.includes(vehicleTitle)) {
+      lines.push(`Vehicle: ${vehicleTitle}`);
+    }
+    if (inquiryId) lines.push(`Inquiry ID: ${inquiryId}`);
+    if (pageUrl) lines.push(`Page: ${pageUrl}`);
+  } else if (isVehicleInquiry) {
     lines.push("I am interested in this vehicle.");
     lines.push("");
     if (vehicleTitle) lines.push(`Vehicle: ${vehicleTitle}`);

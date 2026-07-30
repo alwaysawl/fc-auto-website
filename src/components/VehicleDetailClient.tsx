@@ -239,13 +239,13 @@ export default function VehicleDetailClient({
             </div>
 
             {photos.length > 1 && (
-              <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+              <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
                 {photos.map((photo, index) => (
                   <button
                     key={photo + index}
                     type="button"
                     onClick={() => setActivePhoto(index)}
-                    className={`relative w-20 h-[60px] flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
+                    className={`relative w-16 h-12 sm:w-20 sm:h-[60px] flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
                       activePhoto === index
                         ? "border-accent-yellow"
                         : "border-slate-200 hover:border-slate-300"
@@ -266,7 +266,7 @@ export default function VehicleDetailClient({
 
           {/* RIGHT — summary */}
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-brand-slate tracking-tight mb-2">
+            <h1 className="text-xl min-[375px]:text-2xl md:text-3xl font-bold text-brand-slate tracking-tight mb-2 break-words">
               {vehicleName}
             </h1>
             <p
@@ -460,7 +460,7 @@ export default function VehicleDetailClient({
                 </div>
                 <button
                   type="submit"
-                  className="h-11 px-6 bg-accent-yellow text-brand-slate text-sm font-semibold rounded-lg hover:bg-accent-yellow-hover transition-colors"
+                  className="w-full sm:w-auto min-h-11 px-6 bg-accent-yellow text-brand-slate text-sm font-semibold rounded-lg hover:bg-accent-yellow-hover transition-colors"
                 >
                   {t.contact.form.submit}
                 </button>
@@ -517,7 +517,7 @@ export default function VehicleDetailClient({
             vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
             vehicleYear={String(vehicle.year)}
             stockNumber={stockNumber}
-            className="h-11 inline-flex items-center justify-center bg-accent-yellow text-brand-slate text-sm font-semibold rounded-lg"
+            className="min-h-11 inline-flex items-center justify-center bg-accent-yellow text-brand-slate text-sm font-semibold rounded-lg px-2 text-center"
           >
             Request Quote
           </WhatsAppAssignLink>
@@ -526,7 +526,7 @@ export default function VehicleDetailClient({
             vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
             vehicleYear={String(vehicle.year)}
             stockNumber={stockNumber}
-            className="h-11 inline-flex items-center justify-center gap-1.5 bg-[#25D366] text-white text-sm font-semibold rounded-lg"
+            className="min-h-11 inline-flex items-center justify-center gap-1.5 bg-[#25D366] text-white text-sm font-semibold rounded-lg px-2"
           >
             WhatsApp
           </WhatsAppAssignLink>
@@ -556,8 +556,10 @@ function SpecTable({
               key={row.label}
               className={index < rows.length - 1 ? "border-b border-slate-100" : ""}
             >
-              <td className="px-4 py-2.5 text-slate-500 w-[45%] align-top">{row.label}</td>
-              <td className="px-4 py-2.5 font-medium text-brand-slate break-all">
+              <td className="px-3 sm:px-4 py-2.5 text-slate-500 w-[40%] sm:w-[45%] align-top break-words">
+                {row.label}
+              </td>
+              <td className="px-3 sm:px-4 py-2.5 font-medium text-brand-slate break-words">
                 {row.value}
               </td>
             </tr>

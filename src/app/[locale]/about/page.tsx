@@ -38,11 +38,11 @@ export default async function AboutPage({
 
       <section className="section-padding section-surface border-y border-white/5">
         <div className="container-max">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20">
+          <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 mb-12 sm:mb-20">
             {t.about.stats.map((stat, index) => (
-              <div key={index} className="text-center card-premium p-8">
-                <p className="text-4xl font-display font-bold text-gold mb-2">{stat.value}</p>
-                <p className="text-sm text-gray-500 uppercase tracking-wider">{stat.label}</p>
+              <div key={index} className="text-center card-premium p-5 sm:p-8 min-w-0">
+                <p className="text-3xl sm:text-4xl font-display font-bold text-gold mb-2">{stat.value}</p>
+                <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider break-words">{stat.label}</p>
               </div>
             ))}
           </div>

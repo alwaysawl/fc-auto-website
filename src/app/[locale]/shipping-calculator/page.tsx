@@ -14,20 +14,34 @@ export default async function ShippingCalculatorPage({
   const { vehicle: vehicleId } = await searchParams;
   const locale = localeParam as Locale;
   const t = getTranslations(locale);
-  const vehicles = getVehicles();
+
+  let vehicleReference: string | undefined;
+  if (vehicleId) {
+    const vehicles = getVehicles();
+    const match = vehicles.find((v) => v.id === vehicleId);
+    if (match) {
+      vehicleReference = `${match.brand} ${match.model} (${match.year})`;
+    } else {
+      vehicleReference = vehicleId;
+    }
+  }
 
   return (
-    <section className="section-padding section-dark min-h-screen">
-      <div className="container-max">
-        <div className="text-center mb-16">
-          <h1 className="heading-display mb-4">{t.shipping.title}</h1>
-          <div className="gold-divider mb-6" />
-          <p className="text-gray-400 max-w-2xl mx-auto text-lg">{t.shipping.subtitle}</p>
+    <section className="section-padding min-h-screen bg-[#F7F8FA] text-brand-slate">
+      <div className="container-max max-w-3xl mx-auto">
+        <div className="text-center mb-8 sm:mb-12 px-1">
+          <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-brand-slate tracking-tight text-balance">
+            {t.shipping.title}
+          </h1>
+          <div className="mx-auto mt-4 mb-4 h-0.5 w-14 bg-accent-yellow" />
+          <p className="text-slate-600 max-w-xl mx-auto text-sm sm:text-base leading-relaxed text-pretty">
+            {t.shipping.subtitle}
+          </p>
         </div>
         <ShippingCalculator
-          vehicles={vehicles}
+          locale={locale}
           t={t}
-          initialVehicleId={vehicleId}
+          vehicleReference={vehicleReference}
         />
       </div>
     </section>

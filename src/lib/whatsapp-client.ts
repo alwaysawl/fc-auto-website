@@ -20,6 +20,7 @@ function fallbackOpen(input: OpenAssignedWhatsAppInput) {
     vehicleTitle: input.vehicleTitle,
     vehicleYear: input.vehicleYear,
     stockNumber: input.stockNumber,
+    inquiryNote: input.inquiryNote,
   });
   const url = `${WHATSAPP_URL}?text=${encodeURIComponent(message)}`;
   window.open(url, "_blank", "noopener,noreferrer");
@@ -28,9 +29,12 @@ function fallbackOpen(input: OpenAssignedWhatsAppInput) {
 export async function openAssignedWhatsApp(
   input: OpenAssignedWhatsAppInput
 ): Promise<boolean> {
+  // inquiryNote is message-only — do not send to assign RPC / DB
   const payload: WhatsAppAssignRequest = {
     sourcePage: input.sourcePage,
-    pageUrl: input.pageUrl ?? (typeof window !== "undefined" ? window.location.href : undefined),
+    pageUrl:
+      input.pageUrl ??
+      (typeof window !== "undefined" ? window.location.href : undefined),
     vehicleTitle: input.vehicleTitle,
     vehicleYear: input.vehicleYear,
     stockNumber: input.stockNumber,
@@ -52,7 +56,7 @@ export async function openAssignedWhatsApp(
         "[whatsapp] assignment failed:",
         !data.success ? data.error : response.status
       );
-      fallbackOpen(payload);
+      fallbackOpen({ ...payload, inquiryNote: input.inquiryNote });
       return false;
     }
 
@@ -64,6 +68,7 @@ export async function openAssignedWhatsApp(
       vehicleTitle: payload.vehicleTitle,
       vehicleYear: payload.vehicleYear,
       stockNumber: payload.stockNumber,
+      inquiryNote: input.inquiryNote,
     });
 
     const url = buildWhatsAppUrl(data.assignment.whatsappNumber, message);
@@ -74,7 +79,7 @@ export async function openAssignedWhatsApp(
       "[whatsapp] assignment error:",
       error instanceof Error ? error.message : "unknown"
     );
-    fallbackOpen(payload);
+    fallbackOpen({ ...payload, inquiryNote: input.inquiryNote });
     return false;
   }
 }

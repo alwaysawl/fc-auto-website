@@ -21,6 +21,7 @@ export default function WhatsAppAssignLink({
   vehicleTitle,
   vehicleYear,
   stockNumber,
+  inquiryNote,
   "aria-label": ariaLabel,
   title,
 }: WhatsAppAssignLinkProps) {
@@ -51,6 +52,7 @@ export default function WhatsAppAssignLink({
         vehicleTitle,
         vehicleYear,
         stockNumber,
+        inquiryNote,
       });
     } finally {
       setBusy(false);
