@@ -396,6 +396,20 @@
     "capacityDisclaimer": "Actual loading capacity may vary according to vehicle dimensions.",
     "finalConfirmationPrefix": "The final shipping method, container loading quantity, vessel schedule and actual freight are ",
     "finalConfirmationHighlight": "subject to confirmation by our customer service team.",
-    "finalConfirmationWhatsApp": "Please confirm the final shipping method, container loading quantity, vessel schedule and actual freight."
+    "finalConfirmationWhatsApp": "Please confirm the final shipping method, container loading quantity, vessel schedule and actual freight.",
+    "shippingMethodLabel": "Shipping Method",
+    "containerShippingOnly": "Container Shipping",
+    "containerShippingNotice": "All freight estimates are based on container shipping.",
+    "shippingArrangement": "Shipping Arrangement",
+    "arrangementFcAuto": "Arrange shipping with FC Auto Export",
+    "arrangementOwnAgent": "I have my own shipping agent",
+    "arrangementOwnAgentSummary": "Customer's own shipping agent",
+    "freightByCustomerAgent": "Arranged by customer's shipping agent",
+    "freightCustomerAgentShort": "Customer Agent",
+    "estimatedTotalFobOnly": "FOB vehicle total only",
+    "destinationCountryOptional": "Destination Country (Optional)",
+    "destinationPortOptional": "Destination Port (Optional)",
+    "ownAgentNotice": "You have selected your own shipping agent. The website will not calculate or include freight charges. Vehicle handover, container loading, booking and shipping arrangements must be confirmed with you or your agent.",
+    "waOwnAgentConfirm": "Please confirm vehicle handover, container loading and coordination with my shipping agent."
   }
 }

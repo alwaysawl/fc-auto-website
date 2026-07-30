@@ -396,6 +396,20 @@
     "capacityDisclaimer": "La capacité réelle peut varier selon les dimensions des véhicules.",
     "finalConfirmationPrefix": "Le mode de transport final, le nombre de véhicules par conteneur, le calendrier du navire et le coût réel du fret ",
     "finalConfirmationHighlight": "doivent être confirmés par notre service client.",
-    "finalConfirmationWhatsApp": "Veuillez confirmer le mode de transport final, le nombre de véhicules par conteneur, le calendrier du navire et le coût réel du fret."
+    "finalConfirmationWhatsApp": "Veuillez confirmer le mode de transport final, le nombre de véhicules par conteneur, le calendrier du navire et le coût réel du fret.",
+    "shippingMethodLabel": "Mode de transport",
+    "containerShippingOnly": "Transport par conteneur (Container Shipping)",
+    "containerShippingNotice": "Tous les frais de transport sont estimés sur la base d'un transport par conteneur.",
+    "shippingArrangement": "Organisation du transport",
+    "arrangementFcAuto": "Transport organisé par FC Auto Export",
+    "arrangementOwnAgent": "J'ai mon propre agent de transport",
+    "arrangementOwnAgentSummary": "Agent de transport du client",
+    "freightByCustomerAgent": "Organisé par l'agent de transport du client",
+    "freightCustomerAgentShort": "Agent du client",
+    "estimatedTotalFobOnly": "Total FOB des véhicules uniquement",
+    "destinationCountryOptional": "Pays de destination (facultatif)",
+    "destinationPortOptional": "Port de destination (facultatif)",
+    "ownAgentNotice": "Vous avez choisi votre propre agent de transport. Le site ne calculera ni n'ajoutera les frais de transport. La remise du véhicule, le chargement du conteneur, la réservation et l'organisation du transport devront être confirmés avec vous ou votre agent.",
+    "waOwnAgentConfirm": "Veuillez confirmer la remise des véhicules, le chargement du conteneur et la coordination avec mon agent de transport."
   }
 }

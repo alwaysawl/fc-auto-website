@@ -9,7 +9,6 @@ import { getLocalizedPath } from "@/lib/i18n";
 import { useCart } from "@/components/CartProvider";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import {
-  SHIPPING_METHODS,
   VEHICLE_TYPES,
   findDestination,
   findPort,
@@ -21,6 +20,7 @@ import {
   CART_SHIPPING_DESTINATIONS,
   formatUsd,
   isCartDestinationAllowed,
+  type ShippingArrangementId,
 } from "@/lib/cart";
 import {
   buildWhatsAppFreightSummary,
@@ -43,12 +43,36 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
     ready,
   } = useCart();
 
+  const arrangement: ShippingArrangementId =
+    shipping.arrangement === "own_agent" ? "own_agent" : "fc_auto";
+  const isOwnAgent = arrangement === "own_agent";
+  const isFcAuto = !isOwnAgent;
+
   useEffect(() => {
     if (!ready) return;
     if (shipping.countryId && !isCartDestinationAllowed(shipping.countryId)) {
       setShipping({ countryId: "", portId: "" });
     }
   }, [ready, shipping.countryId, setShipping]);
+
+  // Cart only supports container shipping — keep stored method in sync
+  useEffect(() => {
+    if (!ready) return;
+    if (shipping.method !== "container") {
+      setShipping({ method: "container" });
+    }
+  }, [ready, shipping.method, setShipping]);
+
+  // Backfill arrangement for older localStorage payloads
+  useEffect(() => {
+    if (!ready) return;
+    if (
+      shipping.arrangement !== "fc_auto" &&
+      shipping.arrangement !== "own_agent"
+    ) {
+      setShipping({ arrangement: "fc_auto" });
+    }
+  }, [ready, shipping.arrangement, setShipping]);
 
   const nameLocale = locale === "fr" || locale === "zh" ? locale : "en";
   const safeCountryId = isCartDestinationAllowed(shipping.countryId)
@@ -79,41 +103,46 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
   );
 
   const routeRates = useMemo(() => {
+    if (!isFcAuto) return null;
     if (!safeCountryId || !shipping.portId) return null;
     return getCartSampleFreightUsd(
       safeCountryId,
       shipping.portId,
-      shipping.method
+      "container"
     );
-  }, [safeCountryId, shipping.portId, shipping.method]);
+  }, [isFcAuto, safeCountryId, shipping.portId]);
 
   const groupedFreight = useMemo(() => {
-    if (!routeRates || vehicleCount === 0) return null;
+    if (!isFcAuto || !routeRates || vehicleCount === 0) return null;
     return calculateGroupedFreight(
       vehicleCount,
       routeRates.singleVehicle,
       routeRates.container40ft,
       freightLabels
     );
-  }, [routeRates, vehicleCount, freightLabels]);
+  }, [isFcAuto, routeRates, vehicleCount, freightLabels]);
 
   const lines = useMemo(() => {
     return items.map((item) => {
-      // Per-line freight only for a single-vehicle cart (grouped rate applies otherwise)
       const freight =
-        vehicleCount === 1 && groupedFreight
+        isFcAuto && vehicleCount === 1 && groupedFreight
           ? groupedFreight.totalFreight
           : null;
       const subtotal =
         freight != null ? item.fobPrice + freight : item.fobPrice;
       return { item, freight, subtotal };
     });
-  }, [items, vehicleCount, groupedFreight]);
+  }, [items, vehicleCount, groupedFreight, isFcAuto]);
 
   const vehicleTotal = lines.reduce((sum, line) => sum + line.item.fobPrice, 0);
-  const shippingTotal = groupedFreight?.totalFreight ?? null;
-  const grandTotal =
-    shippingTotal != null ? vehicleTotal + shippingTotal : null;
+  const shippingTotal = isFcAuto
+    ? (groupedFreight?.totalFreight ?? null)
+    : null;
+  const grandTotal = isOwnAgent
+    ? vehicleTotal
+    : shippingTotal != null
+      ? vehicleTotal + shippingTotal
+      : null;
 
   const countryLabel = destination
     ? getLocalizedName(destination.countryName, nameLocale)
@@ -121,12 +150,106 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
   const portLabel = port
     ? getLocalizedName(port.portName, nameLocale)
     : "";
-  const methodLabel = t.shipping.methods[shipping.method] ?? shipping.method;
+  const methodLabel = t.shipping.methods.container;
 
   const inquiryNote = useMemo(() => {
     if (items.length === 0) return undefined;
+
+    if (isOwnAgent) {
+      const fob = `USD ${vehicleTotal.toLocaleString("en-US")}`;
+      const countryDisplay =
+        countryLabel ||
+        (locale === "zh"
+          ? "可选"
+          : locale === "fr"
+            ? "Facultatif"
+            : "Optional");
+      const portDisplay =
+        portLabel ||
+        (locale === "zh"
+          ? "可选"
+          : locale === "fr"
+            ? "Facultatif"
+            : "Optional");
+
+      if (locale === "zh") {
+        return [
+          "我想获取报价。",
+          "",
+          "车辆清单",
+          "",
+          ...lines.flatMap(({ item }, index) => [
+            `${index + 1}.`,
+            item.title,
+            "库存编号",
+            item.id,
+            "FOB",
+            `USD ${item.fobPrice.toLocaleString("en-US")}`,
+            "",
+          ]),
+          `运输安排：${t.cart.arrangementOwnAgent}`,
+          `运费：由客户代理安排`,
+          `车辆 FOB 总价：${fob}`,
+          `目的国家：${countryDisplay}`,
+          `目的港口：${portDisplay}`,
+          "",
+          t.cart.waOwnAgentConfirm,
+        ].join("\n");
+      }
+
+      if (locale === "fr") {
+        return [
+          "Je souhaite un devis.",
+          "",
+          "Véhicules",
+          "",
+          ...lines.flatMap(({ item }, index) => [
+            `${index + 1}.`,
+            item.title,
+            "N° de stock",
+            item.id,
+            "FOB",
+            `USD ${item.fobPrice.toLocaleString("en-US")}`,
+            "",
+          ]),
+          `Organisation du transport : ${t.cart.arrangementOwnAgent}`,
+          `Fret : Organisé par l'agent du client`,
+          `Total FOB des véhicules : ${vehicleTotal.toLocaleString("fr-FR")} USD`,
+          `Pays de destination : ${countryDisplay}`,
+          `Port de destination : ${portDisplay}`,
+          "",
+          t.cart.waOwnAgentConfirm,
+        ].join("\n");
+      }
+
+      return [
+        "I would like a quotation.",
+        "",
+        "Vehicles",
+        "",
+        ...lines.flatMap(({ item }, index) => [
+          `${index + 1}.`,
+          item.title,
+          "Stock ID",
+          item.id,
+          "FOB",
+          `USD ${item.fobPrice.toLocaleString("en-US")}`,
+          "",
+        ]),
+        `Shipping arrangement: ${t.cart.arrangementOwnAgent}`,
+        `Freight: Arranged by customer's agent`,
+        `Vehicle FOB total: ${fob}`,
+        `Destination country: ${countryDisplay}`,
+        `Destination port: ${portDisplay}`,
+        "",
+        t.cart.waOwnAgentConfirm,
+      ].join("\n");
+    }
+
     const linesOut: string[] = [
       "I would like a quotation.",
+      "",
+      `Shipping arrangement: ${t.cart.arrangementFcAuto}`,
       "",
       "Vehicles",
       "",
@@ -180,7 +303,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
     linesOut.push(t.cart.finalConfirmationWhatsApp);
     return linesOut.join("\n");
   }, [
-    t.cart.finalConfirmationWhatsApp,
+    t.cart,
     items,
     lines,
     countryLabel,
@@ -191,10 +314,19 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
     grandTotal,
     groupedFreight,
     locale,
+    isOwnAgent,
   ]);
 
   const fieldClass =
     "w-full min-h-11 px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-accent-yellow/50 focus:border-accent-yellow text-brand-slate";
+
+  const arrangementOptions: {
+    id: ShippingArrangementId;
+    label: string;
+  }[] = [
+    { id: "fc_auto", label: t.cart.arrangementFcAuto },
+    { id: "own_agent", label: t.cart.arrangementOwnAgent },
+  ];
 
   if (!ready) {
     return (
@@ -219,6 +351,12 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
     );
   }
 
+  const stickyTotal = isOwnAgent
+    ? vehicleTotal
+    : grandTotal != null
+      ? grandTotal
+      : vehicleTotal;
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 xl:gap-8 items-start pb-24 xl:pb-0">
       <div className="space-y-5 min-w-0">
@@ -227,10 +365,58 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
           <h2 className="text-base font-bold text-brand-slate mb-4">
             {t.cart.shippingOptions}
           </h2>
+
+          <fieldset className="mb-5 min-w-0">
+            <legend className="block text-sm font-bold text-brand-slate mb-2.5">
+              {t.cart.shippingArrangement}
+            </legend>
+            <div className="grid grid-cols-1 gap-2.5">
+              {arrangementOptions.map((opt) => {
+                const selected = arrangement === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setShipping({ arrangement: opt.id })}
+                    className={`w-full min-h-12 text-left rounded-xl border px-3.5 py-3 transition-colors ${
+                      selected
+                        ? "bg-brand-slate text-white border-brand-slate"
+                        : "bg-white text-brand-slate border-slate-200 hover:border-brand-slate/40"
+                    }`}
+                    aria-pressed={selected}
+                  >
+                    <span className="flex items-start gap-3 min-w-0">
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 ${
+                          selected
+                            ? "border-accent-yellow bg-accent-yellow"
+                            : "border-slate-300 bg-white"
+                        }`}
+                        aria-hidden
+                      >
+                        {selected && (
+                          <span className="h-2 w-2 rounded-full bg-brand-slate" />
+                        )}
+                      </span>
+                      <span
+                        className="text-sm font-semibold leading-snug break-words"
+                        style={{ overflowWrap: "anywhere" }}
+                      >
+                        {opt.label}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                {t.shipping.destinationCountry}
+                {isOwnAgent
+                  ? t.cart.destinationCountryOptional
+                  : t.shipping.destinationCountry}
               </label>
               <select
                 value={safeCountryId}
@@ -247,7 +433,9 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                {t.shipping.destinationPort}
+                {isOwnAgent
+                  ? t.cart.destinationPortOptional
+                  : t.shipping.destinationPort}
               </label>
               <select
                 value={shipping.portId}
@@ -263,34 +451,52 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
                 ))}
               </select>
             </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-                {t.shipping.shippingMethod}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {SHIPPING_METHODS.map((id) => {
-                  const selected = shipping.method === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setShipping({ method: id })}
-                      className={`min-h-11 rounded-lg border text-sm font-semibold transition-colors ${
-                        selected
-                          ? "bg-brand-slate text-white border-brand-slate"
-                          : "bg-white text-brand-slate border-slate-200 hover:border-brand-slate/40"
-                      }`}
-                      aria-pressed={selected}
-                    >
-                      {t.shipping.methods[id]}
-                    </button>
-                  );
-                })}
+
+            {isFcAuto && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                  {t.cart.shippingMethodLabel}
+                </label>
+                <div
+                  className={`${fieldClass} flex items-center bg-slate-50 text-brand-slate cursor-default`}
+                  aria-readonly="true"
+                >
+                  {t.cart.containerShippingOnly}
+                </div>
+                <p className="mt-2 text-xs text-slate-500 leading-relaxed break-words">
+                  {t.cart.containerShippingNotice}
+                </p>
               </div>
-            </div>
+            )}
           </div>
 
-          {vehicleCount > 1 && (
+          {isOwnAgent && (
+            <div
+              role="note"
+              className="mt-4 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-950"
+            >
+              <svg
+                className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <p
+                className="min-w-0 leading-relaxed break-words"
+                style={{ overflowWrap: "anywhere" }}
+              >
+                {t.cart.ownAgentNotice}
+              </p>
+            </div>
+          )}
+
+          {isFcAuto && vehicleCount > 1 && (
             <div
               role="note"
               className="mt-4 flex gap-3 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-3 text-sm text-sky-950"
@@ -392,7 +598,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
 
                   <dl
                     className={`grid gap-2 text-sm mb-4 ${
-                      vehicleCount === 1
+                      isFcAuto && vehicleCount === 1
                         ? "grid-cols-1 min-[400px]:grid-cols-3"
                         : "grid-cols-1"
                     }`}
@@ -405,7 +611,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
                         {formatUsd(item.fobPrice)}
                       </dd>
                     </div>
-                    {vehicleCount === 1 && (
+                    {isFcAuto && vehicleCount === 1 && (
                       <>
                         <div className="rounded-lg bg-slate-50 px-3 py-2 min-w-0">
                           <dt className="text-[11px] text-slate-500 font-semibold break-words">
@@ -449,63 +655,137 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
               <dt className="text-white/70">{t.cart.vehicleTotal}</dt>
               <dd className="font-semibold">{formatUsd(vehicleTotal)}</dd>
             </div>
-            {groupedFreight && (
-              <div className="rounded-lg bg-white/10 px-3 py-2.5 space-y-1">
-                <dt className="text-white/70 text-xs font-semibold">
-                  {t.cart.freightCalculation}
-                </dt>
-                <dd className="font-semibold text-accent-yellow break-words leading-snug">
-                  {groupedFreight.calculationLabel}
-                </dd>
-              </div>
+
+            {isOwnAgent ? (
+              <>
+                <div className="rounded-lg bg-white/10 px-3 py-2.5 space-y-1 min-w-0">
+                  <dt className="text-white/70 text-xs font-semibold">
+                    {t.cart.shippingArrangement}
+                  </dt>
+                  <dd
+                    className="font-semibold text-accent-yellow break-words leading-snug"
+                    style={{ overflowWrap: "anywhere" }}
+                  >
+                    {t.cart.arrangementOwnAgentSummary}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3 items-start min-w-0">
+                  <dt className="text-white/70 flex-shrink-0">
+                    {t.cart.shippingTotal}
+                  </dt>
+                  <dd
+                    className="font-semibold text-right break-words"
+                    style={{ overflowWrap: "anywhere" }}
+                  >
+                    {t.cart.freightCustomerAgentShort}
+                  </dd>
+                </div>
+                <div className="border-t border-white/15 pt-3 space-y-1">
+                  <div className="flex justify-between gap-3 items-baseline">
+                    <dt className="font-semibold">{t.cart.estimatedTotal}</dt>
+                    <dd className="text-xl font-bold text-accent-yellow">
+                      {formatUsd(vehicleTotal)}
+                    </dd>
+                  </div>
+                  <p className="text-[11px] text-white/60 break-words">
+                    {t.cart.estimatedTotalFobOnly}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                {groupedFreight && (
+                  <div className="rounded-lg bg-white/10 px-3 py-2.5 space-y-1">
+                    <dt className="text-white/70 text-xs font-semibold">
+                      {t.cart.freightCalculation}
+                    </dt>
+                    <dd className="font-semibold text-accent-yellow break-words leading-snug">
+                      {groupedFreight.calculationLabel}
+                    </dd>
+                  </div>
+                )}
+                <div className="flex justify-between gap-3">
+                  <dt className="text-white/70">{t.cart.shippingTotal}</dt>
+                  <dd className="font-semibold">
+                    {shippingTotal != null ? formatUsd(shippingTotal) : "—"}
+                  </dd>
+                </div>
+                <div className="border-t border-white/15 pt-3 flex justify-between gap-3 items-baseline">
+                  <dt className="font-semibold">{t.cart.estimatedTotal}</dt>
+                  <dd className="text-xl font-bold text-accent-yellow">
+                    {grandTotal != null ? formatUsd(grandTotal) : "—"}
+                  </dd>
+                </div>
+              </>
             )}
-            <div className="flex justify-between gap-3">
-              <dt className="text-white/70">{t.cart.shippingTotal}</dt>
-              <dd className="font-semibold">
-                {shippingTotal != null ? formatUsd(shippingTotal) : "—"}
-              </dd>
-            </div>
-            <div className="border-t border-white/15 pt-3 flex justify-between gap-3 items-baseline">
-              <dt className="font-semibold">{t.cart.estimatedTotal}</dt>
-              <dd className="text-xl font-bold text-accent-yellow">
-                {grandTotal != null ? formatUsd(grandTotal) : "—"}
-              </dd>
-            </div>
           </dl>
 
-          {vehicleCount > 1 && (
+          {isFcAuto && vehicleCount > 1 && (
             <p className="mt-3 text-[11px] text-white/60 leading-relaxed break-words">
               {t.cart.capacityDisclaimer}
             </p>
           )}
 
-          <p className="mt-4 text-xs text-white/65 leading-relaxed whitespace-pre-line">
-            {t.cart.estimateNote}
-          </p>
-
-          <div
-            role="note"
-            className="mt-4 flex gap-2.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-3 text-[14px] leading-relaxed text-white/90 min-w-0"
-          >
-            <svg
-              className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-yellow"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden
-            >
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <p className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
-              {t.cart.finalConfirmationPrefix}
-              <span className="font-semibold text-accent-yellow">
-                {t.cart.finalConfirmationHighlight}
-              </span>
+          {isFcAuto && (
+            <p className="mt-4 text-xs text-white/65 leading-relaxed whitespace-pre-line">
+              {t.cart.estimateNote}
             </p>
-          </div>
+          )}
+
+          {isFcAuto && (
+            <div
+              role="note"
+              className="mt-4 flex gap-2.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-3 text-[14px] leading-relaxed text-white/90 min-w-0"
+            >
+              <svg
+                className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-yellow"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <p
+                className="min-w-0 break-words"
+                style={{ overflowWrap: "anywhere" }}
+              >
+                {t.cart.finalConfirmationPrefix}
+                <span className="font-semibold text-accent-yellow">
+                  {t.cart.finalConfirmationHighlight}
+                </span>
+              </p>
+            </div>
+          )}
+
+          {isOwnAgent && (
+            <div
+              role="note"
+              className="mt-4 flex gap-2.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-3 text-[14px] leading-relaxed text-white/90 min-w-0"
+            >
+              <svg
+                className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent-yellow"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <p
+                className="min-w-0 break-words"
+                style={{ overflowWrap: "anywhere" }}
+              >
+                {t.cart.freightByCustomerAgent}
+              </p>
+            </div>
+          )}
 
           <WhatsAppAssignLink
             sourcePage="cart-checkout"
@@ -535,9 +815,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
               {t.cart.estimatedTotal}
             </p>
             <p className="text-lg font-bold text-brand-slate truncate">
-              {grandTotal != null
-                ? formatUsd(grandTotal)
-                : formatUsd(vehicleTotal)}
+              {formatUsd(stickyTotal)}
             </p>
           </div>
           <WhatsAppAssignLink

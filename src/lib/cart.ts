@@ -33,10 +33,14 @@ export type CartItem = {
   title: string;
 };
 
+export type ShippingArrangementId = "fc_auto" | "own_agent";
+
 export type CartShippingSelection = {
   countryId: string;
   portId: string;
   method: ShippingMethodId;
+  /** Who arranges ocean freight — default fc_auto */
+  arrangement: ShippingArrangementId;
 };
 
 export function inferDisplayBodyType(vehicle: Vehicle): string {
@@ -130,7 +134,8 @@ export function readCartShippingFromStorage(): CartShippingSelection {
   const fallback: CartShippingSelection = {
     countryId: "",
     portId: "",
-    method: "roro",
+    method: "container",
+    arrangement: "fc_auto",
   };
   if (typeof window === "undefined") return fallback;
   try {
@@ -138,12 +143,15 @@ export function readCartShippingFromStorage(): CartShippingSelection {
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<CartShippingSelection>;
     const countryId = parsed.countryId ?? "";
+    const arrangement: ShippingArrangementId =
+      parsed.arrangement === "own_agent" ? "own_agent" : "fc_auto";
     // Clear Ghana / Nigeria (or other removed destinations) from saved cart shipping
     if (countryId && !isCartDestinationAllowed(countryId)) {
       const cleared: CartShippingSelection = {
         countryId: "",
         portId: "",
-        method: parsed.method === "container" ? "container" : "roro",
+        method: "container",
+        arrangement,
       };
       writeCartShippingToStorage(cleared);
       return cleared;
@@ -151,7 +159,8 @@ export function readCartShippingFromStorage(): CartShippingSelection {
     return {
       countryId,
       portId: parsed.portId ?? "",
-      method: parsed.method === "container" ? "container" : "roro",
+      method: "container",
+      arrangement,
     };
   } catch {
     return fallback;

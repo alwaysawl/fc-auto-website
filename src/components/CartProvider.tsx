@@ -44,7 +44,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [shipping, setShippingState] = useState<CartShippingSelection>({
     countryId: "",
     portId: "",
-    method: "roro",
+    method: "container",
+    arrangement: "fc_auto",
   });
   const [ready, setReady] = useState(false);
   const [toast, setToast] = useState<string | null>(null);

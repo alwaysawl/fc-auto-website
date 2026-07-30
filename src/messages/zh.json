@@ -396,6 +396,20 @@
     "capacityDisclaimer": "实际装载数量可能因车辆尺寸而变化。",
     "finalConfirmationPrefix": "最终运输方案、装柜数量、船期及实际运费，",
     "finalConfirmationHighlight": "请以客服确认结果为准。",
-    "finalConfirmationWhatsApp": "请客服确认最终运输方案、装柜数量、船期及实际运费。"
+    "finalConfirmationWhatsApp": "请客服确认最终运输方案、装柜数量、船期及实际运费。",
+    "shippingMethodLabel": "运输方式",
+    "containerShippingOnly": "集装箱运输（Container Shipping）",
+    "containerShippingNotice": "所有运费均按集装箱运输方式估算。",
+    "shippingArrangement": "运输安排",
+    "arrangementFcAuto": "由 FC Auto Export 安排运输",
+    "arrangementOwnAgent": "我有自己的运输代理",
+    "arrangementOwnAgentSummary": "客户自有运输代理",
+    "freightByCustomerAgent": "由客户运输代理安排",
+    "freightCustomerAgentShort": "客户代理安排",
+    "estimatedTotalFobOnly": "仅车辆 FOB 总价",
+    "destinationCountryOptional": "目的国家（可选）",
+    "destinationPortOptional": "目的港口（可选）",
+    "ownAgentNotice": "您已选择使用自己的运输代理。网站不会计算或收取运输费用，车辆交接、装柜、订舱及运输安排需由您或您的代理与我们进一步确认。",
+    "waOwnAgentConfirm": "请确认车辆交接、装柜及运输代理对接安排。"
   }
 }
