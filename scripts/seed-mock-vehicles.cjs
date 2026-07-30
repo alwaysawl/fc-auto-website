@@ -90,11 +90,17 @@ function toRow(v) {
 
 async function main() {
   const env = loadEnv();
-  const url = env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+  const url =
+    (env.SUPABASE_URL ?? "").trim() ||
+    (env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+  const key =
+    (env.SUPABASE_SECRET_KEY ?? "").trim() ||
+    (env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim() ||
+    (env.SUPABASE_ANON_KEY ?? "").trim() ||
+    (env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
   if (!url || !key) {
     console.error(
-      "Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY/SUPABASE_SERVICE_ROLE_KEY in .env.local"
+      "Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or a Supabase key (SECRET/SERVICE_ROLE/ANON) in .env.local"
     );
     process.exit(1);
   }
