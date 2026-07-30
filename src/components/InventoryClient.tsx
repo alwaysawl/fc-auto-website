@@ -528,9 +528,10 @@ function InventoryVehicleCard({
             <AddToCartButton
               vehicle={vehicle}
               addLabel={t.cart.addToCart}
-              addedLabel={t.cart.addedToCart}
-              toastLabel={t.cart.addedToast}
-              className="min-h-11 inline-flex items-center justify-center px-2 border border-brand-slate/20 bg-white text-brand-slate text-xs sm:text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors disabled:bg-slate-100 disabled:text-slate-500"
+              removeLabel={t.cart.removeFromCart}
+              addToast={t.cart.addedToast}
+              removeToast={t.cart.removedToast}
+              className="w-full text-xs sm:text-sm"
             />
             <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2">
               <Link

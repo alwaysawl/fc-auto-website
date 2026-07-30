@@ -382,7 +382,9 @@
     "sendWhatsApp": "Send via WhatsApp",
     "addToCart": "Add to Cart",
     "addedToCart": "Added to Cart",
-    "addedToast": "Vehicle added to cart",
-    "vehicleType": "Vehicle Type"
+    "addedToast": "Added to cart",
+    "vehicleType": "Vehicle Type",
+    "removeFromCart": "Remove from Cart",
+    "removedToast": "Removed from cart"
   }
 }
