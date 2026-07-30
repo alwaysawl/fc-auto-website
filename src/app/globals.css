@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-charcoal-dark text-gray-200 antialiased;
+  }
+
+  ::selection {
+    @apply bg-gold/30 text-white;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-gold text-charcoal font-semibold rounded-sm
+           hover:bg-gold-light hover:shadow-gold transition-all duration-300 active:scale-[0.98];
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 border border-gold/60 text-gold font-semibold rounded-sm
+           hover:bg-gold/10 hover:border-gold hover:shadow-gold transition-all duration-300 active:scale-[0.98];
+  }
+
+  .btn-whatsapp {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-[#25D366] text-white font-semibold rounded-sm
+           hover:bg-[#20BD5A] hover:shadow-lg transition-all duration-300 active:scale-[0.98];
+  }
+
+  .section-padding {
+    @apply px-4 sm:px-6 lg:px-8 py-20 md:py-28;
+  }
+
+  .container-max {
+    @apply max-w-7xl mx-auto;
+  }
+
+  .heading-display {
+    @apply font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white;
+  }
+
+  .heading-section {
+    @apply font-display text-2xl md:text-3xl font-bold tracking-tight text-white;
+  }
+
+  .gold-divider {
+    @apply w-16 h-0.5 bg-gold mx-auto;
+  }
+
+  .gold-divider-left {
+    @apply w-16 h-0.5 bg-gold;
+  }
+
+  .text-muted {
+    @apply text-gray-400;
+  }
+
+  .card-premium {
+    @apply bg-surface-card border border-white/5 rounded-sm
+           hover:border-gold/20 hover:shadow-card transition-all duration-300;
+  }
+
+  .input-dark {
+    @apply w-full px-4 py-3 bg-surface-elevated border border-white/10 rounded-sm text-gray-200
+           placeholder:text-gray-500 focus:ring-2 focus:ring-gold/50 focus:border-gold/50 outline-none transition-colors;
+  }
+
+  .select-dark {
+    @apply px-4 py-2.5 bg-surface-elevated border border-white/10 rounded-sm text-gray-200
+           focus:ring-2 focus:ring-gold/50 focus:border-gold/50 outline-none text-sm transition-colors;
+  }
+
+  .section-dark {
+    @apply bg-charcoal-dark;
+  }
+
+  .section-surface {
+    @apply bg-surface;
+  }
+
+  .section-elevated {
+    @apply bg-surface-elevated;
+  }
+
+  .opacity-0-start {
+    opacity: 0;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

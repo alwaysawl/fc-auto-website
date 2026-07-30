@@ -1,0 +1,249 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "inventory": "Inventaire",
+    "shipping": "Calculateur d'Expédition",
+    "about": "À Propos",
+    "contact": "Contact",
+    "tagline": "Voitures d'Occasion Premium pour l'Afrique"
+  },
+  "hero": {
+    "badge": "Exportateur de Voitures d'Occasion de Confiance",
+    "titleLine1": "Voitures d'Occasion de Qualité",
+    "titleLine2": "Exportées de Chine vers",
+    "titleHighlight": "l'Afrique",
+    "brands": "Toyota · Honda · Nissan · Mitsubishi",
+    "subtitle": "Votre partenaire de confiance pour des véhicules d'occasion de qualité.",
+    "cta": "Parcourir l'Inventaire",
+    "ctaSecondary": "Devis d'Expédition",
+    "whatsappCta": "WhatsApp",
+    "stats": [
+      { "value": "5000+", "label": "Véhicules Exportés" },
+      { "value": "20+", "label": "Pays Africains" },
+      { "value": "8+", "label": "Années d'Expérience" },
+      { "value": "98%", "label": "Satisfaction Client" }
+    ]
+  },
+  "homeShowcase": {
+    "title": "Modèles Populaires",
+    "subtitle": "Voitures d'occasion très demandées en Afrique",
+    "hotBadge": "Populaire",
+    "saleBadge": "Promo",
+    "whatsapp": "WhatsApp"
+  },
+  "trustFeatures": {
+    "items": [
+      {
+        "title": "Qualité Garantie",
+        "description": "Inspection rigoureuse avant expédition."
+      },
+      {
+        "title": "Export Mondial",
+        "description": "Expédié vers tous les pays africains."
+      },
+      {
+        "title": "Expédition Sécurisée",
+        "description": "Emballage professionnel et livraison sécurisée."
+      },
+      {
+        "title": "Support 24/7",
+        "description": "Assistance WhatsApp à tout moment."
+      }
+    ]
+  },
+  "intro": {
+    "title": "Bienvenue chez FC Auto Export",
+    "description": "Nous sommes spécialisés dans l'exportation de véhicules d'occasion de haute qualité de la Chine vers l'Afrique. Avec des années d'expérience et un engagement envers la transparence, nous rendons l'achat de voitures simple, sûr et abordable pour les clients du continent."
+  },
+  "whyUs": {
+    "title": "Pourquoi Nous Choisir",
+    "items": [
+      {
+        "title": "Qualité Inspectée",
+        "description": "Chaque véhicule subit une inspection approfondie de 150 points avant l'exportation."
+      },
+      {
+        "title": "Prix Transparents",
+        "description": "Prix FOB clairs sans frais cachés. Sachez exactement ce que vous payez."
+      },
+      {
+        "title": "Spécialistes de l'Afrique",
+        "description": "Routes d'expédition dédiées et expertise pour tous les grands ports africains."
+      },
+      {
+        "title": "Support Complet",
+        "description": "Support WhatsApp de la demande à la livraison à votre port de destination."
+      }
+    ]
+  },
+  "latestVehicles": {
+    "title": "Derniers Véhicules",
+    "viewAll": "Voir Tout l'Inventaire"
+  },
+  "shippingProcess": {
+    "title": "Processus d'Expédition",
+    "steps": [
+      {
+        "title": "Choisissez Votre Véhicule",
+        "description": "Parcourez notre inventaire et sélectionnez la voiture parfaite pour vos besoins."
+      },
+      {
+        "title": "Obtenez un Devis",
+        "description": "Utilisez notre calculateur d'expédition pour des prix FOB + expédition transparents."
+      },
+      {
+        "title": "Confirmez et Payez",
+        "description": "Sécurisez votre véhicule avec un acompte et finalisez les arrangements de paiement."
+      },
+      {
+        "title": "Exportation et Expédition",
+        "description": "Nous gérons toute la documentation d'exportation et organisons le fret maritime."
+      },
+      {
+        "title": "Réception au Port",
+        "description": "Votre véhicule arrive à votre port de destination prêt pour le dédouanement."
+      }
+    ]
+  },
+  "reviews": {
+    "title": "Avis Clients"
+  },
+  "cta": {
+    "title": "Prêt à Exporter Votre Prochain Véhicule ?",
+    "subtitle": "Obtenez un devis personnalisé en quelques minutes. Notre équipe répond sur WhatsApp en quelques heures — sans attente, sans frais cachés.",
+    "whatsapp": "Discuter sur WhatsApp",
+    "browse": "Parcourir l'Inventaire Complet"
+  },
+  "inventory": {
+    "title": "Véhicules Disponibles",
+    "subtitle": "Parcourez des véhicules inspectés prêts à l'exportation depuis la Chine.",
+    "filters": "Filtres",
+    "clearFilters": "Effacer les Filtres",
+    "keyword": "Mot-clé",
+    "keywordPlaceholder": "Rechercher marque, modèle...",
+    "allBrands": "Toutes les Marques",
+    "allModels": "Tous les Modèles",
+    "allYears": "Toutes les Années",
+    "allFuels": "Tous les Carburants",
+    "allTransmissions": "Toutes les Transmissions",
+    "allBodyTypes": "Tous les Types",
+    "bodyType": "Type de Carrosserie",
+    "price": "Prix",
+    "priceMin": "Min",
+    "priceMax": "Max",
+    "showFilters": "Afficher les Filtres",
+    "hideFilters": "Masquer les Filtres",
+    "vehicles": "véhicules",
+    "vehicle": "véhicule",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "noResults": "Aucun véhicule trouvé correspondant à vos critères.",
+    "calculateShipping": "Calculer l'Expédition",
+    "viewDetails": "Voir les Détails",
+    "fobPrice": "Prix FOB",
+    "mileage": "Kilométrage",
+    "year": "Année",
+    "fuel": "Carburant",
+    "transmission": "Transmission",
+    "steering": "Direction",
+    "vin": "N° de Châssis",
+    "brand": "Marque",
+    "model": "Modèle",
+    "km": "km",
+    "photos": "Photos"
+  },
+  "vehicleDetail": {
+    "specifications": "Spécifications",
+    "pricing": "Tarification",
+    "shippingTable": "Tableau des Prix d'Expédition",
+    "quantity": "Quantité",
+    "shippingCost": "Coût d'Expédition",
+    "totalCost": "Coût Total (FOB + Expédition)",
+    "contactUs": "Contactez-nous sur WhatsApp",
+    "vehicles": "véhicules",
+    "vehicle": "véhicule"
+  },
+  "shipping": {
+    "title": "Calculateur d'Expédition",
+    "subtitle": "Calculez votre coût total incluant le prix FOB et l'expédition vers l'Afrique.",
+    "selectVehicle": "Sélectionner un Véhicule",
+    "quantity": "Quantité",
+    "fobPrice": "Prix FOB",
+    "shippingCost": "Coût d'Expédition",
+    "totalCost": "Coût Total",
+    "priceTable": "Tableau des Prix d'Expédition",
+    "note": "Les prix d'expédition sont basés sur notre tableau de tarification, pas sur une multiplication par unité.",
+    "getQuote": "Obtenir un Devis sur WhatsApp"
+  },
+  "about": {
+    "title": "À Propos de FC Auto Export",
+    "subtitle": "Votre partenaire de confiance sur le marché africain de l'export automobile.",
+    "mission": {
+      "title": "Notre Mission",
+      "description": "Fournir aux clients africains un accès à des véhicules d'occasion de haute qualité et abordables grâce à un service d'exportation transparent et fiable. Nous croyons que chacun mérite un véhicule fiable à un prix juste."
+    },
+    "story": {
+      "title": "Notre Histoire",
+      "description": "Fondée avec la vision de combler le fossé entre le marché automobile chinois et la demande croissante de voitures d'occasion de qualité en Afrique, FC Auto Export est devenue un nom de confiance sur le continent. Nous servons des clients au Cameroun, au Nigeria, au Sénégal, au Ghana, au Kenya et dans bien d'autres pays."
+    },
+    "values": {
+      "title": "Nos Valeurs",
+      "items": [
+        {
+          "title": "Intégrité",
+          "description": "Prix honnêtes et descriptions précises des véhicules, toujours."
+        },
+        {
+          "title": "Qualité",
+          "description": "Uniquement des véhicules qui passent nos normes d'inspection rigoureuses."
+        },
+        {
+          "title": "Fiabilité",
+          "description": "Expédition ponctuelle et communication constante tout au long du processus."
+        },
+        {
+          "title": "Client d'Abord",
+          "description": "Votre satisfaction guide chaque décision que nous prenons."
+        }
+      ]
+    },
+    "stats": [
+      { "value": "500+", "label": "Véhicules Exportés" },
+      { "value": "15+", "label": "Pays Africains" },
+      { "value": "98%", "label": "Satisfaction Client" },
+      { "value": "5+", "label": "Années d'Expérience" }
+    ]
+  },
+  "contact": {
+    "title": "Contactez-Nous",
+    "subtitle": "Contactez notre équipe. Nous sommes là pour vous aider à trouver votre véhicule idéal.",
+    "whatsapp": "WhatsApp",
+    "whatsappDesc": "Le moyen le plus rapide de nous joindre. Disponible 7 jours sur 7.",
+    "chatNow": "Discuter sur WhatsApp",
+    "email": "Email",
+    "emailDesc": "Envoyez-nous une demande détaillée et nous répondrons sous 24 heures.",
+    "location": "Localisation",
+    "locationDesc": "Basés en Chine, au service des clients à travers l'Afrique.",
+    "form": {
+      "name": "Votre Nom",
+      "email": "Adresse Email",
+      "phone": "Téléphone / WhatsApp",
+      "message": "Votre Message",
+      "submit": "Envoyer le Message",
+      "success": "Merci ! Nous vous répondrons bientôt."
+    }
+  },
+  "footer": {
+    "company": "FC Auto Export",
+    "copyright": "© FC Auto Export",
+    "tagline": "Export automobile premium international vers l'Afrique",
+    "quickLinks": "Liens Rapides",
+    "contactInfo": "Contact"
+  },
+  "common": {
+    "learnMore": "En Savoir Plus",
+    "backToInventory": "Retour à l'Inventaire",
+    "loading": "Chargement...",
+    "error": "Une erreur s'est produite"
+  }
+}
