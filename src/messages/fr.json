@@ -95,6 +95,36 @@
       }
     ]
   },
+  "whyChooseTrust": {
+    "title": "Pourquoi choisir FC Auto Export",
+    "subtitle": "Un partenaire d'exportation de confiance pour les acheteurs en Afrique.",
+    "items": [
+      {
+        "title": "Inspection véhicule stricte",
+        "description": "Chaque véhicule est soigneusement contrôlé avant l'exportation pour limiter les risques."
+      },
+      {
+        "title": "Inspection tierce partie possible",
+        "description": "Des inspections indépendantes peuvent être organisées pour plus de confiance."
+      },
+      {
+        "title": "Prix FOB transparents",
+        "description": "Prix FOB Chine clairs, sans frais cachés sur l'annonce."
+      },
+      {
+        "title": "Expérience d'exportation professionnelle",
+        "description": "Des années d'expertise pour les ports et routes commerciales africains."
+      },
+      {
+        "title": "Chargement sécurisé en conteneur",
+        "description": "Emballage et chargement professionnels pour un transit plus sûr."
+      },
+      {
+        "title": "Support WhatsApp dédié",
+        "description": "Communication WhatsApp rapide, de la demande aux mises à jour d'expédition."
+      }
+    ]
+  },
   "latestVehicles": {
     "title": "Derniers Véhicules",
     "viewAll": "Voir Tout l'Inventaire"

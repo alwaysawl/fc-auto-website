@@ -5,6 +5,7 @@ import { dbGetPublicVehicles } from "@/lib/supabase/vehicle-queries";
 import { getLocalizedPath } from "@/lib/i18n";
 import HeroBanner from "@/components/HeroBanner";
 import HomeVehicleShowcase from "@/components/HomeVehicleShowcase";
+import HomeWhyChooseTrust from "@/components/HomeWhyChooseTrust";
 import VehicleCard from "@/components/VehicleCard";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import Link from "next/link";
@@ -128,6 +129,8 @@ export default async function HomePage({
           </div>
         </div>
       </section>
+
+      <HomeWhyChooseTrust t={t} />
 
       {/* Shipping Process */}
       <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-28 bg-slate-50">

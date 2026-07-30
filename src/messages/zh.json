@@ -95,6 +95,36 @@
       }
     ]
   },
+  "whyChooseTrust": {
+    "title": "为什么选择 FC Auto Export",
+    "subtitle": "非洲买家信赖的专业出口合作伙伴。",
+    "items": [
+      {
+        "title": "严格车辆检测",
+        "description": "出口前仔细检查每台车辆，降低购车风险。"
+      },
+      {
+        "title": "支持第三方检测",
+        "description": "可安排独立第三方检测，让买家更放心。"
+      },
+      {
+        "title": "透明中国离岸价",
+        "description": "清晰的中国 FOB 价格，列表无隐藏费用。"
+      },
+      {
+        "title": "专业出口经验",
+        "description": "深耕非洲港口与贸易航线，具备多年出口经验。"
+      },
+      {
+        "title": "安全集装箱装柜",
+        "description": "专业包装与装柜，保障运输过程更安全。"
+      },
+      {
+        "title": "专属 WhatsApp 支持",
+        "description": "从询价到装运进度，提供快速 WhatsApp 沟通。"
+      }
+    ]
+  },
   "latestVehicles": {
     "title": "最新车辆",
     "viewAll": "查看全部库存"
