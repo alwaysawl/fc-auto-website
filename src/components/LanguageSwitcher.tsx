@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Locale } from "@/lib/types";
 import { localeNames, switchLocalePath } from "@/lib/i18n";
-import { VISIBLE_LANGUAGE_OPTIONS, getLanguageOption } from "@/lib/languages";
+import { VISIBLE_LANGUAGE_OPTIONS, getLanguageOption, getComingSoonLabelForOption } from "@/lib/languages";
 
 interface LanguageSwitcherProps {
   locale: Locale;
@@ -20,7 +20,7 @@ const MOBILE_MQ = "(max-width: 767px)";
 export default function LanguageSwitcher({
   locale,
   theme = "dark",
-  comingSoonLabel: _comingSoonLabel = "Coming soon",
+  comingSoonLabel = "Coming soon",
   selectLanguageLabel = "Select Language",
 }: LanguageSwitcherProps) {
   const pathname = usePathname();
@@ -99,40 +99,65 @@ export default function LanguageSwitcher({
     const mobile = variant === "mobile";
 
     return VISIBLE_LANGUAGE_OPTIONS.map((option) => {
-      const selected = option.locale === locale;
+      const selected = Boolean(
+        option.available && option.locale && option.locale === locale
+      );
       const itemBase =
         "flex items-center justify-between gap-3 w-full min-h-11 px-4 py-3 text-left text-sm font-medium transition-colors";
 
-      // Only implemented locales are listed (see VISIBLE_LANGUAGE_OPTIONS)
-      if (!option.locale) return null;
+      if (option.available && option.locale) {
+        let itemClass: string;
+        if (mobile) {
+          itemClass = selected
+            ? "bg-white/10 text-accent-yellow"
+            : "text-white hover:bg-white/5 active:bg-white/10";
+        } else if (selected) {
+          itemClass = isLight
+            ? "bg-slate-100 text-brand-slate"
+            : "bg-white/10 text-accent-yellow";
+        } else {
+          itemClass = isLight ? "hover:bg-slate-50" : "hover:bg-white/5";
+        }
 
-      let itemClass: string;
-      if (mobile) {
-        itemClass = selected
-          ? "bg-white/10 text-accent-yellow"
-          : "text-white hover:bg-white/5 active:bg-white/10";
-      } else if (selected) {
-        itemClass = isLight
-          ? "bg-slate-100 text-brand-slate"
-          : "bg-white/10 text-accent-yellow";
-      } else {
-        itemClass = isLight ? "hover:bg-slate-50" : "hover:bg-white/5";
+        return (
+          <li key={option.code} role="option" aria-selected={selected}>
+            <Link
+              href={switchLocalePath(pathname, option.locale)}
+              onClick={() => setOpen(false)}
+              className={`${itemBase} ${itemClass}`}
+            >
+              <span className="min-w-0 break-words">{option.label}</span>
+              {selected && (
+                <span className="text-sm flex-shrink-0" aria-hidden>
+                  ✓
+                </span>
+              )}
+            </Link>
+          </li>
+        );
       }
 
+      const soonLabel = getComingSoonLabelForOption(option, comingSoonLabel);
+
       return (
-        <li key={option.code} role="option" aria-selected={selected}>
-          <Link
-            href={switchLocalePath(pathname, option.locale)}
-            onClick={() => setOpen(false)}
-            className={`${itemBase} ${itemClass}`}
+        <li key={option.code} role="option" aria-selected={false} aria-disabled>
+          <div
+            className={`${itemBase} cursor-default select-none ${
+              mobile
+                ? "text-white/45"
+                : isLight
+                  ? "text-slate-400 opacity-70"
+                  : "text-white/50 opacity-70"
+            }`}
+            // Coming-soon rows must not navigate or dismiss the sheet
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
           >
             <span className="min-w-0 break-words">{option.label}</span>
-            {selected && (
-              <span className="text-sm flex-shrink-0" aria-hidden>
-                ✓
-              </span>
-            )}
-          </Link>
+            <span className="text-[11px] font-normal whitespace-nowrap flex-shrink-0">
+              {soonLabel}
+            </span>
+          </div>
         </li>
       );
     });
