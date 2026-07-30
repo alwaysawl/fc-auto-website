@@ -20,6 +20,14 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: "zh", label: "中文", short: "中文", available: false },
 ];
 
+/**
+ * Languages shown in the UI switcher.
+ * Temporarily limited to implemented locales; keep LANGUAGE_OPTIONS intact
+ * so Español / Português / العربية / 中文 can be re-enabled without redesign.
+ */
+export const VISIBLE_LANGUAGE_OPTIONS: LanguageOption[] =
+  LANGUAGE_OPTIONS.filter((option) => option.available && option.locale);
+
 export function getLanguageOption(locale: Locale): LanguageOption {
   return (
     LANGUAGE_OPTIONS.find((l) => l.locale === locale) ?? LANGUAGE_OPTIONS[0]

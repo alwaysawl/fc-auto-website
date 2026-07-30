@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Locale } from "@/lib/types";
 import { localeNames, switchLocalePath } from "@/lib/i18n";
-import { LANGUAGE_OPTIONS, getLanguageOption } from "@/lib/languages";
+import { VISIBLE_LANGUAGE_OPTIONS, getLanguageOption } from "@/lib/languages";
 
 interface LanguageSwitcherProps {
   locale: Locale;
@@ -20,7 +20,7 @@ const MOBILE_MQ = "(max-width: 767px)";
 export default function LanguageSwitcher({
   locale,
   theme = "dark",
-  comingSoonLabel = "Coming soon",
+  comingSoonLabel: _comingSoonLabel = "Coming soon",
   selectLanguageLabel = "Select Language",
 }: LanguageSwitcherProps) {
   const pathname = usePathname();
@@ -98,62 +98,41 @@ export default function LanguageSwitcher({
   function renderLanguageItems(variant: "mobile" | "desktop") {
     const mobile = variant === "mobile";
 
-    return LANGUAGE_OPTIONS.map((option) => {
+    return VISIBLE_LANGUAGE_OPTIONS.map((option) => {
       const selected = option.locale === locale;
       const itemBase =
         "flex items-center justify-between gap-3 w-full min-h-11 px-4 py-3 text-left text-sm font-medium transition-colors";
 
-      if (option.available && option.locale) {
-        let itemClass: string;
-        if (mobile) {
-          itemClass = selected
-            ? "bg-white/10 text-accent-yellow"
-            : "text-white hover:bg-white/5 active:bg-white/10";
-        } else if (selected) {
-          itemClass = isLight
-            ? "bg-slate-100 text-brand-slate"
-            : "bg-white/10 text-accent-yellow";
-        } else {
-          itemClass = isLight ? "hover:bg-slate-50" : "hover:bg-white/5";
-        }
+      // Only implemented locales are listed (see VISIBLE_LANGUAGE_OPTIONS)
+      if (!option.locale) return null;
 
-        return (
-          <li key={option.code} role="option" aria-selected={selected}>
-            <Link
-              href={switchLocalePath(pathname, option.locale)}
-              onClick={() => setOpen(false)}
-              className={`${itemBase} ${itemClass}`}
-            >
-              <span className="min-w-0 break-words">{option.label}</span>
-              {selected && (
-                <span className="text-sm flex-shrink-0" aria-hidden>
-                  ✓
-                </span>
-              )}
-            </Link>
-          </li>
-        );
+      let itemClass: string;
+      if (mobile) {
+        itemClass = selected
+          ? "bg-white/10 text-accent-yellow"
+          : "text-white hover:bg-white/5 active:bg-white/10";
+      } else if (selected) {
+        itemClass = isLight
+          ? "bg-slate-100 text-brand-slate"
+          : "bg-white/10 text-accent-yellow";
+      } else {
+        itemClass = isLight ? "hover:bg-slate-50" : "hover:bg-white/5";
       }
 
       return (
-        <li key={option.code} role="option" aria-selected={false} aria-disabled>
-          <div
-            className={`${itemBase} cursor-default select-none ${
-              mobile
-                ? "text-white/45"
-                : isLight
-                  ? "text-slate-400 opacity-70"
-                  : "text-white/50 opacity-70"
-            }`}
-            // Coming-soon rows must not navigate or dismiss the sheet
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
+        <li key={option.code} role="option" aria-selected={selected}>
+          <Link
+            href={switchLocalePath(pathname, option.locale)}
+            onClick={() => setOpen(false)}
+            className={`${itemBase} ${itemClass}`}
           >
             <span className="min-w-0 break-words">{option.label}</span>
-            <span className="text-[11px] font-normal whitespace-nowrap flex-shrink-0">
-              {comingSoonLabel}
-            </span>
-          </div>
+            {selected && (
+              <span className="text-sm flex-shrink-0" aria-hidden>
+                ✓
+              </span>
+            )}
+          </Link>
         </li>
       );
     });
@@ -176,10 +155,10 @@ export default function LanguageSwitcher({
           aria-modal="true"
           aria-labelledby={`${listId}-title`}
           className="fixed inset-x-0 bottom-0 z-[210] w-full max-w-[100vw] overflow-x-hidden rounded-t-2xl border-t border-white/10 bg-[rgb(10,24,43)] text-white shadow-[0_-12px_40px_rgba(0,0,0,0.45)]"
-          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-2 border-b border-white/10">
+          <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2 border-b border-white/10">
             <h2
               id={`${listId}-title`}
               className="text-base font-semibold tracking-tight min-w-0 break-words pr-2"
@@ -197,7 +176,7 @@ export default function LanguageSwitcher({
               </svg>
             </button>
           </div>
-          <ul role="listbox" className="py-2 max-h-[min(70dvh,28rem)] overflow-y-auto overflow-x-hidden overscroll-contain">
+          <ul role="listbox" className="py-1.5 overflow-x-hidden">
             {renderLanguageItems("mobile")}
           </ul>
         </div>
