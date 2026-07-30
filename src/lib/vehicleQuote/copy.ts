@@ -21,6 +21,7 @@ export type VehicleQuoteCopy = {
   assignedContact: string;
   whatsappLabel: string;
   qrCodeLabel: string;
+  scanQrHint: string;
   fieldLabels: {
     brand: string;
     model: string;
@@ -75,6 +76,7 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
       assignedContact: "指定联系人",
       whatsappLabel: "WhatsApp",
       qrCodeLabel: "二维码",
+      scanQrHint: "扫描二维码，通过 WhatsApp 联系我们",
       fieldLabels: {
         brand: "品牌",
         model: "车型",
@@ -125,6 +127,7 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
       assignedContact: "Contact assigné",
       whatsappLabel: "WhatsApp",
       qrCodeLabel: "Code QR",
+      scanQrHint: "Scannez pour nous contacter sur WhatsApp",
       fieldLabels: {
         brand: "Marque",
         model: "Modèle",
@@ -174,6 +177,7 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
     assignedContact: "Assigned Contact",
     whatsappLabel: "WhatsApp",
     qrCodeLabel: "QR Code",
+    scanQrHint: "Scan to contact us on WhatsApp",
     fieldLabels: {
       brand: "Brand",
       model: "Model",

@@ -18,11 +18,18 @@ function loadHtmlImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/** Loaded quote image with intrinsic pixel dimensions for aspect-aware drawing. */
+export type QuoteImageAsset = {
+  dataUrl: string;
+  width: number;
+  height: number;
+};
+
 /** Load image as JPEG data URL for jsPDF (handles CORS failures gracefully). */
-export async function loadImageAsDataUrl(
+export async function loadImageAsset(
   url: string,
   maxEdge = 1200
-): Promise<string | null> {
+): Promise<QuoteImageAsset | null> {
   try {
     const resolved = absolutePublicUrl(url);
     const res = await fetch(resolved, { mode: "cors", credentials: "omit" });
@@ -33,23 +40,38 @@ export async function loadImageAsDataUrl(
       const img = await loadHtmlImage(objectUrl);
       const canvas = document.createElement("canvas");
       const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
-      canvas.width = Math.max(1, Math.round(img.width * scale));
-      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const width = Math.max(1, Math.round(img.width * scale));
+      const height = Math.max(1, Math.round(img.height * scale));
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) return null;
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL("image/jpeg", 0.82);
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      return {
+        dataUrl: canvas.toDataURL("image/jpeg", 0.82),
+        width,
+        height,
+      };
     } finally {
       URL.revokeObjectURL(objectUrl);
     }
   } catch {
     if (url !== PLACEHOLDER_PATH && !url.includes("rav4.jpg")) {
-      return loadImageAsDataUrl(PLACEHOLDER_PATH, maxEdge);
+      return loadImageAsset(PLACEHOLDER_PATH, maxEdge);
     }
     return null;
   }
+}
+
+/** @deprecated Prefer loadImageAsset — kept for callers needing only data URL */
+export async function loadImageAsDataUrl(
+  url: string,
+  maxEdge = 1200
+): Promise<string | null> {
+  const asset = await loadImageAsset(url, maxEdge);
+  return asset?.dataUrl ?? null;
 }
 
 /** Load a local PNG (e.g. QR) as PNG data URL — avoid JPEG compression artifacts. */
@@ -73,19 +95,19 @@ export async function loadPngAsDataUrl(url: string): Promise<string | null> {
 export async function loadQuoteImages(
   urls: string[],
   maxImages = 4
-): Promise<string[]> {
+): Promise<QuoteImageAsset[]> {
   const selected = urls.slice(0, maxImages);
   if (selected.length === 0) {
-    const fallback = await loadImageAsDataUrl(PLACEHOLDER_PATH);
+    const fallback = await loadImageAsset(PLACEHOLDER_PATH);
     return fallback ? [fallback] : [];
   }
-  const results: string[] = [];
+  const results: QuoteImageAsset[] = [];
   for (const url of selected) {
-    const data = await loadImageAsDataUrl(url);
+    const data = await loadImageAsset(url);
     if (data) results.push(data);
   }
   if (results.length === 0) {
-    const fallback = await loadImageAsDataUrl(PLACEHOLDER_PATH);
+    const fallback = await loadImageAsset(PLACEHOLDER_PATH);
     if (fallback) results.push(fallback);
   }
   return results;

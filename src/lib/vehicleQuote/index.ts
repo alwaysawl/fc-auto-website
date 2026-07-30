@@ -5,3 +5,7 @@ export {
   assignNextQuoteContact,
   QUOTE_CONTACTS,
 } from "@/lib/vehicleQuote/contacts";
+export {
+  calculateImageFit,
+  calculateContainedImageFit,
+} from "@/lib/vehicleQuote/imageFit";
