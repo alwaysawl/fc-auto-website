@@ -20,7 +20,7 @@ export default function WhatsAppButton() {
   return (
     <WhatsAppAssignLink
       sourcePage="floating-button"
-      className="fixed right-4 z-[60] group bottom-[max(1.25rem,env(safe-area-inset-bottom))] sm:right-6 sm:bottom-6"
+      className="fixed right-4 z-[80] group bottom-[max(1.25rem,env(safe-area-inset-bottom))] sm:right-6 sm:bottom-6"
       aria-label={t.nav.whatsapp}
     >
       <span className="absolute inset-0 rounded-full bg-[#25D366] animate-pulse-gold opacity-75 pointer-events-none" />

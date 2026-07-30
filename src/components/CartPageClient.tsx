@@ -2,14 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { Locale } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { getLocalizedPath } from "@/lib/i18n";
 import { useCart } from "@/components/CartProvider";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import {
-  SHIPPING_DESTINATIONS,
   SHIPPING_METHODS,
   VEHICLE_TYPES,
   findDestination,
@@ -18,7 +17,11 @@ import {
   getSampleFreightUsd,
   type VehicleTypeId,
 } from "@/data/shippingRates";
-import { formatUsd } from "@/lib/cart";
+import {
+  CART_SHIPPING_DESTINATIONS,
+  formatUsd,
+  isCartDestinationAllowed,
+} from "@/lib/cart";
 
 interface CartPageClientProps {
   locale: Locale;
@@ -35,21 +38,32 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
     ready,
   } = useCart();
 
+  useEffect(() => {
+    if (!ready) return;
+    if (shipping.countryId && !isCartDestinationAllowed(shipping.countryId)) {
+      setShipping({ countryId: "", portId: "" });
+    }
+  }, [ready, shipping.countryId, setShipping]);
+
   const nameLocale = locale === "fr" || locale === "zh" ? locale : "en";
-  const destination = shipping.countryId
-    ? findDestination(shipping.countryId)
+  const safeCountryId = isCartDestinationAllowed(shipping.countryId)
+    ? shipping.countryId
+    : "";
+  const destination = safeCountryId
+    ? findDestination(safeCountryId)
     : undefined;
   const ports = destination?.ports ?? [];
-  const port = destination && shipping.portId
-    ? findPort(destination, shipping.portId)
-    : undefined;
+  const port =
+    destination && shipping.portId
+      ? findPort(destination, shipping.portId)
+      : undefined;
 
   const lines = useMemo(() => {
     return items.map((item) => {
       const freight =
-        shipping.countryId && shipping.portId
+        safeCountryId && shipping.portId
           ? getSampleFreightUsd(
-              shipping.countryId,
+              safeCountryId,
               shipping.portId,
               item.vehicleTypeId,
               shipping.method
@@ -59,7 +73,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
         freight != null ? item.fobPrice + freight : null;
       return { item, freight, subtotal };
     });
-  }, [items, shipping]);
+  }, [items, shipping, safeCountryId]);
 
   const vehicleTotal = lines.reduce((sum, line) => sum + line.item.fobPrice, 0);
   const shippingTotal = lines.every((l) => l.freight != null)
@@ -178,12 +192,12 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
                 {t.shipping.destinationCountry}
               </label>
               <select
-                value={shipping.countryId}
+                value={safeCountryId}
                 onChange={(e) => setShipping({ countryId: e.target.value })}
                 className={fieldClass}
               >
                 <option value="">{t.shipping.selectCountry}</option>
-                {SHIPPING_DESTINATIONS.map((d) => (
+                {CART_SHIPPING_DESTINATIONS.map((d) => (
                   <option key={d.countryId} value={d.countryId}>
                     {getLocalizedName(d.countryName, nameLocale)}
                   </option>
@@ -198,7 +212,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
                 value={shipping.portId}
                 onChange={(e) => setShipping({ portId: e.target.value })}
                 className={fieldClass}
-                disabled={!shipping.countryId}
+                disabled={!safeCountryId}
               >
                 <option value="">{t.shipping.selectPort}</option>
                 {ports.map((p) => (

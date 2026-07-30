@@ -1,8 +1,22 @@
 import type { Vehicle } from "@/lib/types";
 import type { ShippingMethodId, VehicleTypeId } from "@/data/shippingRates";
+import { SHIPPING_DESTINATIONS } from "@/data/shippingRates";
 
 export const CART_STORAGE_KEY = "fc-auto-export-cart-v1";
 export const CART_SHIPPING_STORAGE_KEY = "fc-auto-export-cart-shipping-v1";
+
+/** Countries excluded from the cart destination selector only (shipping calculator unchanged). */
+export const CART_EXCLUDED_COUNTRY_IDS = new Set(["gh", "ng"]);
+
+/** Destinations shown in the cart shipping selector. */
+export const CART_SHIPPING_DESTINATIONS = SHIPPING_DESTINATIONS.filter(
+  (d) => !CART_EXCLUDED_COUNTRY_IDS.has(d.countryId)
+);
+
+export function isCartDestinationAllowed(countryId: string): boolean {
+  if (!countryId) return true;
+  return CART_SHIPPING_DESTINATIONS.some((d) => d.countryId === countryId);
+}
 
 export type CartItem = {
   id: string;
@@ -123,8 +137,19 @@ export function readCartShippingFromStorage(): CartShippingSelection {
     const raw = window.localStorage.getItem(CART_SHIPPING_STORAGE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<CartShippingSelection>;
+    const countryId = parsed.countryId ?? "";
+    // Clear Ghana / Nigeria (or other removed destinations) from saved cart shipping
+    if (countryId && !isCartDestinationAllowed(countryId)) {
+      const cleared: CartShippingSelection = {
+        countryId: "",
+        portId: "",
+        method: parsed.method === "container" ? "container" : "roro",
+      };
+      writeCartShippingToStorage(cleared);
+      return cleared;
+    }
     return {
-      countryId: parsed.countryId ?? "",
+      countryId,
       portId: parsed.portId ?? "",
       method: parsed.method === "container" ? "container" : "roro",
     };

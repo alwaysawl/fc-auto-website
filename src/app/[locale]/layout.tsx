@@ -7,6 +7,7 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import LocaleDocumentSync from "@/components/LocaleDocumentSync";
 import { CartProvider } from "@/components/CartProvider";
 import CartToast from "@/components/CartToast";
+import FloatingCartButton from "@/components/FloatingCartButton";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -56,6 +57,7 @@ export default async function LocaleLayout({
       <MainWrapper locale={locale}>{children}</MainWrapper>
       <Footer locale={locale} t={t} />
       <WhatsAppButton />
+      <FloatingCartButton />
       <CartToast />
     </CartProvider>
   );
