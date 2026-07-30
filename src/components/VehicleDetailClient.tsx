@@ -8,6 +8,7 @@ import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import AddToCartButton from "@/components/AddToCartButton";
+import DownloadVehicleQuoteButton from "@/components/DownloadVehicleQuoteButton";
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle;
@@ -326,15 +327,12 @@ export default function VehicleDetailClient({
                 removeToast={t.cart.removedToast}
                 className="h-11 w-full"
               />
-              <WhatsAppAssignLink
-                sourcePage="vehicle-detail-quote"
-                vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
-                vehicleYear={String(vehicle.year)}
-                stockNumber={stockNumber}
-                className="h-11 inline-flex items-center justify-center px-4 bg-accent-yellow text-brand-slate text-sm font-semibold rounded-lg hover:bg-accent-yellow-hover transition-colors"
-              >
-                {t.vehicleDetail.requestQuote}
-              </WhatsAppAssignLink>
+              <DownloadVehicleQuoteButton
+                vehicle={vehicle}
+                locale={locale}
+                t={t}
+                className="h-11 w-full px-4 bg-accent-yellow text-brand-slate text-sm font-semibold rounded-lg hover:bg-accent-yellow-hover transition-colors"
+              />
               <WhatsAppAssignLink
                 sourcePage="vehicle-detail"
                 vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
@@ -541,15 +539,12 @@ export default function VehicleDetailClient({
             removeToast={t.cart.removedToast}
             className="text-[11px] sm:text-sm px-1"
           />
-          <WhatsAppAssignLink
-            sourcePage="vehicle-detail-quote-mobile"
-            vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
-            vehicleYear={String(vehicle.year)}
-            stockNumber={stockNumber}
-            className="min-h-11 inline-flex items-center justify-center bg-accent-yellow text-brand-slate text-[11px] sm:text-sm font-semibold rounded-lg px-1 text-center"
-          >
-            {t.vehicleDetail.requestQuote}
-          </WhatsAppAssignLink>
+          <DownloadVehicleQuoteButton
+            vehicle={vehicle}
+            locale={locale}
+            t={t}
+            className="min-h-11 bg-accent-yellow text-brand-slate text-[11px] sm:text-sm font-semibold rounded-lg px-1 text-center"
+          />
           <WhatsAppAssignLink
             sourcePage="vehicle-detail-mobile"
             vehicleTitle={`${vehicle.brand} ${vehicle.model}`}

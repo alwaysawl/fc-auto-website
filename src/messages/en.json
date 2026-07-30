@@ -206,7 +206,10 @@
     "loadError": "Failed to load inventory",
     "loadingVehicles": "Loading vehicles",
     "fobChina": "FOB China",
-    "popular": "Popular"
+    "popular": "Popular",
+    "galleryPrevious": "Previous image",
+    "galleryNext": "Next image",
+    "galleryPosition": "Image {current} of {total}"
   },
   "vehicleDetail": {
     "specifications": "Specifications",
@@ -224,6 +227,10 @@
     "color": "Color",
     "stockId": "Stock ID",
     "requestQuote": "Request Quote",
+    "downloadVehicleQuote": "Download Vehicle Quote",
+    "quotePreparing": "Preparing Quote…",
+    "quoteDownloadSuccess": "Vehicle quote downloaded",
+    "quoteDownloadError": "Unable to generate the quote. Please try again.",
     "getBestFob": "Get Best FOB Price",
     "contactWhatsapp": "Contact on WhatsApp",
     "whatsappInquiry": "WhatsApp Inquiry",

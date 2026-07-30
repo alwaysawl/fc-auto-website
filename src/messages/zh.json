@@ -206,7 +206,10 @@
     "brand": "品牌",
     "model": "车型",
     "km": "公里",
-    "photos": "照片"
+    "photos": "照片",
+    "galleryPrevious": "上一张图片",
+    "galleryNext": "下一张图片",
+    "galleryPosition": "第 {current} 张，共 {total} 张"
   },
   "vehicleDetail": {
     "pageTitle": "车辆详情",
@@ -224,6 +227,10 @@
     "color": "颜色",
     "stockId": "库存编号",
     "requestQuote": "获取报价",
+    "downloadVehicleQuote": "一键下载车辆报价单",
+    "quotePreparing": "正在生成报价单……",
+    "quoteDownloadSuccess": "车辆报价单已下载",
+    "quoteDownloadError": "报价单生成失败，请重试。",
     "getBestFob": "获取最优离岸价",
     "contactWhatsapp": "WhatsApp 联系",
     "whatsappInquiry": "WhatsApp 询价",

@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Vehicle, Locale } from "@/lib/types";
 import { Translations } from "@/lib/translations";
 import { getLocalizedPath } from "@/lib/i18n";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import AddToCartButton from "@/components/AddToCartButton";
+import VehicleCardGallery, {
+  collectVehicleCardImages,
+} from "@/components/VehicleCardGallery";
 
 const PAGE_SIZE = 9;
 
@@ -394,12 +396,13 @@ export default function InventoryClient({
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
-                  {paged.map((vehicle) => (
+                  {paged.map((vehicle, i) => (
                     <InventoryVehicleCard
                       key={vehicle.id}
                       vehicle={vehicle}
                       locale={locale}
                       t={t}
+                      priority={i < 3}
                     />
                   ))}
                 </div>
@@ -450,20 +453,16 @@ export default function InventoryClient({
   );
 }
 
-function coverImageSrc(vehicle: Vehicle): string {
-  if (vehicle.mainImageUrl?.trim()) return vehicle.mainImageUrl.trim();
-  if (vehicle.photos?.[0]) return vehicle.photos[0];
-  return "/images/rav4.jpg";
-}
-
 function InventoryVehicleCard({
   vehicle,
   locale,
   t,
+  priority = false,
 }: {
   vehicle: Vehicle;
   locale: Locale;
   t: Translations;
+  priority?: boolean;
 }) {
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-US", {
@@ -474,20 +473,23 @@ function InventoryVehicleCard({
 
   const formatMileage = (km: number) => new Intl.NumberFormat("en-US").format(km);
 
-  return (
-    <article className="bg-white rounded-xl border border-slate-100 shadow-soft overflow-hidden hover:shadow-soft-lg transition-shadow flex flex-col">
-      <div className="relative aspect-[4/3] bg-slate-100">
-        <Image
-          src={coverImageSrc(vehicle)}
-          alt={`${vehicle.brand} ${vehicle.model}`}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-        />
-      </div>
+  const galleryImages = collectVehicleCardImages(vehicle);
 
-      <div className="p-3.5 flex flex-col flex-1">
-        <h3 className="text-base font-bold text-brand-slate mb-2 leading-snug">
+  return (
+    <article className="bg-white rounded-xl border border-slate-100 shadow-soft overflow-hidden hover:shadow-soft-lg transition-shadow flex flex-col min-w-0">
+      <VehicleCardGallery
+        images={galleryImages}
+        alt={`${vehicle.brand} ${vehicle.model}`}
+        priority={priority}
+        labels={{
+          previousImage: t.inventory.galleryPrevious,
+          nextImage: t.inventory.galleryNext,
+          imagePosition: t.inventory.galleryPosition,
+        }}
+      />
+
+      <div className="p-3.5 flex flex-col flex-1 min-w-0">
+        <h3 className="text-base font-bold text-brand-slate mb-2 leading-snug break-words">
           {vehicle.brand} {vehicle.model}
         </h3>
 
