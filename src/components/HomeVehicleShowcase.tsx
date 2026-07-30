@@ -30,7 +30,7 @@ export default function HomeVehicleShowcase({
   if (vehicles.length === 0) return null;
 
   return (
-    <section className="bg-white px-4 sm:px-6 lg:px-8 pt-16 md:pt-20 pb-10 md:pb-14">
+    <section className="bg-white px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 md:pt-28 pb-10 md:pb-14">
       <div className="container-max">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
