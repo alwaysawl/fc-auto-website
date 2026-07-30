@@ -393,6 +393,9 @@
     "freightCalcOneContainerPlusSingle": "1 个 40 英尺集装箱 + {singles} 台单车运输",
     "freightCalcManyContainersPlusSingle": "{containers} 个 40 英尺集装箱 + {singles} 台单车运输",
     "multiVehicleFreightNotice": "两台至四台车辆需要使用一个 40 英尺集装箱，因此两台、三台和四台车辆的预估运费相同。一个 40 英尺集装箱最多可装载四台标准尺寸车辆。实际装载数量可能因车辆尺寸而变化，最终运费以船公司确认报价为准。",
-    "capacityDisclaimer": "实际装载数量可能因车辆尺寸而变化。"
+    "capacityDisclaimer": "实际装载数量可能因车辆尺寸而变化。",
+    "finalConfirmationPrefix": "最终运输方案、装柜数量、船期及实际运费，",
+    "finalConfirmationHighlight": "请以客服确认结果为准。",
+    "finalConfirmationWhatsApp": "请客服确认最终运输方案、装柜数量、船期及实际运费。"
   }
 }

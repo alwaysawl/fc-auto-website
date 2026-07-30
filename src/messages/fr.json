@@ -393,6 +393,9 @@
     "freightCalcOneContainerPlusSingle": "1 conteneur de 40 pieds + {singles} véhicule individuel",
     "freightCalcManyContainersPlusSingle": "{containers} conteneurs de 40 pieds + {singles} véhicule individuel",
     "multiVehicleFreightNotice": "Deux à quatre véhicules nécessitent un conteneur de 40 pieds. Le fret estimé est donc identique pour deux, trois ou quatre véhicules. Un conteneur de 40 pieds peut contenir jusqu'à quatre véhicules de dimensions standard. La capacité réelle peut varier selon les dimensions des véhicules et le fret final doit être confirmé par la compagnie maritime.",
-    "capacityDisclaimer": "La capacité réelle peut varier selon les dimensions des véhicules."
+    "capacityDisclaimer": "La capacité réelle peut varier selon les dimensions des véhicules.",
+    "finalConfirmationPrefix": "Le mode de transport final, le nombre de véhicules par conteneur, le calendrier du navire et le coût réel du fret ",
+    "finalConfirmationHighlight": "doivent être confirmés par notre service client.",
+    "finalConfirmationWhatsApp": "Veuillez confirmer le mode de transport final, le nombre de véhicules par conteneur, le calendrier du navire et le coût réel du fret."
   }
 }
