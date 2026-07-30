@@ -17,6 +17,10 @@ export type VehicleQuoteCopy = {
   pageOf: string; // "Page {page} of {pages}"
   disclaimerTitle: string;
   disclaimerBody: string[];
+  quotationContact: string;
+  assignedContact: string;
+  whatsappLabel: string;
+  qrCodeLabel: string;
   fieldLabels: {
     brand: string;
     model: string;
@@ -67,6 +71,10 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
         "FOB 价格为中国港口离岸价，不包含海运费、保险、目的港费用、进口关税及当地清关费用。",
         "最终车辆价格、车辆状况、运输方案、装柜数量、船期及实际运费，请以 FC Auto Export 客服确认结果为准。",
       ],
+      quotationContact: "报价联系人",
+      assignedContact: "指定联系人",
+      whatsappLabel: "WhatsApp",
+      qrCodeLabel: "二维码",
       fieldLabels: {
         brand: "品牌",
         model: "车型",
@@ -113,6 +121,10 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
         "Le prix FOB correspond au prix franco à bord dans un port chinois. Il n'inclut pas le fret maritime, l'assurance, les frais au port de destination, les droits d'importation ni les frais locaux de dédouanement.",
         "Le prix final du véhicule, son état, l'organisation du transport, le nombre de véhicules par conteneur, le calendrier du navire et le coût réel du fret doivent être confirmés par FC Auto Export.",
       ],
+      quotationContact: "Contact pour le devis",
+      assignedContact: "Contact assigné",
+      whatsappLabel: "WhatsApp",
+      qrCodeLabel: "Code QR",
       fieldLabels: {
         brand: "Marque",
         model: "Modèle",
@@ -158,6 +170,10 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
       "The FOB price is the Free On Board price at a China port. It does not include ocean freight, insurance, destination port charges, import duties or local customs-clearance costs.",
       "The final vehicle price, vehicle condition, shipping arrangement, container loading quantity, vessel schedule and actual freight are subject to confirmation by FC Auto Export.",
     ],
+    quotationContact: "Quotation Contact",
+    assignedContact: "Assigned Contact",
+    whatsappLabel: "WhatsApp",
+    qrCodeLabel: "QR Code",
     fieldLabels: {
       brand: "Brand",
       model: "Model",

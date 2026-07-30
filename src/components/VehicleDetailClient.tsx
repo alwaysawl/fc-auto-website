@@ -195,7 +195,6 @@ export default function VehicleDetailClient({
     .filter(Boolean);
 
   const trustItems = [
-    t.vehicleDetail.trustInspection,
     t.vehicleDetail.trustDocuments,
     t.vehicleDetail.trustShipping,
     t.vehicleDetail.trustSupport,

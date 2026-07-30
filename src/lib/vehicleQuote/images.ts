@@ -1,4 +1,4 @@
-import type { Locale, Vehicle } from "@/lib/types";
+import type { Locale } from "@/lib/types";
 
 const PLACEHOLDER_PATH = "/images/rav4.jpg";
 
@@ -7,6 +7,15 @@ function absolutePublicUrl(path: string): string {
   if (typeof window === "undefined") return path;
   const base = window.location.origin;
   return path.startsWith("/") ? `${base}${path}` : `${base}/${path}`;
+}
+
+function loadHtmlImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = src;
+  });
 }
 
 /** Load image as JPEG data URL for jsPDF (handles CORS failures gracefully). */
@@ -43,13 +52,22 @@ export async function loadImageAsDataUrl(
   }
 }
 
-function loadHtmlImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("image load failed"));
-    img.src = src;
-  });
+/** Load a local PNG (e.g. QR) as PNG data URL — avoid JPEG compression artifacts. */
+export async function loadPngAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const resolved = absolutePublicUrl(url);
+    const res = await fetch(resolved, { mode: "cors", credentials: "omit" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("read failed"));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function loadQuoteImages(

@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { Locale, Vehicle } from "@/lib/types";
 import { getVehicleQuoteCopy } from "@/lib/vehicleQuote/copy";
+import { assignNextQuoteContact } from "@/lib/vehicleQuote/contacts";
 import {
   buildQuoteFilename,
   buildQuoteSpecRows,
@@ -9,7 +10,11 @@ import {
   formatQuotePrice,
   statusLabelForQuote,
 } from "@/lib/vehicleQuote/helpers";
-import { loadQuoteImages, renderTextBitmap } from "@/lib/vehicleQuote/images";
+import {
+  loadPngAsDataUrl,
+  loadQuoteImages,
+  renderTextBitmap,
+} from "@/lib/vehicleQuote/images";
 
 const NAVY: [number, number, number] = [26, 35, 50];
 const YELLOW: [number, number, number] = [245, 198, 54];
@@ -19,8 +24,11 @@ const LIGHT: [number, number, number] = [248, 250, 252];
 
 type Pdf = jsPDF;
 
-function addFooter(doc: Pdf, copy: ReturnType<typeof getVehicleQuoteCopy>) {
-  const page = doc.getNumberOfPages();
+function addFooter(
+  doc: Pdf,
+  copy: ReturnType<typeof getVehicleQuoteCopy>,
+  whatsappDisplay: string
+) {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   doc.setFillColor(...NAVY);
@@ -30,12 +38,7 @@ function addFooter(doc: Pdf, copy: ReturnType<typeof getVehicleQuoteCopy>) {
   doc.setFontSize(8);
   doc.text(`${copy.companyName}  ·  ${copy.website}`, 12, h - 6);
   doc.text(copy.websiteUrl, w / 2, h - 6, { align: "center" });
-  const label = copy.pageOf
-    .replace("{page}", String(page))
-    .replace("{pages}", "{pages}");
-  // pages filled after all content
-  (doc as Pdf & { __pageLabel?: string }).__pageLabel = label;
-  doc.text(`p. ${page}`, w - 12, h - 6, { align: "right" });
+  doc.text(whatsappDisplay, w - 12, h - 6, { align: "right" });
 }
 
 function finalizePageNumbers(
@@ -48,18 +51,22 @@ function finalizePageNumbers(
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
     doc.setFillColor(...NAVY);
-    doc.rect(w - 40, h - 14, 40, 14, "F");
+    doc.rect(w - 52, h - 14, 52, 14, "F");
     doc.setTextColor(...WHITE);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    const text = copy.pageOf
+    doc.setFontSize(7);
+    const label = copy.pageOf
       .replace("{page}", String(i))
       .replace("{pages}", String(total));
-    doc.text(text, w - 12, h - 6, { align: "right" });
+    doc.text(label, w - 10, h - 6, { align: "right" });
   }
 }
 
-function drawHeaderBar(doc: Pdf, copy: ReturnType<typeof getVehicleQuoteCopy>) {
+function drawHeaderBar(
+  doc: Pdf,
+  copy: ReturnType<typeof getVehicleQuoteCopy>,
+  whatsappDisplay: string
+) {
   const w = doc.internal.pageSize.getWidth();
   doc.setFillColor(...NAVY);
   doc.rect(0, 0, w, 28, "F");
@@ -80,12 +87,12 @@ function drawHeaderBar(doc: Pdf, copy: ReturnType<typeof getVehicleQuoteCopy>) {
   doc.setFontSize(8);
   doc.text(copy.website, w - 12, 13, { align: "right" });
   doc.setTextColor(...WHITE);
-  doc.text(copy.whatsapp, w - 12, 20, { align: "right" });
+  doc.text(whatsappDisplay, w - 12, 20, { align: "right" });
 }
 
 function putBitmap(
   doc: Pdf,
-  text: string,
+  value: string,
   x: number,
   y: number,
   opts: {
@@ -97,9 +104,8 @@ function putBitmap(
     align?: "left" | "center" | "right";
   }
 ): number {
-  // ~96dpi canvas px ≈ pt * 1.33; keep ratio for layout
   const scale = 2;
-  const bmp = renderTextBitmap(text, {
+  const bmp = renderTextBitmap(value, {
     fontSize: opts.fontSize * scale,
     color: opts.color,
     fontWeight: opts.fontWeight,
@@ -125,6 +131,8 @@ export async function downloadVehicleQuotePdf(
   locale: Locale
 ): Promise<void> {
   const copy = getVehicleQuoteCopy(locale);
+  const contact = assignNextQuoteContact();
+  const whatsappDisplay = contact.whatsappDisplay;
   const useBitmap = locale === "zh";
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -136,6 +144,7 @@ export async function downloadVehicleQuotePdf(
   const images = await loadQuoteImages(imageUrls, 4);
   const mainImage = images[0] ?? null;
   const extraImages = images.slice(1, 4);
+  const qrDataUrl = await loadPngAsDataUrl(contact.qrPath);
 
   const vehicleName =
     vehicle.titleEn?.trim() || `${vehicle.brand} ${vehicle.model}`;
@@ -143,8 +152,7 @@ export async function downloadVehicleQuotePdf(
   const status = statusLabelForQuote(vehicle.status, locale);
   const quoteDate = formatQuoteDate(locale);
 
-  // —— Page 1: cover summary ——
-  drawHeaderBar(doc, copy);
+  drawHeaderBar(doc, copy, whatsappDisplay);
   let y = 42;
 
   const text = (
@@ -184,14 +192,13 @@ export async function downloadVehicleQuotePdf(
   y += 8;
 
   if (mainImage) {
-    const imgH = 210;
+    const imgH = 190;
     const imgW = contentW;
     doc.setDrawColor(226, 232, 240);
     doc.setFillColor(...LIGHT);
     doc.roundedRect(margin, y, imgW, imgH, 6, 6, "FD");
-    // Cover fit
     doc.addImage(mainImage, "JPEG", margin + 4, y + 4, imgW - 8, imgH - 8);
-    y += imgH + 14;
+    y += imgH + 12;
   }
 
   y += text(vehicleName, margin, y, 16, { bold: true });
@@ -213,7 +220,7 @@ export async function downloadVehicleQuotePdf(
     color: SLATE,
   });
   y += 4;
-  y += text(`WhatsApp: ${copy.whatsapp}`, margin, y, 9, { color: SLATE });
+  y += text(`WhatsApp: ${whatsappDisplay}`, margin, y, 9, { color: SLATE });
   y += 10;
 
   doc.setFillColor(255, 251, 235);
@@ -226,11 +233,56 @@ export async function downloadVehicleQuotePdf(
   });
   y += noticeH + 12;
 
-  addFooter(doc, copy);
+  // Quotation contact — QR only (no avatars / profile screenshots)
+  const contactBoxH = qrDataUrl ? 148 : 72;
+  if (y + contactBoxH > pageH - 28) {
+    addFooter(doc, copy, whatsappDisplay);
+    doc.addPage();
+    drawHeaderBar(doc, copy, whatsappDisplay);
+    y = 42;
+  }
 
-  // —— Specs page ——
+  doc.setFillColor(...LIGHT);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(margin, y, contentW, contactBoxH, 6, 6, "FD");
+  let cy = y + 10;
+  cy += text(copy.companyName, margin + 12, cy, 11, { bold: true });
+  cy += 2;
+  cy += text(copy.quotationContact, margin + 12, cy, 10, { bold: true });
+  cy += 4;
+  cy += text(
+    `${copy.assignedContact}: ${contact.name}`,
+    margin + 12,
+    cy,
+    10,
+    { color: SLATE }
+  );
+  cy += 3;
+  cy += text(
+    `${copy.whatsappLabel}: ${whatsappDisplay}`,
+    margin + 12,
+    cy,
+    10,
+    { color: SLATE }
+  );
+  cy += 4;
+  cy += text(copy.qrCodeLabel, margin + 12, cy, 9, { color: SLATE });
+
+  if (qrDataUrl) {
+    const qrSize = 88;
+    const qrX = margin + contentW - qrSize - 14;
+    const qrY = y + (contactBoxH - qrSize) / 2;
+    doc.setFillColor(...WHITE);
+    doc.roundedRect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8, 4, 4, "F");
+    doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+  }
+
+  y += contactBoxH + 10;
+
+  addFooter(doc, copy, whatsappDisplay);
+
   doc.addPage();
-  drawHeaderBar(doc, copy);
+  drawHeaderBar(doc, copy, whatsappDisplay);
   y = 42;
   y += text(copy.vehicleInformation, margin, y, 14, { bold: true });
   y += 10;
@@ -239,9 +291,9 @@ export async function downloadVehicleQuotePdf(
   const rowH = 18;
   rows.forEach((row, rowIndex) => {
     if (y > pageH - 50) {
-      addFooter(doc, copy);
+      addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy);
+      drawHeaderBar(doc, copy, whatsappDisplay);
       y = 42;
     }
     doc.setFillColor(...(rowIndex % 2 === 0 ? LIGHT : WHITE));
@@ -261,9 +313,9 @@ export async function downloadVehicleQuotePdf(
   if (description) {
     y += 14;
     if (y > pageH - 80) {
-      addFooter(doc, copy);
+      addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy);
+      drawHeaderBar(doc, copy, whatsappDisplay);
       y = 42;
     }
     y += text(copy.fieldLabels.description, margin, y, 11, { bold: true });
@@ -281,18 +333,18 @@ export async function downloadVehicleQuotePdf(
   if (features.length) {
     y += 14;
     if (y > pageH - 60) {
-      addFooter(doc, copy);
+      addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy);
+      drawHeaderBar(doc, copy, whatsappDisplay);
       y = 42;
     }
     y += text(copy.fieldLabels.features, margin, y, 11, { bold: true });
     y += 6;
     for (const line of features) {
       if (y > pageH - 40) {
-        addFooter(doc, copy);
+        addFooter(doc, copy, whatsappDisplay);
         doc.addPage();
-        drawHeaderBar(doc, copy);
+        drawHeaderBar(doc, copy, whatsappDisplay);
         y = 42;
       }
       y += text(`• ${line}`, margin, y, 9, {
@@ -303,13 +355,12 @@ export async function downloadVehicleQuotePdf(
     }
   }
 
-  // Extra images grid
   if (extraImages.length > 0) {
     y += 16;
     if (y > pageH - 140) {
-      addFooter(doc, copy);
+      addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy);
+      drawHeaderBar(doc, copy, whatsappDisplay);
       y = 42;
     }
     y += text(copy.vehicleImages, margin, y, 11, { bold: true });
@@ -326,11 +377,10 @@ export async function downloadVehicleQuotePdf(
     y += imgH + 12;
   }
 
-  // Disclaimer
   if (y > pageH - 120) {
-    addFooter(doc, copy);
+    addFooter(doc, copy, whatsappDisplay);
     doc.addPage();
-    drawHeaderBar(doc, copy);
+    drawHeaderBar(doc, copy, whatsappDisplay);
     y = 42;
   }
   y += 8;
@@ -350,7 +400,7 @@ export async function downloadVehicleQuotePdf(
   y += 4;
   doc.roundedRect(margin, discStart, contentW, y - discStart, 4, 4, "D");
 
-  addFooter(doc, copy);
+  addFooter(doc, copy, whatsappDisplay);
   finalizePageNumbers(doc, copy);
 
   doc.save(buildQuoteFilename(vehicle));
