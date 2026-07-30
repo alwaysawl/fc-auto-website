@@ -26,7 +26,7 @@ export default async function CartPage({
   const t = getTranslations(locale);
 
   return (
-    <div className="bg-[#F7F8FA] min-h-screen pb-28 xl:pb-12">
+    <div className="bg-[#F7F8FA] min-h-screen pb-[calc(9rem+env(safe-area-inset-bottom))] xl:pb-12">
       <section className="border-b border-slate-100 bg-white">
         <div className="container-max px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
           <h1 className="text-2xl sm:text-3xl font-bold text-brand-slate tracking-tight">

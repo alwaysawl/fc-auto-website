@@ -35,6 +35,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
     setShipping,
     removeItem,
     setItemVehicleType,
+    showToast,
     ready,
   } = useCart();
 
@@ -267,26 +268,33 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
                     sizes="(max-width: 640px) 100vw, 140px"
                   />
                 </div>
-                <div className="p-4 sm:pr-5 sm:py-4 min-w-0">
-                  <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-brand-slate text-base break-words">
+                <div className="p-4 sm:pr-5 sm:py-4 min-w-0 overflow-x-hidden">
+                  <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-brand-slate text-base break-words" style={{ overflowWrap: "anywhere" }}>
                         {item.title}
                       </h3>
-                      <p className="text-sm text-slate-500 mt-0.5">
+                      <p className="text-sm text-slate-500 mt-0.5 break-words" style={{ overflowWrap: "anywhere" }}>
                         {item.year} · {t.cart.stockId}: {item.id}
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => removeItem(item.id)}
-                      className="min-h-11 px-3 rounded-lg text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex-shrink-0"
+                      onClick={() => {
+                        removeItem(item.id);
+                        showToast(t.cart.removedToast);
+                      }}
+                      aria-label={`Remove ${item.title} from cart`}
+                      className="inline-flex items-center justify-center gap-2 min-h-11 w-full sm:w-auto flex-shrink-0 px-4 rounded-lg border border-red-300 bg-white text-red-600 text-sm font-semibold hover:bg-red-50 hover:text-red-700 active:bg-red-100 transition-colors"
                     >
-                      {t.cart.remove}
+                      <span aria-hidden>🗑</span>
+                      <span className="whitespace-normal break-words text-center leading-tight">
+                        {t.cart.removeFromCart}
+                      </span>
                     </button>
                   </div>
 
-                  <div className="mb-3 max-w-xs">
+                  <div className="mb-3 max-w-full sm:max-w-xs">
                     <label className="block text-xs font-semibold text-slate-500 mb-1">
                       {t.shipping.vehicleType}
                     </label>
@@ -308,28 +316,28 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
                     </select>
                   </div>
 
-                  <dl className="grid grid-cols-1 min-[380px]:grid-cols-3 gap-2 text-sm mb-4">
-                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <dt className="text-[11px] text-slate-500 font-semibold">
+                  <dl className="grid grid-cols-1 min-[400px]:grid-cols-3 gap-2 text-sm mb-4">
+                    <div className="rounded-lg bg-slate-50 px-3 py-2 min-w-0">
+                      <dt className="text-[11px] text-slate-500 font-semibold break-words">
                         {t.cart.fobChina}
                       </dt>
-                      <dd className="font-bold text-brand-slate mt-0.5">
+                      <dd className="font-bold text-brand-slate mt-0.5 break-words">
                         {formatUsd(item.fobPrice)}
                       </dd>
                     </div>
-                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <dt className="text-[11px] text-slate-500 font-semibold">
+                    <div className="rounded-lg bg-slate-50 px-3 py-2 min-w-0">
+                      <dt className="text-[11px] text-slate-500 font-semibold break-words">
                         {t.cart.estimatedFreight}
                       </dt>
-                      <dd className="font-bold text-brand-slate mt-0.5">
+                      <dd className="font-bold text-brand-slate mt-0.5 break-words">
                         {freight != null ? formatUsd(freight) : "—"}
                       </dd>
                     </div>
-                    <div className="rounded-lg bg-accent-yellow/15 px-3 py-2">
-                      <dt className="text-[11px] text-slate-600 font-semibold">
+                    <div className="rounded-lg bg-accent-yellow/15 px-3 py-2 min-w-0">
+                      <dt className="text-[11px] text-slate-600 font-semibold break-words">
                         {t.cart.subtotal}
                       </dt>
-                      <dd className="font-bold text-brand-slate mt-0.5">
+                      <dd className="font-bold text-brand-slate mt-0.5 break-words">
                         {subtotal != null ? formatUsd(subtotal) : "—"}
                       </dd>
                     </div>
@@ -337,7 +345,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
 
                   <Link
                     href={getLocalizedPath(`/inventory/${item.id}`, locale)}
-                    className="inline-flex min-h-11 items-center justify-center px-4 rounded-lg border border-slate-200 text-sm font-semibold text-brand-slate hover:bg-slate-50 transition-colors"
+                    className="inline-flex min-h-11 w-full sm:w-auto items-center justify-center px-4 rounded-lg border border-slate-200 text-sm font-semibold text-brand-slate hover:bg-slate-50 transition-colors"
                   >
                     {t.cart.viewDetails}
                   </Link>

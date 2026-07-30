@@ -382,9 +382,9 @@
     "sendWhatsApp": "WhatsApp 联系我们",
     "addToCart": "加入购物车",
     "addedToCart": "已加入购物车",
-    "addedToast": "已加入购物车",
+    "addedToast": "车辆已加入购物车",
     "vehicleType": "车辆类型",
     "removeFromCart": "移出购物车",
-    "removedToast": "已从购物车移除"
+    "removedToast": "车辆已从购物车移除"
   }
 }

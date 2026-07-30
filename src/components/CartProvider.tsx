@@ -67,11 +67,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2600);
+    const timer = window.setTimeout(() => setToast(null), 2500);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
   const showToast = useCallback((message: string) => {
+    // Single global toast: replace any previous message immediately
     setToast(message);
   }, []);
 
