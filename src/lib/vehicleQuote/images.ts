@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/types";
+import { calculateImageFit } from "@/lib/vehicleQuote/imageFit";
 
 const PLACEHOLDER_PATH = "/images/rav4.jpg";
 
@@ -111,6 +112,46 @@ export async function loadQuoteImages(
     if (fallback) results.push(fallback);
   }
   return results;
+}
+
+/**
+ * Canvas cover-crop using calculateImageFit — output matches target aspect exactly
+ * so PDF draw at box size is not a stretch of the original.
+ */
+export async function renderCoverCroppedAsset(
+  asset: QuoteImageAsset,
+  targetWidthPx: number,
+  targetHeightPx: number
+): Promise<QuoteImageAsset | null> {
+  try {
+    const img = await loadHtmlImage(asset.dataUrl);
+    const tw = Math.max(1, Math.round(targetWidthPx));
+    const th = Math.max(1, Math.round(targetHeightPx));
+
+    // Cover fit in target pixel space, then map overflow back to source crop
+    const fit = calculateImageFit(img.width, img.height, 0, 0, tw, th, "cover");
+    const scale = fit.width / img.width;
+    const sx = Math.max(0, -fit.x / scale);
+    const sy = Math.max(0, -fit.y / scale);
+    const sw = Math.min(img.width, tw / scale);
+    const sh = Math.min(img.height, th / scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = "#fafafa";
+    ctx.fillRect(0, 0, tw, th);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, tw, th);
+    return {
+      dataUrl: canvas.toDataURL("image/jpeg", 0.85),
+      width: tw,
+      height: th,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Render Unicode text to a PNG data URL using browser fonts (CJK-safe). */
