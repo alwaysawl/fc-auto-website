@@ -135,6 +135,10 @@ const adminSelectClassName =
 
 const adminSelectOptionClassName = "bg-white text-[#1E293B]";
 
+/** Explicit colors for Safari — number inputs inherit body text-gray-200 otherwise. */
+const adminNumberInputClassName =
+  "mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] outline-none focus:border-gold focus:ring-2 focus:ring-gold [color-scheme:light] [-webkit-text-fill-color:#1E293B] placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 disabled:[-webkit-text-fill-color:#475569]";
+
 function normalizeCountriesPayload(data: unknown): ShippingCountryWithPorts[] {
   if (!data || typeof data !== "object") return [];
   const obj = data as Record<string, unknown>;
@@ -920,7 +924,7 @@ export default function AdminShippingEditor({ initial }: Props) {
                 onChange={(e) =>
                   updateSelectedDraft({ single_vehicle_usd: e.target.value })
                 }
-                className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
+                className={adminNumberInputClassName}
               />
             </label>
             <label className="block text-sm">
@@ -933,7 +937,7 @@ export default function AdminShippingEditor({ initial }: Props) {
                 onChange={(e) =>
                   updateSelectedDraft({ container_40ft_usd: e.target.value })
                 }
-                className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
+                className={adminNumberInputClassName}
               />
             </label>
           </div>
@@ -1059,13 +1063,13 @@ export default function AdminShippingEditor({ initial }: Props) {
                       <td className="py-3 pr-3 text-[#1E293B]">
                         {portOptionLabel(port)}
                       </td>
-                      <td className="py-3 pr-3 whitespace-nowrap">
+                      <td className="py-3 pr-3 whitespace-nowrap text-[#1E293B] font-medium">
                         {formatUsdDisplay(port.single_vehicle_usd)}
                       </td>
-                      <td className="py-3 pr-3 whitespace-nowrap">
+                      <td className="py-3 pr-3 whitespace-nowrap text-[#1E293B] font-medium">
                         {formatUsdDisplay(port.container_40ft_usd)}
                       </td>
-                      <td className="py-3 pr-3">
+                      <td className="py-3 pr-3 text-[#1E293B]">
                         {port.enabled ? "启用" : "停用"}
                       </td>
                       <td className="py-3 text-right whitespace-nowrap">
@@ -1112,13 +1116,13 @@ export default function AdminShippingEditor({ initial }: Props) {
                       {portOptionLabel(port)}
                     </p>
                   </div>
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm font-medium text-[#1E293B]">
                     1 辆：{formatUsdDisplay(port.single_vehicle_usd)}
                   </p>
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm font-medium text-[#1E293B]">
                     2–4 辆：{formatUsdDisplay(port.container_40ft_usd)}
                   </p>
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm text-[#1E293B]">
                     状态：{port.enabled ? "启用" : "停用"}
                   </p>
                   <div className="flex flex-wrap gap-2 pt-1">
@@ -1389,7 +1393,7 @@ export default function AdminShippingEditor({ initial }: Props) {
                         single_vehicle_usd: e.target.value,
                       }))
                     }
-                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                    className={adminNumberInputClassName}
                   />
                 </label>
                 <label className="block text-sm">
@@ -1404,7 +1408,7 @@ export default function AdminShippingEditor({ initial }: Props) {
                         container_40ft_usd: e.target.value,
                       }))
                     }
-                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                    className={adminNumberInputClassName}
                   />
                 </label>
               </div>
