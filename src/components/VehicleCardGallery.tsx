@@ -15,6 +15,18 @@ const PLACEHOLDER = "/images/rav4.jpg";
 const SWIPE_THRESHOLD_PX = 40;
 const DIRECTION_LOCK_PX = 8;
 
+/** Mouse / trackpad desktops — independent of viewport width. */
+const FINE_POINTER_MQ = "(hover: hover) and (pointer: fine)";
+
+/**
+ * Tailwind arbitrary variant for the same media query.
+ * Used for visual show/hide so narrow desktop Safari windows stay static.
+ */
+const FINE_POINTER_ONLY =
+  "[@media(hover:hover)_and_(pointer:fine)]:block";
+const HIDE_ON_FINE_POINTER =
+  "[@media(hover:hover)_and_(pointer:fine)]:hidden";
+
 export type VehicleCardGalleryLabels = {
   previousImage: string;
   nextImage: string;
@@ -52,10 +64,28 @@ function formatPosition(template: string, current: number, total: number) {
 }
 
 /**
+ * Hydration-safe fine-pointer detection (null until mounted).
+ * Never uses viewport width.
+ */
+function useIsFinePointer(): boolean | null {
+  const [isFinePointer, setIsFinePointer] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia(FINE_POINTER_MQ);
+    const sync = () => setIsFinePointer(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  return isFinePointer;
+}
+
+/**
  * Card gallery:
- * - lg+: static primary/cover image only (no arrows, dots, or drag)
- * - below lg: touch swipe + arrows/dots for multi-image vehicles
- * Image tap never opens a gallery.
+ * - Fine pointer (mouse/trackpad): static cover only — even in a narrow window
+ * - Coarse / no-hover (touch): swipe + arrows/dots for multi-image vehicles
+ * Image tap never opens a gallery. Behavior is not based on lg/md width.
  */
 export default function VehicleCardGallery({
   images,
@@ -69,6 +99,9 @@ export default function VehicleCardGallery({
   const multi = resolved.length > 1;
   const reactId = useId();
   const coverSrc = resolved[0] ?? PLACEHOLDER;
+  const isFinePointer = useIsFinePointer();
+  /** Touch carousel active only when we know the device is not fine-pointer. */
+  const touchCarouselActive = isFinePointer === false;
 
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState<Record<number, boolean>>({});
@@ -79,12 +112,12 @@ export default function VehicleCardGallery({
 
   const goTo = useCallback(
     (next: number) => {
-      if (!multi) return;
+      if (!multi || isFinePointer === true) return;
       const clamped =
         ((next % resolved.length) + resolved.length) % resolved.length;
       setIndex(clamped);
     },
-    [multi, resolved.length]
+    [multi, resolved.length, isFinePointer]
   );
 
   const prev = useCallback(() => goTo(index - 1), [goTo, index]);
@@ -99,10 +132,18 @@ export default function VehicleCardGallery({
     swiped.current = false;
   }, [photosKey]);
 
-  // Non-passive touchmove so horizontal swipes can call preventDefault (mobile/tablet only)
+  useEffect(() => {
+    if (isFinePointer === true) {
+      setIndex(0);
+      touchStart.current = null;
+      swiped.current = false;
+    }
+  }, [isFinePointer]);
+
+  // Non-passive touchmove — only when touch carousel is active
   useEffect(() => {
     const el = trackRef.current;
-    if (!el || !multi) return;
+    if (!el || !multi || !touchCarouselActive) return;
 
     const onMove = (e: globalThis.TouchEvent) => {
       if (!touchStart.current) return;
@@ -121,9 +162,10 @@ export default function VehicleCardGallery({
 
     el.addEventListener("touchmove", onMove, { passive: false });
     return () => el.removeEventListener("touchmove", onMove);
-  }, [multi]);
+  }, [multi, touchCarouselActive]);
 
   function onTouchStart(e: TouchEvent) {
+    if (!touchCarouselActive) return;
     const t = e.touches[0];
     if (!t) return;
     touchStart.current = { x: t.clientX, y: t.clientY };
@@ -131,7 +173,7 @@ export default function VehicleCardGallery({
   }
 
   function onTouchEnd(e: TouchEvent) {
-    if (!touchStart.current || !multi) {
+    if (!touchCarouselActive || !touchStart.current || !multi) {
       touchStart.current = null;
       return;
     }
@@ -152,7 +194,7 @@ export default function VehicleCardGallery({
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (!multi) return;
+    if (!touchCarouselActive || !multi) return;
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       prev();
@@ -166,18 +208,23 @@ export default function VehicleCardGallery({
     return failed[i] ? PLACEHOLDER : resolved[i] ?? PLACEHOLDER;
   }
 
+  const showControls = multi && isFinePointer !== true;
+
   return (
     <div
       className={`relative aspect-[4/3] bg-slate-100 overflow-hidden select-none ${className}`}
     >
-      {/* Desktop (lg+): static cover only — no carousel interaction */}
-      <div className="absolute inset-0 hidden lg:block pointer-events-none" aria-hidden>
+      {/* Fine-pointer desktops: static cover (CSS media — not viewport width) */}
+      <div
+        className={`absolute inset-0 pointer-events-none hidden ${FINE_POINTER_ONLY}`}
+        aria-hidden
+      >
         <Image
           src={coverFailed ? PLACEHOLDER : coverSrc}
           alt={alt}
           fill
           className="object-cover"
-          sizes="(min-width: 1024px) 33vw, 100vw"
+          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
           priority={priority}
           loading={priority ? "eager" : "lazy"}
           draggable={false}
@@ -185,19 +232,21 @@ export default function VehicleCardGallery({
         />
       </div>
 
-      {/* Mobile / tablet: swipeable carousel (touch only) */}
+      {/* Touch / coarse pointer: swipeable carousel (hidden on fine pointer) */}
       <div
         ref={trackRef}
-        className="absolute inset-0 lg:hidden touch-pan-y"
+        className={`absolute inset-0 touch-pan-y ${HIDE_ON_FINE_POINTER}`}
         style={{ touchAction: "pan-y" }}
         role="group"
-        aria-roledescription={multi ? "carousel" : undefined}
+        aria-roledescription={
+          touchCarouselActive && multi ? "carousel" : undefined
+        }
         aria-label={formatPosition(
           labels.imagePosition,
           index + 1,
           resolved.length
         )}
-        tabIndex={multi ? 0 : undefined}
+        tabIndex={touchCarouselActive && multi ? 0 : undefined}
         onKeyDown={onKeyDown}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
@@ -211,19 +260,25 @@ export default function VehicleCardGallery({
       >
         <div className="absolute inset-0 pointer-events-none" aria-hidden>
           <Image
-            src={srcFor(index)}
+            src={srcFor(touchCarouselActive ? index : 0)}
             alt={alt}
             fill
             className="object-cover"
-            sizes="(max-width: 1023px) 100vw, 33vw"
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
             priority={priority && index === 0}
             loading={priority && index === 0 ? "eager" : "lazy"}
             draggable={false}
-            onError={() => setFailed((prev) => ({ ...prev, [index]: true }))}
+            onError={() =>
+              setFailed((prev) => ({
+                ...prev,
+                [touchCarouselActive ? index : 0]: true,
+              }))
+            }
           />
         </div>
 
-        {multi &&
+        {touchCarouselActive &&
+          multi &&
           resolved.map((url, i) =>
             i === index || Math.abs(i - index) > 1 ? null : (
               // eslint-disable-next-line @next/next/no-img-element
@@ -238,7 +293,7 @@ export default function VehicleCardGallery({
             )
           )}
 
-        {multi && (
+        {showControls && (
           <>
             <button
               type="button"
@@ -248,7 +303,7 @@ export default function VehicleCardGallery({
                 prev();
               }}
               aria-label={labels.previousImage}
-              className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg font-bold text-brand-slate shadow-soft hover:bg-white"
+              className={`absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg font-bold text-brand-slate shadow-soft hover:bg-white ${HIDE_ON_FINE_POINTER}`}
             >
               ‹
             </button>
@@ -260,13 +315,13 @@ export default function VehicleCardGallery({
                 next();
               }}
               aria-label={labels.nextImage}
-              className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg font-bold text-brand-slate shadow-soft hover:bg-white"
+              className={`absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg font-bold text-brand-slate shadow-soft hover:bg-white ${HIDE_ON_FINE_POINTER}`}
             >
               ›
             </button>
 
             <div
-              className="pointer-events-none absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5 px-2"
+              className={`pointer-events-none absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5 px-2 ${HIDE_ON_FINE_POINTER}`}
               role="tablist"
               aria-label={formatPosition(
                 labels.imagePosition,
