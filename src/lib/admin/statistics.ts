@@ -2,6 +2,7 @@ import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAnalyticsDashboardBlock } from "@/lib/analytics/aggregate";
+import { getVehicleHeatDashboard } from "@/lib/analytics/vehicle-heat";
 import type { VehicleStatus } from "@/lib/types";
 import type {
   ActivityItem,
@@ -14,6 +15,7 @@ import type {
   StatisticsPayload,
   StatisticsRangePreset,
   TrendBucket,
+  VehicleHeatDashboard,
 } from "@/lib/admin/statistics-types";
 
 export type {
@@ -27,6 +29,7 @@ export type {
   StatisticsPayload,
   StatisticsRangePreset,
   TrendBucket,
+  VehicleHeatDashboard,
 } from "@/lib/admin/statistics-types";
 
 /** Admin business timezone (China has no DST — fixed +08:00). */
@@ -452,6 +455,29 @@ export async function getAdminStatistics(options: {
       lastLoadedAt: null,
       error: "数据加载失败，请稍后重试",
     });
+  }
+
+  // Vehicle heat (isolated — failure must not break other stats)
+  let vehicleHeat: VehicleHeatDashboard;
+  try {
+    vehicleHeat = await getVehicleHeatDashboard({ range });
+  } catch (err) {
+    logSafe("vehicleHeat", err);
+    vehicleHeat = {
+      available: false,
+      empty: false,
+      error: "车辆热度数据加载失败，请稍后重试",
+      leaders: {
+        mostViews: null,
+        mostWhatsapp: null,
+        mostCart: null,
+        mostQuotes: null,
+      },
+      ranking: [],
+      highViewLowInquiry: [],
+      lowViewHighInquiry: [],
+      sampleNote: null,
+    };
   }
 
   // ── Vehicles ──────────────────────────────────────────────────────────────
@@ -923,5 +949,6 @@ export async function getAdminStatistics(options: {
     sources,
     notEnabled,
     analytics,
+    vehicleHeat,
   };
 }

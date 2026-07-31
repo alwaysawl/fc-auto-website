@@ -544,10 +544,11 @@ function InventoryVehicleCard({
                 {t.inventory.viewDetails}
               </Link>
               <WhatsAppAssignLink
-                sourcePage="inventory"
+                sourcePage="inventory-card"
                 vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
                 vehicleYear={String(vehicle.year)}
                 stockNumber={vehicle.id}
+                vehicleId={vehicle.id}
                 className="min-h-11 inline-flex items-center justify-center gap-1.5 px-2 bg-[#25D366] text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-[#20BD5A] transition-colors"
               >
                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">

@@ -5,6 +5,7 @@ import type {
   StatisticsPayload,
   StatisticsRangePreset,
 } from "@/lib/admin/statistics-types";
+import VehicleHeatSection from "@/components/admin/VehicleHeatSection";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -923,6 +924,15 @@ export default function AdminStatisticsDashboard({
               )}
             </section>
           </div>
+
+          <VehicleHeatSection
+            data={data.vehicleHeat}
+            range={{
+              preset: data.range.preset,
+              startLabel: data.range.startLabel,
+              endLabel: data.range.endLabel,
+            }}
+          />
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
             <div>

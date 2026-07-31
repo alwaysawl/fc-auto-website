@@ -132,10 +132,11 @@ function ShowcaseCard({
           {t.inventory.viewDetails}
         </Link>
         <WhatsAppAssignLink
-          sourcePage="home-showcase"
+          sourcePage="home-showcase-card"
           vehicleTitle={`${vehicle.brand} ${modelName}`}
           vehicleYear={String(vehicle.year)}
           stockNumber={vehicle.id}
+          vehicleId={vehicle.id}
           className="inline-flex items-center justify-center px-3 py-2 bg-[#25D366] text-white text-xs font-semibold rounded-md hover:bg-[#20BD5A] transition-colors"
           aria-label={`${t.homeShowcase.whatsapp} — ${vehicle.brand} ${modelName}`}
         >

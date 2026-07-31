@@ -201,4 +201,67 @@ export type StatisticsPayload = {
   sources: DataSourceStatus[];
   notEnabled: { name: string; reason: string }[];
   analytics: AnalyticsDashboard;
+  vehicleHeat: VehicleHeatDashboard;
+};
+
+export type VehicleHeatSort =
+  | "heat"
+  | "views"
+  | "whatsapp"
+  | "cart"
+  | "quotes"
+  | "rate_high"
+  | "rate_low";
+
+export type VehicleHeatStatusFilter =
+  | "on_sale"
+  | "all"
+  | "sold"
+  | "delisted";
+
+export type VehicleHeatRow = {
+  vehicleId: string;
+  title: string;
+  coverUrl: string | null;
+  status: string | null;
+  priceLabel: string | null;
+  year: number | null;
+  brand: string | null;
+  model: string | null;
+  missing: boolean;
+  detailViews: number;
+  uniqueViewers: number;
+  whatsappClicks: number;
+  whatsappVisitors: number;
+  cartAdds: number;
+  quoteDownloads: number;
+  inquiryRate: number | null;
+  heatScore: number;
+  waSources: { source: string; count: number }[];
+};
+
+export type VehicleHeatTrendPoint = {
+  key: string;
+  label: string;
+  views: number;
+  uniqueVisitors: number;
+  whatsappClicks: number;
+  cartAdds: number;
+  quoteDownloads: number;
+};
+
+export type VehicleHeatDashboard = {
+  available: boolean;
+  empty: boolean;
+  error: string | null;
+  leaders: {
+    mostViews: VehicleHeatRow | null;
+    mostWhatsapp: VehicleHeatRow | null;
+    mostCart: VehicleHeatRow | null;
+    mostQuotes: VehicleHeatRow | null;
+  };
+  ranking: VehicleHeatRow[];
+  highViewLowInquiry: VehicleHeatRow[];
+  lowViewHighInquiry: VehicleHeatRow[];
+  sampleNote: string | null;
 };

@@ -24,6 +24,7 @@ export type WhatsAppClickSource =
   | "floating_button"
   | "header"
   | "vehicle_detail"
+  | "vehicle_card"
   | "cart_checkout"
   | "quotation"
   | "contact_page"
@@ -64,6 +65,7 @@ export function mapWhatsAppSource(sourcePage: string): WhatsAppClickSource {
   if (s.includes("vehicle-detail") || s.includes("vehicle_detail")) {
     return "vehicle_detail";
   }
+  if (s.includes("card") || s.includes("showcase")) return "vehicle_card";
   if (s.includes("cart")) return "cart_checkout";
   if (s.includes("contact")) return "contact_page";
   if (s.includes("inventory")) return "inventory";
