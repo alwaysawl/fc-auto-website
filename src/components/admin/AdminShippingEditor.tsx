@@ -123,7 +123,9 @@ function buildSavedFreightRows(
   const rows: SavedFreightRow[] = [];
   for (const country of sortShippingCountries(list)) {
     for (const port of sortPorts(country.ports)) {
-      rows.push({ country, port });
+      if (port.single_vehicle_usd > 0 || port.container_40ft_usd > 0) {
+        rows.push({ country, port });
+      }
     }
   }
   return rows;
@@ -131,13 +133,43 @@ function buildSavedFreightRows(
 
 /** Explicit colors for Safari — body inherits light text-gray-200 onto white selects. */
 const adminSelectClassName =
-  "mt-1.5 w-full rounded-sm border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-[#1E293B] outline-none focus:border-gold focus:ring-2 focus:ring-gold [color-scheme:light] [-webkit-text-fill-color:#1E293B] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 disabled:[-webkit-text-fill-color:#475569] disabled:opacity-100";
+  "mt-1.5 w-full rounded-sm border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-[#1E293B] outline-none focus:border-gold focus:ring-2 focus:ring-gold [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 disabled:[-webkit-text-fill-color:#475569] disabled:opacity-100";
 
-const adminSelectOptionClassName = "bg-white text-[#1E293B]";
+const adminSelectOptionClassName = "bg-white text-[#1E293B] opacity-100";
 
 /** Explicit colors for Safari — number inputs inherit body text-gray-200 otherwise. */
 const adminNumberInputClassName =
-  "mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] outline-none focus:border-gold focus:ring-2 focus:ring-gold [color-scheme:light] [-webkit-text-fill-color:#1E293B] placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 disabled:[-webkit-text-fill-color:#475569]";
+  "mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] outline-none focus:border-gold focus:ring-2 focus:ring-gold [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 disabled:[-webkit-text-fill-color:#475569] disabled:opacity-100";
+
+const adminNumberInputStyle = {
+  color: "#1E293B",
+  backgroundColor: "#ffffff",
+  WebkitTextFillColor: "#1E293B",
+  opacity: 1,
+} as const;
+
+const adminPriceTextClassName =
+  "text-[#1E293B] font-semibold opacity-100 [-webkit-text-fill-color:#1E293B]";
+
+const adminListActionClassName =
+  "rounded-sm border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-[#1E293B] opacity-100 [-webkit-text-fill-color:#1E293B] hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 disabled:[-webkit-text-fill-color:#475569] disabled:opacity-100";
+
+const adminListClearClassName =
+  "rounded-sm border border-red-300 bg-white px-2.5 py-1.5 text-sm font-medium text-red-700 opacity-100 [-webkit-text-fill-color:#b91c1c] hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 disabled:[-webkit-text-fill-color:#475569] disabled:opacity-100";
+
+const adminListActionStyle = {
+  color: "#1E293B",
+  backgroundColor: "#ffffff",
+  WebkitTextFillColor: "#1E293B",
+  opacity: 1,
+} as const;
+
+const adminListClearStyle = {
+  color: "#b91c1c",
+  backgroundColor: "#ffffff",
+  WebkitTextFillColor: "#b91c1c",
+  opacity: 1,
+} as const;
 
 function normalizeCountriesPayload(data: unknown): ShippingCountryWithPorts[] {
   if (!data || typeof data !== "object") return [];
@@ -229,6 +261,7 @@ export default function AdminShippingEditor({ initial }: Props) {
     "all" | "enabled" | "disabled"
   >("all");
   const [listSearch, setListSearch] = useState("");
+  const [clearTarget, setClearTarget] = useState<SavedFreightRow | null>(null);
 
   const freightFormRef = useRef<HTMLElement | null>(null);
 
@@ -641,6 +674,42 @@ export default function AdminShippingEditor({ initial }: Props) {
     });
   };
 
+  const confirmAndClearFreight = (country: ShippingCountryWithPorts, port: ShippingPortRow) => {
+    if (busyKey || readOnly) return;
+    setClearTarget({ country, port });
+  };
+
+  const executeClearFreight = async () => {
+    if (!clearTarget || busyKey || readOnly) return;
+    const { country, port } = clearTarget;
+    setBusyKey(`port-clear-${port.id}`);
+    try {
+      const res = await fetch("/api/admin/shipping/ports", {
+        method: "PATCH",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: port.id,
+          single_vehicle_usd: 0,
+          container_40ft_usd: 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showMsg(data.error || "清除运费失败", false);
+        return;
+      }
+      setClearTarget(null);
+      showMsg("运费已清除，港口仍保留", true);
+      await load(country.id, port.id);
+    } catch {
+      showMsg("清除运费失败，请重试", false);
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
   const confirmAndDeletePort = async (
     country: ShippingCountryWithPorts,
     port: ShippingPortRow
@@ -649,7 +718,7 @@ export default function AdminShippingEditor({ initial }: Props) {
     const countryLabel = countryOptionLabel(country);
     const portLabel = portOptionLabel(port);
     const confirmed = window.confirm(
-      `确定删除该港口的运费设置吗？\n\n国家：${countryLabel}\n港口：${portLabel}`
+      `确定删除该港口吗？港口记录将永久删除，此操作不可恢复。\n\n国家：${countryLabel}\n港口：${portLabel}`
     );
     if (!confirmed) return;
 
@@ -925,6 +994,16 @@ export default function AdminShippingEditor({ initial }: Props) {
                   updateSelectedDraft({ single_vehicle_usd: e.target.value })
                 }
                 className={adminNumberInputClassName}
+                style={
+                  readOnly || savingPort
+                    ? {
+                        color: "#475569",
+                        backgroundColor: "#f1f5f9",
+                        WebkitTextFillColor: "#475569",
+                        opacity: 1,
+                      }
+                    : adminNumberInputStyle
+                }
               />
             </label>
             <label className="block text-sm">
@@ -938,6 +1017,16 @@ export default function AdminShippingEditor({ initial }: Props) {
                   updateSelectedDraft({ container_40ft_usd: e.target.value })
                 }
                 className={adminNumberInputClassName}
+                style={
+                  readOnly || savingPort
+                    ? {
+                        color: "#475569",
+                        backgroundColor: "#f1f5f9",
+                        WebkitTextFillColor: "#475569",
+                        opacity: 1,
+                      }
+                    : adminNumberInputStyle
+                }
               />
             </label>
           </div>
@@ -1063,20 +1152,25 @@ export default function AdminShippingEditor({ initial }: Props) {
                       <td className="py-3 pr-3 text-[#1E293B]">
                         {portOptionLabel(port)}
                       </td>
-                      <td className="py-3 pr-3 whitespace-nowrap text-[#1E293B] font-medium">
+                      <td
+                        className={`py-3 pr-3 whitespace-nowrap ${adminPriceTextClassName}`}
+                      >
                         {formatUsdDisplay(port.single_vehicle_usd)}
                       </td>
-                      <td className="py-3 pr-3 whitespace-nowrap text-[#1E293B] font-medium">
+                      <td
+                        className={`py-3 pr-3 whitespace-nowrap ${adminPriceTextClassName}`}
+                      >
                         {formatUsdDisplay(port.container_40ft_usd)}
                       </td>
-                      <td className="py-3 pr-3 text-[#1E293B]">
+                      <td className="py-3 pr-3 text-[#1E293B] opacity-100">
                         {port.enabled ? "启用" : "停用"}
                       </td>
                       <td className="py-3 text-right whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => loadPortIntoForm(country.id, port.id)}
-                          className="rounded-sm border border-gray-300 px-2.5 py-1.5 text-sm mr-2 hover:bg-gray-50"
+                          className={`${adminListActionClassName} mr-2`}
+                          style={adminListActionStyle}
                         >
                           修改
                         </button>
@@ -1084,11 +1178,12 @@ export default function AdminShippingEditor({ initial }: Props) {
                           type="button"
                           disabled={busyKey !== null || readOnly}
                           onClick={() =>
-                            void confirmAndDeletePort(country, port)
+                            confirmAndClearFreight(country, port)
                           }
-                          className="rounded-sm border border-red-200 px-2.5 py-1.5 text-sm text-red-600 disabled:opacity-50 hover:bg-red-50"
+                          className={adminListClearClassName}
+                          style={adminListClearStyle}
                         >
-                          删除
+                          清除运费
                         </button>
                       </td>
                     </tr>
@@ -1116,30 +1211,32 @@ export default function AdminShippingEditor({ initial }: Props) {
                       {portOptionLabel(port)}
                     </p>
                   </div>
-                  <p className="text-sm font-medium text-[#1E293B]">
+                  <p className={`text-sm ${adminPriceTextClassName}`}>
                     1 辆：{formatUsdDisplay(port.single_vehicle_usd)}
                   </p>
-                  <p className="text-sm font-medium text-[#1E293B]">
+                  <p className={`text-sm ${adminPriceTextClassName}`}>
                     2–4 辆：{formatUsdDisplay(port.container_40ft_usd)}
                   </p>
-                  <p className="text-sm text-[#1E293B]">
+                  <p className="text-sm text-[#1E293B] opacity-100">
                     状态：{port.enabled ? "启用" : "停用"}
                   </p>
                   <div className="flex flex-wrap gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => loadPortIntoForm(country.id, port.id)}
-                      className="rounded-sm border border-gray-300 px-3 py-1.5 text-sm"
+                      className={adminListActionClassName}
+                      style={adminListActionStyle}
                     >
                       修改
                     </button>
                     <button
                       type="button"
                       disabled={busyKey !== null || readOnly}
-                      onClick={() => void confirmAndDeletePort(country, port)}
-                      className="rounded-sm border border-red-200 px-3 py-1.5 text-sm text-red-600 disabled:opacity-50"
+                      onClick={() => confirmAndClearFreight(country, port)}
+                      className={adminListClearClassName}
+                      style={adminListClearStyle}
                     >
-                      删除
+                      清除运费
                     </button>
                   </div>
                 </div>
@@ -1394,6 +1491,7 @@ export default function AdminShippingEditor({ initial }: Props) {
                       }))
                     }
                     className={adminNumberInputClassName}
+                    style={adminNumberInputStyle}
                   />
                 </label>
                 <label className="block text-sm">
@@ -1409,6 +1507,7 @@ export default function AdminShippingEditor({ initial }: Props) {
                       }))
                     }
                     className={adminNumberInputClassName}
+                    style={adminNumberInputStyle}
                   />
                 </label>
               </div>
@@ -1433,6 +1532,48 @@ export default function AdminShippingEditor({ initial }: Props) {
             </div>
           )}
         </section>
+      )}
+
+      {clearTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="clear-freight-title"
+        >
+          <div className="w-full max-w-md rounded-sm border border-gray-200 bg-white p-5 shadow-lg">
+            <h2
+              id="clear-freight-title"
+              className="text-base font-semibold text-[#1E293B] opacity-100"
+            >
+              确定清除该港口的运费设置吗？
+            </h2>
+            <div className="mt-3 space-y-1 text-sm text-[#1E293B] opacity-100">
+              <p>国家：{countryOptionLabel(clearTarget.country)}</p>
+              <p>港口：{portOptionLabel(clearTarget.port)}</p>
+            </div>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={busyKey !== null}
+                onClick={() => setClearTarget(null)}
+                className={adminListActionClassName}
+                style={adminListActionStyle}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={busyKey !== null || readOnly}
+                onClick={() => void executeClearFreight()}
+                className={adminListClearClassName}
+                style={adminListClearStyle}
+              >
+                {busyKey?.startsWith("port-clear-") ? "清除中…" : "确认清除"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
