@@ -60,11 +60,6 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
   const navLinks = [
     { href: getLocalizedPath("/", locale), label: t.nav.home, key: "home" },
     { href: getLocalizedPath("/inventory", locale), label: t.nav.inventory, key: "inventory" },
-    {
-      href: getLocalizedPath("/shipping-calculator", locale),
-      label: t.nav.shipping,
-      key: "shipping",
-    },
     { href: getLocalizedPath("/about", locale), label: t.nav.about, key: "about" },
     { href: getLocalizedPath("/contact", locale), label: t.nav.contact, key: "contact" },
   ];

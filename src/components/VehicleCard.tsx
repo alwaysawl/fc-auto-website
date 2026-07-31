@@ -106,26 +106,16 @@ export default function VehicleCard({
           </div>
         </div>
 
-        <div className="mt-5 flex gap-2">
+        <div className="mt-5">
           <Link
             href={getLocalizedPath(`/inventory/${vehicle.id}`, locale)}
-            className={`flex-1 text-sm py-2.5 text-center font-semibold rounded-xl transition-all duration-200 ${
+            className={`block w-full text-sm py-2.5 text-center font-semibold rounded-xl transition-all duration-200 ${
               isLight
                 ? "bg-accent-yellow text-brand-slate hover:bg-accent-yellow-hover"
                 : "btn-primary"
             }`}
           >
             {t.inventory.viewDetails}
-          </Link>
-          <Link
-            href={getLocalizedPath(`/shipping-calculator?vehicle=${vehicle.id}`, locale)}
-            className={`flex-1 text-sm py-2.5 text-center font-semibold rounded-xl transition-all duration-200 ${
-              isLight
-                ? "bg-white text-brand-slate border border-slate-200 hover:bg-slate-50"
-                : "btn-outline"
-            }`}
-          >
-            {t.inventory.calculateShipping}
           </Link>
         </div>
       </div>

@@ -15,7 +15,6 @@ export default function Footer({ locale, t }: FooterProps) {
   const quickLinks = [
     { href: getLocalizedPath("/", locale), label: t.nav.home },
     { href: getLocalizedPath("/inventory", locale), label: t.nav.inventory },
-    { href: getLocalizedPath("/shipping-calculator", locale), label: t.nav.shipping },
     { href: getLocalizedPath("/about", locale), label: t.nav.about },
     { href: getLocalizedPath("/contact", locale), label: t.nav.contact },
   ];
