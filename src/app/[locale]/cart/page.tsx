@@ -2,6 +2,11 @@ import { Locale } from "@/lib/types";
 import { getTranslations } from "@/lib/translations";
 import CartPageClient from "@/components/CartPageClient";
 import type { Metadata } from "next";
+import { CART_EXCLUDED_COUNTRY_IDS } from "@/lib/cart";
+import {
+  listShippingCountriesWithPorts,
+  toCartShippingDestinations,
+} from "@/lib/shippingDestinations/queries";
 
 export async function generateMetadata({
   params,
@@ -25,6 +30,13 @@ export default async function CartPage({
   const locale = localeParam as Locale;
   const t = getTranslations(locale);
 
+  const { countries } = await listShippingCountriesWithPorts({
+    enabledOnly: true,
+  });
+  const destinations = toCartShippingDestinations(countries).filter(
+    (d) => !CART_EXCLUDED_COUNTRY_IDS.has(d.countryId)
+  );
+
   return (
     <div className="bg-[#F7F8FA] min-h-screen pb-[calc(9rem+env(safe-area-inset-bottom))] xl:pb-12">
       <section className="border-b border-slate-100 bg-white">
@@ -38,7 +50,7 @@ export default async function CartPage({
         </div>
       </section>
       <div className="container-max px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <CartPageClient locale={locale} t={t} />
+        <CartPageClient locale={locale} t={t} destinations={destinations} />
       </div>
     </div>
   );

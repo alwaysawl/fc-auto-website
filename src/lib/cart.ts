@@ -8,14 +8,25 @@ export const CART_SHIPPING_STORAGE_KEY = "fc-auto-export-cart-shipping-v1";
 /** Countries excluded from the cart destination selector only (shipping calculator unchanged). */
 export const CART_EXCLUDED_COUNTRY_IDS = new Set(["gh", "ng"]);
 
-/** Destinations shown in the cart shipping selector. */
+/** Destinations shown in the cart shipping selector (static fallback). */
 export const CART_SHIPPING_DESTINATIONS = SHIPPING_DESTINATIONS.filter(
   (d) => !CART_EXCLUDED_COUNTRY_IDS.has(d.countryId)
 );
 
-export function isCartDestinationAllowed(countryId: string): boolean {
+/** Apply cart-only country exclusions (Ghana / Nigeria remain excluded). */
+export function filterCartDestinations<T extends { countryId: string }>(
+  destinations: T[]
+): T[] {
+  return destinations.filter((d) => !CART_EXCLUDED_COUNTRY_IDS.has(d.countryId));
+}
+
+export function isCartDestinationAllowed(
+  countryId: string,
+  destinations: { countryId: string }[] = CART_SHIPPING_DESTINATIONS
+): boolean {
   if (!countryId) return true;
-  return CART_SHIPPING_DESTINATIONS.some((d) => d.countryId === countryId);
+  if (CART_EXCLUDED_COUNTRY_IDS.has(countryId)) return false;
+  return destinations.some((d) => d.countryId === countryId);
 }
 
 export type CartItem = {

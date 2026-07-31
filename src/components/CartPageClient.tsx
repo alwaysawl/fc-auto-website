@@ -10,14 +10,12 @@ import { useCart } from "@/components/CartProvider";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import {
   VEHICLE_TYPES,
-  findDestination,
   findPort,
-  getCartSampleFreightUsd,
   getLocalizedName,
+  type ShippingDestination,
   type VehicleTypeId,
 } from "@/data/shippingRates";
 import {
-  CART_SHIPPING_DESTINATIONS,
   formatUsd,
   isCartDestinationAllowed,
   type ShippingArrangementId,
@@ -26,13 +24,20 @@ import {
   buildWhatsAppFreightSummary,
   calculateGroupedFreight,
 } from "@/lib/cartFreight";
+import { getCartFreightFromDestinations } from "@/lib/shippingDestinations/cartFreightLookup";
 
 interface CartPageClientProps {
   locale: Locale;
   t: Translations;
+  /** Enabled country/port freight matrix (DB or static fallback). */
+  destinations: ShippingDestination[];
 }
 
-export default function CartPageClient({ locale, t }: CartPageClientProps) {
+export default function CartPageClient({
+  locale,
+  t,
+  destinations,
+}: CartPageClientProps) {
   const {
     items,
     shipping,
@@ -50,10 +55,23 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
 
   useEffect(() => {
     if (!ready) return;
-    if (shipping.countryId && !isCartDestinationAllowed(shipping.countryId)) {
+    if (
+      shipping.countryId &&
+      !isCartDestinationAllowed(shipping.countryId, destinations)
+    ) {
       setShipping({ countryId: "", portId: "" });
     }
-  }, [ready, shipping.countryId, setShipping]);
+  }, [ready, shipping.countryId, setShipping, destinations]);
+
+  // Clear port if it was disabled / removed under the selected country
+  useEffect(() => {
+    if (!ready || !shipping.countryId || !shipping.portId) return;
+    const dest = destinations.find((d) => d.countryId === shipping.countryId);
+    if (!dest) return;
+    if (!dest.ports.some((p) => p.portId === shipping.portId)) {
+      setShipping({ portId: "" });
+    }
+  }, [ready, shipping.countryId, shipping.portId, destinations, setShipping]);
 
   // Cart only supports container shipping — keep stored method in sync
   useEffect(() => {
@@ -75,11 +93,14 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
   }, [ready, shipping.arrangement, setShipping]);
 
   const nameLocale = locale === "fr" || locale === "zh" ? locale : "en";
-  const safeCountryId = isCartDestinationAllowed(shipping.countryId)
+  const safeCountryId = isCartDestinationAllowed(
+    shipping.countryId,
+    destinations
+  )
     ? shipping.countryId
     : "";
   const destination = safeCountryId
-    ? findDestination(safeCountryId)
+    ? destinations.find((d) => d.countryId === safeCountryId)
     : undefined;
   const ports = destination?.ports ?? [];
   const port =
@@ -105,12 +126,13 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
   const routeRates = useMemo(() => {
     if (!isFcAuto) return null;
     if (!safeCountryId || !shipping.portId) return null;
-    return getCartSampleFreightUsd(
+    return getCartFreightFromDestinations(
+      destinations,
       safeCountryId,
       shipping.portId,
       "container"
     );
-  }, [isFcAuto, safeCountryId, shipping.portId]);
+  }, [isFcAuto, safeCountryId, shipping.portId, destinations]);
 
   const groupedFreight = useMemo(() => {
     if (!isFcAuto || !routeRates || vehicleCount === 0) return null;
@@ -424,7 +446,7 @@ export default function CartPageClient({ locale, t }: CartPageClientProps) {
                 className={fieldClass}
               >
                 <option value="">{t.shipping.selectCountry}</option>
-                {CART_SHIPPING_DESTINATIONS.map((d) => (
+                {destinations.map((d) => (
                   <option key={d.countryId} value={d.countryId}>
                     {getLocalizedName(d.countryName, nameLocale)}
                   </option>
