@@ -16,6 +16,23 @@ function coverSrc(v: Vehicle): string | null {
   return v.mainImageUrl?.trim() || v.photos?.[0] || null;
 }
 
+function vehicleTitle(v: Vehicle): string {
+  return v.titleEn?.trim() || `${v.brand} ${v.model}`;
+}
+
+function formatDate(value?: string): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function hasCoverImage(v: Vehicle): boolean {
+  return Boolean(coverSrc(v));
+}
+
 export default function VehicleManagementTable({
   vehicles,
   locale = "en",
@@ -54,29 +71,19 @@ export default function VehicleManagementTable({
     }
   };
 
-  const patchFeatured = async (id: string, featured: boolean) => {
-    setLoadingId(id);
-    setErrorMsg(null);
-    try {
-      const res = await fetch("/api/vehicles", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, featured }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "保存失败");
-      }
-      const updated: Vehicle = await res.json();
-      setLocalVehicles((prev) =>
-        prev.map((v) => (v.id === updated.id ? updated : v))
-      );
-      router.refresh();
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "操作失败，请重试。");
-    } finally {
-      setLoadingId(null);
+  const requestStatusChange = (v: Vehicle, status: VehicleStatus) => {
+    if (status === "在售" && !hasCoverImage(v)) {
+      setErrorMsg("上架前请至少添加一张封面图片。");
+      return;
     }
+    if (status === "已售") {
+      const name = vehicleTitle(v);
+      const ok = window.confirm(
+        `确认将「${name}」标记为已售？\n库存编号：${v.id}\n\n已售车辆将从前台库存中隐藏。`
+      );
+      if (!ok) return;
+    }
+    void patchStatus(v.id, status);
   };
 
   /**
@@ -84,7 +91,7 @@ export default function VehicleManagementTable({
    * Two Chinese confirmations required.
    */
   const deleteVehicle = async (v: Vehicle) => {
-    const name = `${v.brand} ${v.model}（${v.year}）`;
+    const name = vehicleTitle(v);
     const first = window.confirm(
       `确定要删除「${name}」吗？\n库存编号：${v.id}`
     );
@@ -124,7 +131,7 @@ export default function VehicleManagementTable({
         target="_blank"
         className="px-2 py-1 text-xs rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors whitespace-nowrap"
       >
-        查看前台
+        预览
       </Link>
       <Link
         href={`/admin/vehicles/${v.id}/edit`}
@@ -135,7 +142,7 @@ export default function VehicleManagementTable({
       {currentStatus === "在售" ? (
         <button
           type="button"
-          onClick={() => patchStatus(v.id, "已下架")}
+          onClick={() => requestStatusChange(v, "已下架")}
           disabled={isLoading}
           className="px-2 py-1 text-xs rounded-md bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50 whitespace-nowrap"
         >
@@ -144,13 +151,23 @@ export default function VehicleManagementTable({
       ) : currentStatus !== "已售" ? (
         <button
           type="button"
-          onClick={() => patchStatus(v.id, "在售")}
+          onClick={() => requestStatusChange(v, "在售")}
           disabled={isLoading}
           className="px-2 py-1 text-xs rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors disabled:opacity-50 whitespace-nowrap"
         >
           上架
         </button>
       ) : null}
+      {currentStatus !== "已售" && (
+        <button
+          type="button"
+          onClick={() => requestStatusChange(v, "已售")}
+          disabled={isLoading}
+          className="px-2 py-1 text-xs rounded-md bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors disabled:opacity-50 whitespace-nowrap"
+        >
+          标为已售
+        </button>
+      )}
       <button
         type="button"
         onClick={() => deleteVehicle(v)}
@@ -186,8 +203,18 @@ export default function VehicleManagementTable({
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
               {[
-                "主图", "库存编号", "品牌 / 车型", "年份",
-                "FOB 价格", "变速箱", "状态", "推荐", "更新时间", "操作",
+                "主图",
+                "标题",
+                "库存编号",
+                "品牌",
+                "车型",
+                "年份",
+                "FOB",
+                "里程",
+                "状态",
+                "创建",
+                "更新",
+                "操作",
               ].map((h) => (
                 <th
                   key={h}
@@ -213,7 +240,7 @@ export default function VehicleManagementTable({
                       {thumb ? (
                         <Image
                           src={thumb}
-                          alt={`${v.brand} ${v.model}`}
+                          alt={vehicleTitle(v)}
                           width={56}
                           height={40}
                           className="object-cover w-full h-full"
@@ -226,49 +253,36 @@ export default function VehicleManagementTable({
                       )}
                     </div>
                   </td>
+                  <td className="px-3 py-3 max-w-[12rem]">
+                    <p className="font-medium text-[#1E293B] truncate" title={vehicleTitle(v)}>
+                      {vehicleTitle(v)}
+                    </p>
+                    {v.featured && (
+                      <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-[#FACC15]/30 text-yellow-800">
+                        推荐
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
                     {v.id}
                   </td>
-                  <td className="px-3 py-3">
-                    <p className="font-medium text-[#1E293B]">{v.brand}</p>
-                    <p className="text-slate-500 text-xs">{v.model}</p>
-                  </td>
+                  <td className="px-3 py-3 text-slate-700 whitespace-nowrap">{v.brand}</td>
+                  <td className="px-3 py-3 text-slate-600 whitespace-nowrap">{v.model}</td>
                   <td className="px-3 py-3 text-slate-700">{v.year}</td>
                   <td className="px-3 py-3 text-slate-700 whitespace-nowrap">
                     ${v.fobPrice.toLocaleString()}
                   </td>
                   <td className="px-3 py-3 text-slate-600 whitespace-nowrap">
-                    {v.transmission === "Automatic"
-                      ? "自动"
-                      : v.transmission === "Manual"
-                      ? "手动"
-                      : v.transmission}
+                    {(v.mileage ?? 0).toLocaleString()} km
                   </td>
                   <td className="px-3 py-3">
                     <VehicleStatusBadge status={currentStatus} />
                   </td>
-                  <td className="px-3 py-3">
-                    <button
-                      type="button"
-                      onClick={() => patchFeatured(v.id, !v.featured)}
-                      disabled={isLoading}
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
-                        v.featured
-                          ? "bg-[#FACC15]/20 text-yellow-800 border-[#FACC15]/50 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                          : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-[#FACC15]/20 hover:text-yellow-800 hover:border-[#FACC15]/50"
-                      }`}
-                    >
-                      {v.featured ? "推荐" : "普通"}
-                    </button>
+                  <td className="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">
+                    {formatDate(v.createdAt)}
                   </td>
                   <td className="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">
-                    {v.updatedAt
-                      ? new Date(v.updatedAt).toLocaleDateString("zh-CN", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                        })
-                      : "—"}
+                    {formatDate(v.updatedAt)}
                   </td>
                   <td className="px-3 py-3">
                     {renderActions(v, isLoading, currentStatus)}
@@ -292,13 +306,13 @@ export default function VehicleManagementTable({
               className={`bg-white rounded-xl border border-slate-200 shadow-sm p-4 ${isLoading ? "opacity-60" : ""}`}
             >
               <div className="flex gap-3 mb-3">
-                <div className="w-20 h-14 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
+                <div className="w-24 h-16 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
                   {thumb ? (
                     <Image
                       src={thumb}
-                      alt={`${v.brand} ${v.model}`}
-                      width={80}
-                      height={56}
+                      alt={vehicleTitle(v)}
+                      width={96}
+                      height={64}
                       className="object-cover w-full h-full"
                       unoptimized
                     />
@@ -309,16 +323,21 @@ export default function VehicleManagementTable({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#1E293B] truncate">
-                    {v.brand} {v.model}
-                  </p>
+                  <p className="font-semibold text-[#1E293B] truncate">{vehicleTitle(v)}</p>
                   <p className="text-xs text-slate-500 font-mono truncate">{v.id}</p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {v.brand} · {v.model} · {v.year}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
                     <VehicleStatusBadge status={currentStatus} />
                     <span className="text-xs text-slate-500">
-                      {v.year} · ${v.fobPrice.toLocaleString()}
+                      ${v.fobPrice.toLocaleString()} · {(v.mileage ?? 0).toLocaleString()} km
                     </span>
                   </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    创建 {formatDate(v.createdAt)}
+                    {v.updatedAt ? ` · 更新 ${formatDate(v.updatedAt)}` : ""}
+                  </p>
                 </div>
               </div>
               {renderActions(v, isLoading, currentStatus)}

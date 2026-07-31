@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface VehicleFiltersProps {
   brands: string[];
@@ -21,7 +21,6 @@ export default function VehicleFilters({ brands, years }: VehicleFiltersProps) {
       } else {
         params.delete(key);
       }
-      // Reset page on filter change
       params.delete("page");
       router.push(`${pathname}?${params.toString()}`);
     },
@@ -33,13 +32,28 @@ export default function VehicleFilters({ brands, years }: VehicleFiltersProps) {
   const year = searchParams.get("year") ?? "";
   const status = searchParams.get("status") ?? "";
   const featured = searchParams.get("featured") ?? "";
+  const sort = searchParams.get("sort") ?? "newest";
+
+  const [searchDraft, setSearchDraft] = useState(q);
+  useEffect(() => {
+    setSearchDraft(q);
+  }, [q]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      if (searchDraft === q) return;
+      setParam("q", searchDraft.trim());
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [searchDraft, q, setParam]);
 
   const inputCls =
     "text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FACC15] focus:border-transparent";
 
+  const hasFilters = q || brand || year || status || featured || (sort && sort !== "newest");
+
   return (
     <div className="flex flex-wrap gap-3 items-center">
-      {/* Search */}
       <div className="relative">
         <svg
           className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
@@ -56,14 +70,13 @@ export default function VehicleFilters({ brands, years }: VehicleFiltersProps) {
         </svg>
         <input
           type="search"
-          placeholder="搜索库存编号、品牌、车型…"
-          defaultValue={q}
-          className={`${inputCls} pl-9 w-56`}
-          onChange={(e) => setParam("q", e.target.value)}
+          placeholder="搜索标题、库存编号、品牌、车型…"
+          value={searchDraft}
+          className={`${inputCls} pl-9 w-56 sm:w-64`}
+          onChange={(e) => setSearchDraft(e.target.value)}
         />
       </div>
 
-      {/* Brand */}
       <select
         value={brand}
         onChange={(e) => setParam("brand", e.target.value)}
@@ -77,7 +90,6 @@ export default function VehicleFilters({ brands, years }: VehicleFiltersProps) {
         ))}
       </select>
 
-      {/* Year */}
       <select
         value={year}
         onChange={(e) => setParam("year", e.target.value)}
@@ -91,7 +103,6 @@ export default function VehicleFilters({ brands, years }: VehicleFiltersProps) {
         ))}
       </select>
 
-      {/* Status */}
       <select
         value={status}
         onChange={(e) => setParam("status", e.target.value)}
@@ -104,7 +115,6 @@ export default function VehicleFilters({ brands, years }: VehicleFiltersProps) {
         <option value="已下架">已下架</option>
       </select>
 
-      {/* Featured */}
       <select
         value={featured}
         onChange={(e) => setParam("featured", e.target.value)}
@@ -115,9 +125,23 @@ export default function VehicleFilters({ brands, years }: VehicleFiltersProps) {
         <option value="0">普通</option>
       </select>
 
-      {/* Clear filters */}
-      {(q || brand || year || status || featured) && (
+      <select
+        value={sort}
+        onChange={(e) => setParam("sort", e.target.value === "newest" ? "" : e.target.value)}
+        className={inputCls}
+        aria-label="排序"
+      >
+        <option value="newest">最新更新</option>
+        <option value="oldest">最早更新</option>
+        <option value="price_asc">价格从低到高</option>
+        <option value="price_desc">价格从高到低</option>
+        <option value="year_desc">年份从新到旧</option>
+        <option value="year_asc">年份从旧到新</option>
+      </select>
+
+      {hasFilters && (
         <button
+          type="button"
           onClick={() => router.push(pathname)}
           className="text-sm text-slate-500 hover:text-red-500 transition-colors"
         >

@@ -15,6 +15,7 @@ interface SearchParams {
   year?: string;
   status?: string;
   featured?: string;
+  sort?: string;
   page?: string;
 }
 
@@ -27,7 +28,8 @@ function filterVehicles(vehicles: Vehicle[], params: SearchParams): Vehicle[] {
       (v) =>
         v.id.toLowerCase().includes(q) ||
         v.brand.toLowerCase().includes(q) ||
-        v.model.toLowerCase().includes(q)
+        v.model.toLowerCase().includes(q) ||
+        (v.titleEn ?? "").toLowerCase().includes(q)
     );
   }
 
@@ -40,9 +42,7 @@ function filterVehicles(vehicles: Vehicle[], params: SearchParams): Vehicle[] {
   }
 
   if (params.status) {
-    result = result.filter(
-      (v) => (v.status ?? "在售") === params.status
-    );
+    result = result.filter((v) => (v.status ?? "在售") === params.status);
   }
 
   if (params.featured === "1") {
@@ -52,6 +52,28 @@ function filterVehicles(vehicles: Vehicle[], params: SearchParams): Vehicle[] {
   }
 
   return result;
+}
+
+function sortVehicles(vehicles: Vehicle[], sort: string | undefined): Vehicle[] {
+  const list = [...vehicles];
+  const time = (v: Vehicle) =>
+    new Date(v.updatedAt || v.createdAt || 0).getTime();
+
+  switch (sort) {
+    case "oldest":
+      return list.sort((a, b) => time(a) - time(b));
+    case "price_asc":
+      return list.sort((a, b) => a.fobPrice - b.fobPrice);
+    case "price_desc":
+      return list.sort((a, b) => b.fobPrice - a.fobPrice);
+    case "year_asc":
+      return list.sort((a, b) => a.year - b.year);
+    case "year_desc":
+      return list.sort((a, b) => b.year - a.year);
+    case "newest":
+    default:
+      return list.sort((a, b) => time(b) - time(a));
+  }
 }
 
 export default async function AdminVehiclesPage({
@@ -80,8 +102,7 @@ export default async function AdminVehiclesPage({
     );
   }
 
-  // Supabase already returns rows ordered by updated_at desc
-  const filtered = filterVehicles(allVehicles, params);
+  const filtered = sortVehicles(filterVehicles(allVehicles, params), params.sort);
   const total = filtered.length;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -89,7 +110,6 @@ export default async function AdminVehiclesPage({
   const brands = [...new Set(allVehicles.map((v) => v.brand))].sort();
   const years = [...new Set(allVehicles.map((v) => v.year))].sort((a, b) => b - a);
 
-  // Status summary counts
   const statusCounts: Record<string, number> = {};
   for (const v of allVehicles) {
     const s = v.status ?? "在售";
@@ -100,7 +120,6 @@ export default async function AdminVehiclesPage({
     <div className="max-w-screen-xl">
       <PageHeader count={allVehicles.length} />
 
-      {/* Status summary pills */}
       <div className="flex flex-wrap gap-2 mb-6">
         {(["在售", "草稿", "已售", "已下架"] as VehicleStatus[]).map((s) => (
           <span
@@ -112,28 +131,24 @@ export default async function AdminVehiclesPage({
                 s === "在售"
                   ? "bg-emerald-500"
                   : s === "草稿"
-                  ? "bg-amber-400"
-                  : s === "已售"
-                  ? "bg-slate-400"
-                  : "bg-red-400"
+                    ? "bg-amber-400"
+                    : s === "已售"
+                      ? "bg-slate-400"
+                      : "bg-red-400"
               }`}
             />
             {s}
-            <span className="font-bold text-[#1E293B]">
-              {statusCounts[s] ?? 0}
-            </span>
+            <span className="font-bold text-[#1E293B]">{statusCounts[s] ?? 0}</span>
           </span>
         ))}
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4">
         <Suspense fallback={<div className="text-sm text-slate-400">加载筛选器…</div>}>
           <VehicleFilters brands={brands} years={years} />
         </Suspense>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
           <span className="text-sm text-slate-500">
@@ -156,7 +171,6 @@ export default async function AdminVehiclesPage({
           <VehicleManagementTable vehicles={paginated} locale="en" />
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <Pagination page={page} totalPages={totalPages} params={params} />
         )}
@@ -203,6 +217,7 @@ function Pagination({
     if (params.year) sp.set("year", params.year);
     if (params.status) sp.set("status", params.status);
     if (params.featured) sp.set("featured", params.featured);
+    if (params.sort) sp.set("sort", params.sort);
     sp.set("page", String(p));
     return `/admin/vehicles?${sp.toString()}`;
   };

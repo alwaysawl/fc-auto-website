@@ -203,10 +203,31 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
 
     try {
       if (!form.id?.trim()) throw new Error("库存编号不能为空。");
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(form.id.trim())) {
+        throw new Error("库存编号仅允许字母、数字和连字符。");
+      }
       if (!form.brand?.trim()) throw new Error("品牌不能为空。");
       if (!form.model?.trim()) throw new Error("车型不能为空。");
-      if (!form.year || form.year < 1980 || form.year > 2030) {
+      if (!form.year || Number.isNaN(Number(form.year)) || form.year < 1980 || form.year > 2030) {
         throw new Error("年份无效，请输入 1980–2030 之间的年份。");
+      }
+      if (form.mileage == null || Number.isNaN(Number(form.mileage)) || form.mileage < 0) {
+        throw new Error("里程必须为大于或等于 0 的数字。");
+      }
+      if (form.fobPrice == null || Number.isNaN(Number(form.fobPrice)) || form.fobPrice < 0) {
+        throw new Error("FOB 价格必须为大于或等于 0 的数字。");
+      }
+
+      if (targetStatus === "已售") {
+        const name = form.titleEn?.trim() || `${form.brand} ${form.model}`;
+        const ok = window.confirm(
+          `确认将「${name}」标记为已售？\n库存编号：${form.id}\n\n已售车辆将从前台库存中隐藏。`
+        );
+        if (!ok) {
+          publishingLock.current = false;
+          setSaving(false);
+          return;
+        }
       }
 
       // Preserve final order: keep remote URLs, upload only new File objects
@@ -379,9 +400,9 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
 
           {/* Year */}
           <div>
-            <label className={labelCls}>年份</label>
+            <label className={labelCls}>年份 <span className="text-red-500">*</span></label>
             <input type="number" className={fieldCls} value={form.year ?? ""}
-              onChange={(e) => set("year", parseInt(e.target.value) || 0)} min={1980} max={2030} />
+              onChange={(e) => set("year", parseInt(e.target.value) || 0)} min={1980} max={2030} required />
           </div>
 
           {/* Body type */}
@@ -429,9 +450,9 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
 
           {/* Mileage */}
           <div>
-            <label className={labelCls}>里程 (km)</label>
+            <label className={labelCls}>里程 (km) <span className="text-red-500">*</span></label>
             <input type="number" className={fieldCls} value={form.mileage ?? ""}
-              onChange={(e) => set("mileage", parseInt(e.target.value) || 0)} min={0} />
+              onChange={(e) => set("mileage", parseInt(e.target.value) || 0)} min={0} required />
           </div>
 
           {/* Color */}
@@ -455,9 +476,9 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
         <h2 className={sectionTitleCls}>出口与价格信息</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className={labelCls}>FOB 价格</label>
+            <label className={labelCls}>FOB 价格 <span className="text-red-500">*</span></label>
             <input type="number" className={fieldCls} value={form.fobPrice ?? ""}
-              onChange={(e) => set("fobPrice", parseFloat(e.target.value) || 0)} min={0} />
+              onChange={(e) => set("fobPrice", parseFloat(e.target.value) || 0)} min={0} required />
           </div>
           <div>
             <label className={labelCls}>货币</label>
@@ -479,10 +500,13 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
               onChange={(e) => set("location", e.target.value)} placeholder="例：广州" />
           </div>
           <div className="sm:col-span-2">
-            <label className={labelCls}>VIN / 车架号</label>
+            <label className={labelCls}>VIN / 车架号（仅后台可见）</label>
             <input type="text" className={`${fieldCls} font-mono`} value={form.vin ?? ""}
               onChange={(e) => set("vin", e.target.value.toUpperCase())}
               placeholder="例：JTMRFREV8MD123456" maxLength={17} />
+            <p className="mt-1 text-xs text-slate-400">
+              VIN 仅供内部管理，不会显示在前台网站或客户 WhatsApp 询价中。
+            </p>
           </div>
         </div>
       </div>

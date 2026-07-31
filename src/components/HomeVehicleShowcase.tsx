@@ -135,7 +135,7 @@ function ShowcaseCard({
           sourcePage="home-showcase"
           vehicleTitle={`${vehicle.brand} ${modelName}`}
           vehicleYear={String(vehicle.year)}
-          stockNumber={vehicle.vin || vehicle.id}
+          stockNumber={vehicle.id}
           className="inline-flex items-center justify-center px-3 py-2 bg-[#25D366] text-white text-xs font-semibold rounded-md hover:bg-[#20BD5A] transition-colors"
           aria-label={`${t.homeShowcase.whatsapp} — ${vehicle.brand} ${modelName}`}
         >

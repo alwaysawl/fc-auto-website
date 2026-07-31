@@ -6,6 +6,8 @@
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_FILES = 30;
+const COMPRESS_MAX_EDGE = 2000;
+const COMPRESS_QUALITY = 0.82;
 
 export class VehicleUploadError extends Error {
   code: string;
@@ -46,6 +48,51 @@ export function validateVehicleImageFiles(files: File[]): void {
 }
 
 /**
+ * Downscale large images client-side before upload when practical.
+ * Falls back to the original file on failure or for small images.
+ */
+export async function compressImageForUpload(file: File): Promise<File> {
+  if (!ALLOWED_MIME.includes(file.type)) return file;
+  if (file.size < 900 * 1024) return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxEdge = Math.max(bitmap.width, bitmap.height);
+    if (maxEdge <= COMPRESS_MAX_EDGE && file.size < 2.5 * 1024 * 1024) {
+      bitmap.close();
+      return file;
+    }
+
+    const scale = Math.min(1, COMPRESS_MAX_EDGE / maxEdge);
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", COMPRESS_QUALITY)
+    );
+    if (!blob || blob.size >= file.size) return file;
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "vehicle-image";
+    return new File([blob], `${baseName}.jpg`, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  }
+}
+
+/**
  * Upload files in order to vehicle-images.
  * Returns public URLs in the same order (never blob: URLs).
  */
@@ -59,7 +106,8 @@ export async function uploadVehicleImageFiles(
   const publicUrls: string[] = [];
 
   for (let index = 0; index < files.length; index++) {
-    const file = files[index];
+    const original = files[index];
+    const file = await compressImageForUpload(original);
     onProgress?.(index + 1, files.length);
 
     const metaRes = await fetch("/api/vehicles/upload-url", {

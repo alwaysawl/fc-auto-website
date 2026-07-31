@@ -224,9 +224,10 @@ export async function dbGetPublicVehicles(): Promise<Vehicle[]> {
   return (data as VehicleRow[]).map(rowToVehicle).map(withPublicPhotos);
 }
 
-/** Prefer main_image_url for card display; fall back only when empty. */
+/** Prefer main_image_url for card display; fall back only when empty.
+ * Strip VIN so public payloads never expose admin-only chassis numbers. */
 export function withPublicPhotos(vehicle: Vehicle): Vehicle {
-  return { ...vehicle, photos: buildVehicleGallery(vehicle) };
+  return { ...vehicle, photos: buildVehicleGallery(vehicle), vin: "" };
 }
 
 /** Deduped gallery: main → gallery → photos; never blob:; fallback if empty. */

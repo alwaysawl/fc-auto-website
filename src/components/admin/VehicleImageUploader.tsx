@@ -24,6 +24,10 @@ type LocalImageItem = {
   storagePath?: string;
 };
 
+const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SIZE = 10 * 1024 * 1024;
+const MAX_COUNT = 30;
+
 /** Option A: first image in the array is always the cover. */
 function withCoverOnFirst(list: LocalImageItem[]): LocalImageItem[] {
   return list.map((item, index) => ({
@@ -40,9 +44,12 @@ function initialToItems(initial?: UploadedImage[]): LocalImageItem[] {
       previewUrl: img.publicUrl,
       storagePath: img.storagePath,
       isMain: index === 0,
-      // no file — already remote
     }))
   );
+}
+
+function fileFingerprint(file: File): string {
+  return `${file.name}::${file.size}::${file.lastModified}`;
 }
 
 export default function VehicleImageUploader({
@@ -51,9 +58,11 @@ export default function VehicleImageUploader({
 }: Props) {
   const [items, setItems] = useState<LocalImageItem[]>(() => initialToItems(initial));
   const [lastError, setLastError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
   const hydrated = useRef(false);
+  const seenFingerprints = useRef<Set<string>>(new Set());
 
-  // Sync list to parent (includes remote URLs + new File objects)
   useEffect(() => {
     onChange(
       items.map((item) => ({
@@ -65,7 +74,6 @@ export default function VehicleImageUploader({
     );
   }, [items, onChange]);
 
-  // Load initial remote images once if they arrive after mount (edit page)
   useEffect(() => {
     if (hydrated.current) return;
     if (initial && initial.length > 0 && items.length === 0) {
@@ -87,31 +95,49 @@ export default function VehicleImageUploader({
     };
   }, []);
 
+  const appendFiles = (selectedFiles: File[]) => {
+    const rejected: string[] = [];
+    const accepted: File[] = [];
+
+    for (const file of selectedFiles) {
+      if (!ALLOWED.includes(file.type)) {
+        rejected.push(`${file.name}（格式不支持，请使用 JPG / PNG / WebP）`);
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        rejected.push(`${file.name}（超过 10MB）`);
+        continue;
+      }
+      const fp = fileFingerprint(file);
+      if (seenFingerprints.current.has(fp)) {
+        rejected.push(`${file.name}（已添加，已跳过重复）`);
+        continue;
+      }
+      accepted.push(file);
+      seenFingerprints.current.add(fp);
+    }
+
+    setItems((previous) => {
+      const availableSlots = Math.max(0, MAX_COUNT - previous.length);
+      const toAdd = accepted.slice(0, availableSlots);
+      if (accepted.length > availableSlots) {
+        rejected.push(`最多 ${MAX_COUNT} 张，已截断多余文件`);
+      }
+      const newItems = toAdd.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        isMain: false,
+      }));
+      return withCoverOnFirst([...previous, ...newItems]);
+    });
+
+    setLastError(rejected.length ? rejected.join("；") : "");
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
-      const selectedFiles = Array.from(event.currentTarget.files ?? []);
-
-      setItems((previous) => {
-        const availableSlots = Math.max(0, 30 - previous.length);
-
-        const acceptedFiles = selectedFiles
-          .filter((file) =>
-            ["image/jpeg", "image/png", "image/webp"].includes(file.type)
-          )
-          .filter((file) => file.size <= 10 * 1024 * 1024)
-          .slice(0, availableSlots);
-
-        const newItems = acceptedFiles.map((file) => ({
-          id: crypto.randomUUID(),
-          file,
-          previewUrl: URL.createObjectURL(file),
-          isMain: false,
-        }));
-
-        return withCoverOnFirst([...previous, ...newItems]);
-      });
-
-      setLastError("");
+      appendFiles(Array.from(event.currentTarget.files ?? []));
       event.currentTarget.value = "";
     } catch (error) {
       setLastError(error instanceof Error ? error.message : "图片读取失败");
@@ -147,24 +173,65 @@ export default function VehicleImageUploader({
       if (removedItem?.previewUrl.startsWith("blob:")) {
         URL.revokeObjectURL(removedItem.previewUrl);
       }
+      if (removedItem?.file) {
+        seenFingerprints.current.delete(fileFingerprint(removedItem.file));
+      }
       return withCoverOnFirst(previous.filter((item) => item.id !== id));
     });
   };
 
+  const onDragStart = (id: string) => setDragId(id);
+  const onDragOverItem = (event: React.DragEvent, overId: string) => {
+    event.preventDefault();
+    if (!dragId || dragId === overId) return;
+    setItems((previous) => {
+      const from = previous.findIndex((item) => item.id === dragId);
+      const to = previous.findIndex((item) => item.id === overId);
+      if (from < 0 || to < 0 || from === to) return previous;
+      const next = [...previous];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return withCoverOnFirst(next);
+    });
+  };
+  const onDragEnd = () => setDragId(null);
+
   return (
     <div>
-      <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        multiple
-        onChange={handleFileChange}
-      />
+      <label
+        className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 cursor-pointer transition-colors ${
+          dragOver
+            ? "border-yellow-400 bg-yellow-50"
+            : "border-slate-200 bg-slate-50 hover:border-slate-300"
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          appendFiles(Array.from(e.dataTransfer.files ?? []));
+        }}
+      >
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <span className="text-sm font-medium text-slate-700">
+          点击或拖拽图片到此处上传
+        </span>
+        <span className="text-xs text-slate-500 text-center">
+          支持 JPG、PNG、WebP，单张最大 10MB。保存时会自动压缩过大图片。
+        </span>
+      </label>
 
       <p className="mt-3 text-sm text-slate-600">
-        已选择 {items.length} / 30 张
-      </p>
-      <p className="mt-1 text-xs text-slate-400">
-        支持 JPG、PNG、WebP，单张最大 10MB。可多次选择，新图片会追加到列表。已保存的图片可保留、排序或删除。
+        已选择 {items.length} / {MAX_COUNT} 张 · 第一张为封面 · 可拖拽卡片排序
       </p>
 
       {lastError && (
@@ -178,11 +245,16 @@ export default function VehicleImageUploader({
             return (
               <div
                 key={item.id}
-                className={`rounded-xl border bg-white p-3 shadow-sm ${
+                draggable
+                onDragStart={() => onDragStart(item.id)}
+                onDragOver={(e) => onDragOverItem(e, item.id)}
+                onDragEnd={onDragEnd}
+                className={`rounded-xl border bg-white p-3 shadow-sm cursor-grab active:cursor-grabbing ${
                   item.isMain ? "border-yellow-400 ring-1 ring-yellow-300" : "border-gray-200"
-                }`}
+                } ${dragId === item.id ? "opacity-60" : ""}`}
               >
                 <div className="relative overflow-hidden rounded-lg bg-slate-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.previewUrl}
                     alt={label}
