@@ -25,8 +25,11 @@ export function isCartDestinationAllowed(
   destinations: { countryId: string }[] = CART_SHIPPING_DESTINATIONS
 ): boolean {
   if (!countryId) return true;
-  if (CART_EXCLUDED_COUNTRY_IDS.has(countryId)) return false;
-  return destinations.some((d) => d.countryId === countryId);
+  const cid = countryId.trim().toLowerCase();
+  if (CART_EXCLUDED_COUNTRY_IDS.has(cid)) return false;
+  return destinations.some(
+    (d) => d.countryId.trim().toLowerCase() === cid
+  );
 }
 
 export type CartItem = {

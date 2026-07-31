@@ -447,6 +447,10 @@
     "destinationCountryOptional": "Pays de destination (facultatif)",
     "destinationPortOptional": "Port de destination (facultatif)",
     "ownAgentNotice": "Vous avez choisi votre propre agent de transport. Le site ne calculera ni n'ajoutera les frais de transport. La remise du véhicule, le chargement du conteneur, la réservation et l'organisation du transport devront être confirmés avec vous ou votre agent.",
-    "waOwnAgentConfirm": "Veuillez confirmer la remise des véhicules, le chargement du conteneur et la coordination avec mon agent de transport."
+    "waOwnAgentConfirm": "Veuillez confirmer la remise des véhicules, le chargement du conteneur et la coordination avec mon agent de transport.",
+    "freightPendingLabel": "En attente de confirmation",
+    "freightUnconfiguredNotice": "Le fret pour ce port n’est pas encore configuré. Veuillez contacter le service client.",
+    "estimatedTotalExcludesPendingFreight": "Sous-total véhicules uniquement — hors fret en attente de confirmation",
+    "waFreightPendingConfirm": "Le fret pour ce port nécessite une confirmation et n’est pas inclus dans le total estimé."
   }
 }

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Locale } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { getLocalizedPath } from "@/lib/i18n";
@@ -10,7 +10,6 @@ import { useCart } from "@/components/CartProvider";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import {
   VEHICLE_TYPES,
-  findPort,
   getLocalizedName,
   type ShippingDestination,
   type VehicleTypeId,
@@ -24,7 +23,12 @@ import {
   buildWhatsAppFreightSummary,
   calculateGroupedFreight,
 } from "@/lib/cartFreight";
-import { getCartFreightFromDestinations } from "@/lib/shippingDestinations/cartFreightLookup";
+import {
+  findCartDestination,
+  findCartPort,
+  getCartFreightFromDestinations,
+  isCartFreightConfigured,
+} from "@/lib/shippingDestinations/cartFreightLookup";
 
 interface CartPageClientProps {
   locale: Locale;
@@ -36,7 +40,7 @@ interface CartPageClientProps {
 export default function CartPageClient({
   locale,
   t,
-  destinations,
+  destinations: initialDestinations,
 }: CartPageClientProps) {
   const {
     items,
@@ -47,6 +51,42 @@ export default function CartPageClient({
     showToast,
     ready,
   } = useCart();
+
+  const [destinations, setDestinations] =
+    useState<ShippingDestination[]>(initialDestinations);
+
+  useEffect(() => {
+    setDestinations(initialDestinations);
+  }, [initialDestinations]);
+
+  // Always refresh live DB rates so admin price saves are not stuck at stale $0.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/shipping/destinations", {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-store" },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          destinations?: ShippingDestination[];
+        };
+        if (
+          !cancelled &&
+          Array.isArray(data.destinations) &&
+          data.destinations.length > 0
+        ) {
+          setDestinations(data.destinations);
+        }
+      } catch {
+        // Keep SSR destinations on network failure.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const arrangement: ShippingArrangementId =
     shipping.arrangement === "own_agent" ? "own_agent" : "fc_auto";
@@ -66,9 +106,9 @@ export default function CartPageClient({
   // Clear port if it was disabled / removed under the selected country
   useEffect(() => {
     if (!ready || !shipping.countryId || !shipping.portId) return;
-    const dest = destinations.find((d) => d.countryId === shipping.countryId);
+    const dest = findCartDestination(destinations, shipping.countryId);
     if (!dest) return;
-    if (!dest.ports.some((p) => p.portId === shipping.portId)) {
+    if (!findCartPort(dest, shipping.portId)) {
       setShipping({ portId: "" });
     }
   }, [ready, shipping.countryId, shipping.portId, destinations, setShipping]);
@@ -100,12 +140,12 @@ export default function CartPageClient({
     ? shipping.countryId
     : "";
   const destination = safeCountryId
-    ? destinations.find((d) => d.countryId === safeCountryId)
+    ? findCartDestination(destinations, safeCountryId)
     : undefined;
   const ports = destination?.ports ?? [];
   const port =
     destination && shipping.portId
-      ? findPort(destination, shipping.portId)
+      ? findCartPort(destination, shipping.portId)
       : undefined;
 
   const vehicleCount = items.length;
@@ -134,37 +174,57 @@ export default function CartPageClient({
     );
   }, [isFcAuto, safeCountryId, shipping.portId, destinations]);
 
+  const freightConfigured = isCartFreightConfigured(routeRates);
+  const freightPending =
+    isFcAuto &&
+    Boolean(safeCountryId && shipping.portId) &&
+    !freightConfigured;
+
   const groupedFreight = useMemo(() => {
-    if (!isFcAuto || !routeRates || vehicleCount === 0) return null;
+    if (!isFcAuto || !freightConfigured || !routeRates || vehicleCount === 0) {
+      return null;
+    }
     return calculateGroupedFreight(
       vehicleCount,
       routeRates.singleVehicle,
       routeRates.container40ft,
       freightLabels
     );
-  }, [isFcAuto, routeRates, vehicleCount, freightLabels]);
+  }, [
+    isFcAuto,
+    freightConfigured,
+    routeRates,
+    vehicleCount,
+    freightLabels,
+  ]);
 
   const lines = useMemo(() => {
     return items.map((item) => {
       const freight =
-        isFcAuto && vehicleCount === 1 && groupedFreight
+        isFcAuto &&
+        freightConfigured &&
+        vehicleCount === 1 &&
+        groupedFreight
           ? groupedFreight.totalFreight
           : null;
       const subtotal =
         freight != null ? item.fobPrice + freight : item.fobPrice;
       return { item, freight, subtotal };
     });
-  }, [items, vehicleCount, groupedFreight, isFcAuto]);
+  }, [items, vehicleCount, groupedFreight, isFcAuto, freightConfigured]);
 
   const vehicleTotal = lines.reduce((sum, line) => sum + line.item.fobPrice, 0);
-  const shippingTotal = isFcAuto
-    ? (groupedFreight?.totalFreight ?? null)
-    : null;
+  const shippingTotal =
+    isFcAuto && freightConfigured
+      ? (groupedFreight?.totalFreight ?? null)
+      : null;
   const grandTotal = isOwnAgent
     ? vehicleTotal
-    : shippingTotal != null
-      ? vehicleTotal + shippingTotal
-      : null;
+    : freightPending
+      ? vehicleTotal
+      : shippingTotal != null
+        ? vehicleTotal + shippingTotal
+        : null;
 
   const countryLabel = destination
     ? getLocalizedName(destination.countryName, nameLocale)
@@ -312,13 +372,23 @@ export default function CartPageClient({
 
     linesOut.push(`Vehicle Total`);
     linesOut.push(`USD ${vehicleTotal.toLocaleString("en-US")}`);
-    if (shippingTotal != null) {
+    if (freightPending) {
       linesOut.push(`Estimated Freight`);
-      linesOut.push(`USD ${shippingTotal.toLocaleString("en-US")}`);
-    }
-    if (grandTotal != null) {
+      linesOut.push(t.cart.freightPendingLabel);
+      linesOut.push(t.cart.freightUnconfiguredNotice);
+      linesOut.push(t.cart.waFreightPendingConfirm);
       linesOut.push(`Estimated Total`);
-      linesOut.push(`USD ${grandTotal.toLocaleString("en-US")}`);
+      linesOut.push(`USD ${vehicleTotal.toLocaleString("en-US")}`);
+      linesOut.push(t.cart.estimatedTotalExcludesPendingFreight);
+    } else {
+      if (shippingTotal != null) {
+        linesOut.push(`Estimated Freight`);
+        linesOut.push(`USD ${shippingTotal.toLocaleString("en-US")}`);
+      }
+      if (grandTotal != null) {
+        linesOut.push(`Estimated Total`);
+        linesOut.push(`USD ${grandTotal.toLocaleString("en-US")}`);
+      }
     }
     linesOut.push("");
     linesOut.push("Please send me the final quotation.");
@@ -335,6 +405,7 @@ export default function CartPageClient({
     shippingTotal,
     grandTotal,
     groupedFreight,
+    freightPending,
     locale,
     isOwnAgent,
   ]);
@@ -518,7 +589,33 @@ export default function CartPageClient({
             </div>
           )}
 
-          {isFcAuto && vehicleCount > 1 && (
+          {isFcAuto && freightPending && (
+            <div
+              role="note"
+              className="mt-4 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-950"
+            >
+              <svg
+                className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <p
+                className="min-w-0 leading-relaxed break-words"
+                style={{ overflowWrap: "anywhere" }}
+              >
+                {t.cart.freightUnconfiguredNotice}
+              </p>
+            </div>
+          )}
+
+          {isFcAuto && vehicleCount > 1 && freightConfigured && (
             <div
               role="note"
               className="mt-4 flex gap-3 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-3 text-sm text-sky-950"
@@ -640,7 +737,11 @@ export default function CartPageClient({
                             {t.cart.estimatedFreight}
                           </dt>
                           <dd className="font-bold text-brand-slate mt-0.5 break-words">
-                            {freight != null ? formatUsd(freight) : "—"}
+                            {freightPending
+                              ? t.cart.freightPendingLabel
+                              : freight != null
+                                ? formatUsd(freight)
+                                : "—"}
                           </dd>
                         </div>
                         <div className="rounded-lg bg-accent-yellow/15 px-3 py-2 min-w-0">
@@ -648,7 +749,7 @@ export default function CartPageClient({
                             {t.cart.subtotal}
                           </dt>
                           <dd className="font-bold text-brand-slate mt-0.5 break-words">
-                            {subtotal != null ? formatUsd(subtotal) : "—"}
+                            {formatUsd(subtotal)}
                           </dd>
                         </div>
                       </>
@@ -716,45 +817,74 @@ export default function CartPageClient({
               </>
             ) : (
               <>
-                {groupedFreight && (
-                  <div className="rounded-lg bg-white/10 px-3 py-2.5 space-y-1">
+                {freightPending ? (
+                  <div className="rounded-lg bg-white/10 px-3 py-2.5 space-y-1 min-w-0">
                     <dt className="text-white/70 text-xs font-semibold">
-                      {t.cart.freightCalculation}
+                      {t.cart.shippingTotal}
                     </dt>
                     <dd className="font-semibold text-accent-yellow break-words leading-snug">
-                      {groupedFreight.calculationLabel}
+                      {t.cart.freightPendingLabel}
+                    </dd>
+                    <p className="text-[11px] text-white/70 break-words leading-relaxed">
+                      {t.cart.freightUnconfiguredNotice}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {groupedFreight && (
+                      <div className="rounded-lg bg-white/10 px-3 py-2.5 space-y-1">
+                        <dt className="text-white/70 text-xs font-semibold">
+                          {t.cart.freightCalculation}
+                        </dt>
+                        <dd className="font-semibold text-accent-yellow break-words leading-snug">
+                          {groupedFreight.calculationLabel}
+                        </dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-white/70">{t.cart.shippingTotal}</dt>
+                      <dd className="font-semibold">
+                        {shippingTotal != null ? formatUsd(shippingTotal) : "—"}
+                      </dd>
+                    </div>
+                  </>
+                )}
+                <div className="border-t border-white/15 pt-3 space-y-1">
+                  <div className="flex justify-between gap-3 items-baseline">
+                    <dt className="font-semibold">{t.cart.estimatedTotal}</dt>
+                    <dd className="text-xl font-bold text-accent-yellow">
+                      {grandTotal != null ? formatUsd(grandTotal) : "—"}
                     </dd>
                   </div>
-                )}
-                <div className="flex justify-between gap-3">
-                  <dt className="text-white/70">{t.cart.shippingTotal}</dt>
-                  <dd className="font-semibold">
-                    {shippingTotal != null ? formatUsd(shippingTotal) : "—"}
-                  </dd>
-                </div>
-                <div className="border-t border-white/15 pt-3 flex justify-between gap-3 items-baseline">
-                  <dt className="font-semibold">{t.cart.estimatedTotal}</dt>
-                  <dd className="text-xl font-bold text-accent-yellow">
-                    {grandTotal != null ? formatUsd(grandTotal) : "—"}
-                  </dd>
+                  {freightPending && (
+                    <p className="text-[11px] text-white/60 break-words">
+                      {t.cart.estimatedTotalExcludesPendingFreight}
+                    </p>
+                  )}
                 </div>
               </>
             )}
           </dl>
 
-          {isFcAuto && vehicleCount > 1 && (
+          {isFcAuto && vehicleCount > 1 && freightConfigured && (
             <p className="mt-3 text-[11px] text-white/60 leading-relaxed break-words">
               {t.cart.capacityDisclaimer}
             </p>
           )}
 
-          {isFcAuto && (
+          {isFcAuto && freightPending && (
+            <p className="mt-3 text-[11px] text-amber-200/90 leading-relaxed break-words">
+              {t.cart.freightUnconfiguredNotice}
+            </p>
+          )}
+
+          {isFcAuto && freightConfigured && (
             <p className="mt-4 text-xs text-white/65 leading-relaxed whitespace-pre-line">
               {t.cart.estimateNote}
             </p>
           )}
 
-          {isFcAuto && (
+          {isFcAuto && freightConfigured && (
             <div
               role="note"
               className="mt-4 flex gap-2.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-3 text-[14px] leading-relaxed text-white/90 min-w-0"

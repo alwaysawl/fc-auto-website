@@ -447,6 +447,10 @@
     "destinationCountryOptional": "目的国家（可选）",
     "destinationPortOptional": "目的港口（可选）",
     "ownAgentNotice": "您已选择使用自己的运输代理。网站不会计算或收取运输费用，车辆交接、装柜、订舱及运输安排需由您或您的代理与我们进一步确认。",
-    "waOwnAgentConfirm": "请确认车辆交接、装柜及运输代理对接安排。"
+    "waOwnAgentConfirm": "请确认车辆交接、装柜及运输代理对接安排。",
+    "freightPendingLabel": "待确认",
+    "freightUnconfiguredNotice": "该港口运费尚未设置，请联系客户服务确认。",
+    "estimatedTotalExcludesPendingFreight": "仅车辆小计，不含待确认运费",
+    "waFreightPendingConfirm": "该港口运费待确认，未计入预估总价。"
   }
 }

@@ -447,6 +447,10 @@
     "destinationCountryOptional": "Destination Country (Optional)",
     "destinationPortOptional": "Destination Port (Optional)",
     "ownAgentNotice": "You have selected your own shipping agent. The website will not calculate or include freight charges. Vehicle handover, container loading, booking and shipping arrangements must be confirmed with you or your agent.",
-    "waOwnAgentConfirm": "Please confirm vehicle handover, container loading and coordination with my shipping agent."
+    "waOwnAgentConfirm": "Please confirm vehicle handover, container loading and coordination with my shipping agent.",
+    "freightPendingLabel": "Pending confirmation",
+    "freightUnconfiguredNotice": "Freight for this port has not been configured. Please contact customer service.",
+    "estimatedTotalExcludesPendingFreight": "Vehicle subtotal only — excludes pending freight",
+    "waFreightPendingConfirm": "Freight for this port requires confirmation; it is not included in the estimated total."
   }
 }

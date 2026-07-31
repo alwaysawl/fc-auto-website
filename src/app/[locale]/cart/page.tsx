@@ -8,6 +8,10 @@ import {
   toCartShippingDestinations,
 } from "@/lib/shippingDestinations/queries";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
+
 export async function generateMetadata({
   params,
 }: {
@@ -34,7 +38,7 @@ export default async function CartPage({
     enabledOnly: true,
   });
   const destinations = toCartShippingDestinations(countries).filter(
-    (d) => !CART_EXCLUDED_COUNTRY_IDS.has(d.countryId)
+    (d) => !CART_EXCLUDED_COUNTRY_IDS.has(d.countryId.trim().toLowerCase())
   );
 
   return (

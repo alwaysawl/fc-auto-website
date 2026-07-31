@@ -17,9 +17,16 @@ export async function GET() {
     const { countries, source, tablesMissing } =
       await listShippingCountriesWithPorts({ enabledOnly: true });
     const destinations = toCartShippingDestinations(countries).filter(
-      (d) => !CART_EXCLUDED_COUNTRY_IDS.has(d.countryId)
+      (d) => !CART_EXCLUDED_COUNTRY_IDS.has(d.countryId.trim().toLowerCase())
     );
-    return NextResponse.json({ destinations, source, tablesMissing });
+    return NextResponse.json(
+      { destinations, source, tablesMissing },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
   } catch (err) {
     console.error("[GET /api/shipping/destinations]", err);
     return NextResponse.json(
