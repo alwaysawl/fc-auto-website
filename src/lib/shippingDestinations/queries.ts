@@ -6,19 +6,23 @@ import {
   type PortRate,
   type ShippingDestination,
 } from "@/data/shippingRates";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin, getSupabaseSecretKey } from "@/lib/supabase/admin";
 import type {
   ShippingCountryInput,
   ShippingCountryRow,
   ShippingCountryWithPorts,
+  ShippingListResult,
   ShippingPortInput,
   ShippingPortRow,
 } from "@/lib/shippingDestinations/types";
+import { sortShippingCountries } from "@/lib/shippingDestinations/sortCountries";
 
 export type ShippingFallbackReason =
   | "tables_missing"
   | "client_unavailable"
   | null;
+
+export { sortShippingCountries };
 
 type DbErrorLike = {
   message?: string;
@@ -96,13 +100,22 @@ function num(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function parseEnabled(value: unknown): boolean {
+  if (value === false || value === 0 || value === "0") return false;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    if (v === "false" || v === "f" || v === "no" || v === "off") return false;
+  }
+  return true;
+}
+
 function mapCountry(row: Record<string, unknown>): ShippingCountryRow {
   return {
     id: String(row.id),
     name_en: String(row.name_en ?? ""),
     name_fr: row.name_fr == null ? null : String(row.name_fr),
     name_zh: row.name_zh == null ? null : String(row.name_zh),
-    enabled: Boolean(row.enabled),
+    enabled: parseEnabled(row.enabled),
     display_order: Number(row.display_order ?? 0),
     created_at: row.created_at ? String(row.created_at) : undefined,
     updated_at: row.updated_at ? String(row.updated_at) : undefined,
@@ -119,11 +132,37 @@ function mapPort(row: Record<string, unknown>): ShippingPortRow {
     name_zh: row.name_zh == null ? null : String(row.name_zh),
     single_vehicle_usd: num(row.single_vehicle_usd),
     container_40ft_usd: num(row.container_40ft_usd),
-    enabled: Boolean(row.enabled),
+    enabled: parseEnabled(row.enabled),
     display_order: Number(row.display_order ?? 0),
     created_at: row.created_at ? String(row.created_at) : undefined,
     updated_at: row.updated_at ? String(row.updated_at) : undefined,
   };
+}
+
+/** Sort helper lives in sortCountries.ts (shared with client). */
+
+function peekJwtRole(token: string): string | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const json = Buffer.from(parts[1], "base64url").toString("utf8");
+    const payload = JSON.parse(json) as { role?: string };
+    return typeof payload.role === "string" ? payload.role : null;
+  } catch {
+    return null;
+  }
+}
+
+function supabaseHostHint(): string | null {
+  try {
+    const raw =
+      (process.env.SUPABASE_URL ?? "").trim() ||
+      (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+    if (!raw) return null;
+    return new URL(raw).host;
+  } catch {
+    return null;
+  }
 }
 
 /** Static fallback from shippingRates.ts (sampleCartFreightUsd container method). */
@@ -201,40 +240,46 @@ export function toCartShippingDestinations(
     .filter((d) => d.ports.length > 0);
 }
 
+function withCounts(
+  countries: ShippingCountryWithPorts[],
+  source: "database" | "static",
+  tablesMissing: boolean,
+  fallbackReason: ShippingFallbackReason
+): ShippingListResult {
+  const sorted = sortShippingCountries(countries);
+  const portCount = sorted.reduce((sum, c) => sum + c.ports.length, 0);
+  return {
+    countries: sorted,
+    source,
+    tablesMissing,
+    fallbackReason,
+    countryCount: sorted.length,
+    portCount,
+  };
+}
+
 function staticFallbackResult(
   enabledOnly: boolean,
   reason: Exclude<ShippingFallbackReason, null>
-): {
-  countries: ShippingCountryWithPorts[];
-  source: "static";
-  tablesMissing: boolean;
-  fallbackReason: ShippingFallbackReason;
-} {
+): ShippingListResult {
   const countries = getStaticShippingCountriesWithPorts();
-  return {
-    countries: enabledOnly
-      ? countries
-          .filter((c) => c.enabled)
-          .map((c) => ({ ...c, ports: c.ports.filter((p) => p.enabled) }))
-      : countries,
-    source: "static",
-    tablesMissing: reason === "tables_missing",
-    fallbackReason: reason,
-  };
+  const filtered = enabledOnly
+    ? countries
+        .filter((c) => c.enabled)
+        .map((c) => ({ ...c, ports: c.ports.filter((p) => p.enabled) }))
+    : countries;
+  return withCounts(filtered, "static", reason === "tables_missing", reason);
 }
 
 export async function listShippingCountriesWithPorts(options?: {
   enabledOnly?: boolean;
-}): Promise<{
-  countries: ShippingCountryWithPorts[];
-  source: "database" | "static";
-  tablesMissing: boolean;
-  fallbackReason: ShippingFallbackReason;
-}> {
+}): Promise<ShippingListResult> {
   const enabledOnly = options?.enabledOnly === true;
 
   let supabase: SupabaseClient;
+  let keyRole: string | null = null;
   try {
+    keyRole = peekJwtRole(getSupabaseSecretKey());
     supabase = getSupabaseAdmin();
   } catch (err) {
     logShippingDbError(
@@ -242,14 +287,16 @@ export async function listShippingCountriesWithPorts(options?: {
       {
         message: err instanceof Error ? err.message : "unknown",
       },
-      { fallback: "client_unavailable" }
+      { fallback: "client_unavailable", supabaseHost: supabaseHostHint() }
     );
     return staticFallbackResult(enabledOnly, "client_unavailable");
   }
 
   let countryQuery = supabase
     .from("shipping_countries")
-    .select("*")
+    .select(
+      "id, name_en, name_fr, name_zh, enabled, display_order, created_at, updated_at"
+    )
     .order("display_order", { ascending: true })
     .order("name_en", { ascending: true });
   if (enabledOnly) countryQuery = countryQuery.eq("enabled", true);
@@ -257,17 +304,21 @@ export async function listShippingCountriesWithPorts(options?: {
   const { data: countryData, error: countryError } = await countryQuery;
 
   if (countryError) {
-    logShippingDbError("listShippingCountriesWithPorts: countries", countryError);
+    logShippingDbError("listShippingCountriesWithPorts: countries", countryError, {
+      keyRole,
+      supabaseHost: supabaseHostHint(),
+    });
     if (isMissingRelationError(countryError)) {
       return staticFallbackResult(enabledOnly, "tables_missing");
     }
-    // Permission / other DB errors: do not pretend tables are missing
     throw new Error("加载运费国家失败，请稍后重试");
   }
 
   let portQuery = supabase
     .from("shipping_ports")
-    .select("*")
+    .select(
+      "id, country_id, port_id, name_en, name_fr, name_zh, single_vehicle_usd, container_40ft_usd, enabled, display_order, created_at, updated_at"
+    )
     .order("display_order", { ascending: true })
     .order("name_en", { ascending: true });
   if (enabledOnly) portQuery = portQuery.eq("enabled", true);
@@ -275,7 +326,10 @@ export async function listShippingCountriesWithPorts(options?: {
   const { data: portData, error: portError } = await portQuery;
 
   if (portError) {
-    logShippingDbError("listShippingCountriesWithPorts: ports", portError);
+    logShippingDbError("listShippingCountriesWithPorts: ports", portError, {
+      keyRole,
+      supabaseHost: supabaseHostHint(),
+    });
     if (isMissingRelationError(portError)) {
       return staticFallbackResult(enabledOnly, "tables_missing");
     }
@@ -298,12 +352,26 @@ export async function listShippingCountriesWithPorts(options?: {
     };
   });
 
-  return {
-    countries,
-    source: "database",
-    tablesMissing: false,
-    fallbackReason: null,
-  };
+  const result = withCounts(countries, "database", false, null);
+
+  console.info("[shippingDestinations] list ok", {
+    source: result.source,
+    countryCount: result.countryCount,
+    portCount: result.portCount,
+    keyRole,
+    supabaseHost: supabaseHostHint(),
+  });
+
+  if (result.countryCount === 0 && keyRole === "anon") {
+    console.error(
+      "[shippingDestinations] empty shipping_countries while using anon key; RLS likely blocks rows. Set SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY."
+    );
+    throw new Error(
+      "运费数据因权限无法读取：请配置 SUPABASE_SECRET_KEY 或 SUPABASE_SERVICE_ROLE_KEY"
+    );
+  }
+
+  return result;
 }
 
 export function slugifyPortId(name: string): string {

@@ -48,3 +48,12 @@ export type ShippingPortInput = {
   enabled?: boolean;
   display_order?: number;
 };
+
+export type ShippingListResult = {
+  countries: ShippingCountryWithPorts[];
+  source: "database" | "static";
+  tablesMissing: boolean;
+  fallbackReason: "tables_missing" | "client_unavailable" | null;
+  countryCount: number;
+  portCount: number;
+};

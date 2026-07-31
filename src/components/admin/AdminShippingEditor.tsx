@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ShippingCountryWithPorts,
+  ShippingListResult,
   ShippingPortRow,
 } from "@/lib/shippingDestinations/types";
+import { sortShippingCountries } from "@/lib/shippingDestinations/sortCountries";
 
 type PortDraft = {
   name_en: string;
@@ -66,17 +68,6 @@ function countryTitle(c: ShippingCountryWithPorts): string {
   return countryOptionLabel(c);
 }
 
-function sortCountries(list: ShippingCountryWithPorts[]): ShippingCountryWithPorts[] {
-  return [...list].sort((a, b) => {
-    if (a.display_order !== b.display_order) {
-      return a.display_order - b.display_order;
-    }
-    const aName = (a.name_zh || a.name_en).toLocaleLowerCase("zh-CN");
-    const bName = (b.name_zh || b.name_en).toLocaleLowerCase("zh-CN");
-    return aName.localeCompare(bName, "zh-CN");
-  });
-}
-
 function pickDefaultCountryId(
   list: ShippingCountryWithPorts[],
   preferredId: string
@@ -88,15 +79,54 @@ function pickDefaultCountryId(
   return firstEnabled?.id ?? list[0]?.id ?? "";
 }
 
-export default function AdminShippingEditor() {
-  const [countries, setCountries] = useState<ShippingCountryWithPorts[]>([]);
-  const [selectedCountryId, setSelectedCountryId] = useState("");
-  const [tablesMissing, setTablesMissing] = useState(false);
+function buildDrafts(list: ShippingCountryWithPorts[]): Record<string, PortDraft> {
+  const drafts: Record<string, PortDraft> = {};
+  for (const c of list) {
+    for (const p of c.ports) {
+      drafts[p.id] = portToDraft(p);
+    }
+  }
+  return drafts;
+}
+
+function normalizeCountriesPayload(data: unknown): ShippingCountryWithPorts[] {
+  if (!data || typeof data !== "object") return [];
+  const obj = data as Record<string, unknown>;
+  const raw = obj.countries ?? obj.data;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (row): row is ShippingCountryWithPorts =>
+      !!row && typeof row === "object" && typeof (row as { id?: unknown }).id === "string"
+  );
+}
+
+type Props = {
+  initial: ShippingListResult;
+};
+
+export default function AdminShippingEditor({ initial }: Props) {
+  const initialList = useMemo(
+    () => sortShippingCountries(initial.countries ?? []),
+    [initial.countries]
+  );
+
+  const [countries, setCountries] = useState<ShippingCountryWithPorts[]>(initialList);
+  const [selectedCountryId, setSelectedCountryId] = useState(() =>
+    pickDefaultCountryId(initialList, "")
+  );
+  const [tablesMissing, setTablesMissing] = useState(initial.tablesMissing);
   const [fallbackReason, setFallbackReason] = useState<
     "tables_missing" | "client_unavailable" | null
-  >(null);
-  const [source, setSource] = useState<"database" | "static">("static");
-  const [loading, setLoading] = useState(true);
+  >(initial.fallbackReason);
+  const [source, setSource] = useState<"database" | "static">(initial.source);
+  const [countryCount, setCountryCount] = useState(
+    initial.countryCount ?? initialList.length
+  );
+  const [portCount, setPortCount] = useState(
+    initial.portCount ??
+      initialList.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0)
+  );
+  const [loading, setLoading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState("");
   const [globalOk, setGlobalOk] = useState(false);
 
@@ -109,7 +139,9 @@ export default function AdminShippingEditor() {
   const [editCountryEn, setEditCountryEn] = useState("");
   const [editCountryZh, setEditCountryZh] = useState("");
 
-  const [portDrafts, setPortDrafts] = useState<Record<string, PortDraft>>({});
+  const [portDrafts, setPortDrafts] = useState<Record<string, PortDraft>>(() =>
+    buildDrafts(initialList)
+  );
   const [savingPortId, setSavingPortId] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
@@ -121,51 +153,85 @@ export default function AdminShippingEditor() {
     setGlobalOk(ok);
   };
 
-  const load = useCallback(async (preferCountryId?: string) => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/shipping/countries", {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showMsg(data.error || "加载失败", false);
-        setCountries([]);
-        return;
-      }
-      const list = sortCountries(
-        (data.countries ?? []) as ShippingCountryWithPorts[]
+  const applyList = useCallback(
+    (
+      list: ShippingCountryWithPorts[],
+      meta: {
+        source: "database" | "static";
+        tablesMissing: boolean;
+        fallbackReason: "tables_missing" | "client_unavailable" | null;
+        countryCount?: number;
+        portCount?: number;
+      },
+      preferCountryId?: string
+    ) => {
+      const sorted = sortShippingCountries(list);
+      setCountries(sorted);
+      setPortDrafts(buildDrafts(sorted));
+      setSource(meta.source);
+      setTablesMissing(meta.tablesMissing);
+      setFallbackReason(meta.fallbackReason);
+      setCountryCount(meta.countryCount ?? sorted.length);
+      setPortCount(
+        meta.portCount ??
+          sorted.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0)
       );
-      setCountries(list);
-      setTablesMissing(Boolean(data.tablesMissing));
-      setFallbackReason(
-        data.fallbackReason === "tables_missing" ||
-          data.fallbackReason === "client_unavailable"
-          ? data.fallbackReason
-          : data.tablesMissing
-            ? "tables_missing"
-            : null
-      );
-      setSource(data.source === "database" ? "database" : "static");
-
-      const drafts: Record<string, PortDraft> = {};
-      for (const c of list) {
-        for (const p of c.ports) {
-          drafts[p.id] = portToDraft(p);
-        }
-      }
-      setPortDrafts(drafts);
-
       setSelectedCountryId((prev) =>
-        pickDefaultCountryId(list, preferCountryId ?? prev)
+        pickDefaultCountryId(sorted, preferCountryId ?? prev)
       );
-    } catch {
-      showMsg("加载失败，请重试", false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
+  const load = useCallback(
+    async (preferCountryId?: string) => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/admin/shipping/countries", {
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Cache-Control": "no-store" },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showMsg(data.error || "加载失败", false);
+          // Keep SSR / previous countries — do not wipe to empty on refresh failure
+          return;
+        }
+        const list = normalizeCountriesPayload(data);
+        applyList(
+          list,
+          {
+            source: data.source === "database" ? "database" : "static",
+            tablesMissing: Boolean(data.tablesMissing),
+            fallbackReason:
+              data.fallbackReason === "tables_missing" ||
+              data.fallbackReason === "client_unavailable"
+                ? data.fallbackReason
+                : data.tablesMissing
+                  ? "tables_missing"
+                  : null,
+            countryCount:
+              typeof data.countryCount === "number"
+                ? data.countryCount
+                : list.length,
+            portCount:
+              typeof data.portCount === "number"
+                ? data.portCount
+                : list.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0),
+          },
+          preferCountryId
+        );
+      } catch {
+        showMsg("加载失败，请重试", false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [applyList]
+  );
+
+  // Soft refresh after mount (no-store) so client picks up latest DB without wiping SSR
   useEffect(() => {
     void load();
   }, [load]);
@@ -189,6 +255,7 @@ export default function AdminShippingEditor() {
       const res = await fetch("/api/admin/shipping/countries", {
         method: "POST",
         credentials: "include",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name_en: newCountryEn.trim() || newCountryZh.trim(),
@@ -224,6 +291,7 @@ export default function AdminShippingEditor() {
       const res = await fetch("/api/admin/shipping/countries", {
         method: "PATCH",
         credentials: "include",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: selectedCountry.id,
@@ -253,6 +321,7 @@ export default function AdminShippingEditor() {
       const res = await fetch("/api/admin/shipping/countries", {
         method: "PATCH",
         credentials: "include",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: selectedCountry.id,
@@ -276,10 +345,10 @@ export default function AdminShippingEditor() {
   const handleDeleteCountry = async () => {
     if (!selectedCountry || busyKey || readOnly) return;
     const label = countryTitle(selectedCountry);
-    const portCount = selectedCountry.ports.length;
+    const portCountForCountry = selectedCountry.ports.length;
     const confirmMsg =
-      portCount > 0
-        ? `确认删除国家「${label}」？其下 ${portCount} 个港口及运费也将一并删除，此操作不可恢复。`
+      portCountForCountry > 0
+        ? `确认删除国家「${label}」？其下 ${portCountForCountry} 个港口及运费也将一并删除，此操作不可恢复。`
         : `确认删除国家「${label}」？`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -287,7 +356,7 @@ export default function AdminShippingEditor() {
     try {
       const res = await fetch(
         `/api/admin/shipping/countries?id=${encodeURIComponent(selectedCountry.id)}`,
-        { method: "DELETE", credentials: "include" }
+        { method: "DELETE", credentials: "include", cache: "no-store" }
       );
       const data = await res.json();
       if (!res.ok) {
@@ -324,6 +393,7 @@ export default function AdminShippingEditor() {
       const res = await fetch("/api/admin/shipping/ports", {
         method: "PATCH",
         credentials: "include",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: port.id,
@@ -356,7 +426,7 @@ export default function AdminShippingEditor() {
     try {
       const res = await fetch(
         `/api/admin/shipping/ports?id=${encodeURIComponent(port.id)}`,
-        { method: "DELETE", credentials: "include" }
+        { method: "DELETE", credentials: "include", cache: "no-store" }
       );
       const data = await res.json();
       if (!res.ok) {
@@ -389,6 +459,7 @@ export default function AdminShippingEditor() {
       const res = await fetch("/api/admin/shipping/ports", {
         method: "POST",
         credentials: "include",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           country_id: selectedCountry.id,
@@ -415,12 +486,14 @@ export default function AdminShippingEditor() {
     }
   };
 
-  if (loading) {
-    return <p className="text-sm text-slate-500">加载中…</p>;
-  }
-
   return (
     <div className="space-y-6">
+      <p className="text-xs text-slate-500 font-mono">
+        诊断：国家 {countryCount} · 港口 {portCount} · 来源 {source}
+        {selectedCountryId ? ` · 已选 ${selectedCountryId}` : ""}
+        {loading ? " · 刷新中…" : ""}
+      </p>
+
       {readOnly && fallbackReason === "tables_missing" && (
         <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <p className="font-medium">运费数据表尚未创建</p>
@@ -449,7 +522,6 @@ export default function AdminShippingEditor() {
         </p>
       )}
 
-      {/* Country selector — primary workflow */}
       <section className="rounded-sm border border-gray-200 bg-white p-4 space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <label className="block text-sm min-w-[16rem] flex-1 max-w-md">
@@ -526,7 +598,11 @@ export default function AdminShippingEditor() {
       </section>
 
       {!selectedCountry ? (
-        <p className="text-sm text-slate-500">暂无运费记录</p>
+        <p className="text-sm text-slate-500">
+          {countries.length === 0
+            ? "暂无国家，请先添加"
+            : "请选择国家以查看港口"}
+        </p>
       ) : (
         <section className="rounded-sm border border-gray-200 bg-white overflow-hidden">
           <div className="flex flex-wrap items-start justify-between gap-3 bg-charcoal px-4 py-4 text-white">

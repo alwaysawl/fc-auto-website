@@ -16,12 +16,21 @@ export async function GET(request: Request) {
 
   try {
     const result = await listShippingCountriesWithPorts({ enabledOnly: false });
-    return NextResponse.json({
-      countries: result.countries,
-      source: result.source,
-      tablesMissing: result.tablesMissing,
-      fallbackReason: result.fallbackReason,
-    });
+    return NextResponse.json(
+      {
+        countries: result.countries,
+        source: result.source,
+        tablesMissing: result.tablesMissing,
+        fallbackReason: result.fallbackReason,
+        countryCount: result.countryCount,
+        portCount: result.portCount,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
   } catch (err) {
     console.error("[GET /api/admin/shipping/countries]", {
       message: err instanceof Error ? err.message : "unknown",
