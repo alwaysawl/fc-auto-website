@@ -51,7 +51,7 @@ export type ShippingPortInput = {
 
 export type ShippingListResult = {
   countries: ShippingCountryWithPorts[];
-  source: "database" | "static";
+  source: "database" | "static" | "error";
   tablesMissing: boolean;
   fallbackReason: "tables_missing" | "client_unavailable" | null;
   countryCount: number;
@@ -60,4 +60,10 @@ export type ShippingListResult = {
   publicProjectRef: string | null;
   resolvedProjectRef: string | null;
   urlMismatch: boolean;
+  projectRef: string | null;
+  keyTypeUsed: "secret" | "service-role" | "anon" | "missing";
+  countriesQueryErrorCode: string | null;
+  countriesQueryErrorMessage: string | null;
+  portsQueryErrorCode: string | null;
+  portsQueryErrorMessage: string | null;
 };

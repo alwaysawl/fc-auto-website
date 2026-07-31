@@ -118,7 +118,9 @@ export default function AdminShippingEditor({ initial }: Props) {
   const [fallbackReason, setFallbackReason] = useState<
     "tables_missing" | "client_unavailable" | null
   >(initial.fallbackReason);
-  const [source, setSource] = useState<"database" | "static">(initial.source);
+  const [source, setSource] = useState<"database" | "static" | "error">(
+    initial.source
+  );
   const [countryCount, setCountryCount] = useState(
     initial.countryCount ?? initialList.length
   );
@@ -136,6 +138,13 @@ export default function AdminShippingEditor({ initial }: Props) {
     initial.resolvedProjectRef ?? null
   );
   const [urlMismatch, setUrlMismatch] = useState(Boolean(initial.urlMismatch));
+  const [keyTypeUsed, setKeyTypeUsed] = useState(initial.keyTypeUsed ?? "missing");
+  const [countriesQueryErrorCode, setCountriesQueryErrorCode] = useState<
+    string | null
+  >(initial.countriesQueryErrorCode ?? null);
+  const [countriesQueryErrorMessage, setCountriesQueryErrorMessage] = useState<
+    string | null
+  >(initial.countriesQueryErrorMessage ?? null);
   const [loading, setLoading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState("");
   const [globalOk, setGlobalOk] = useState(false);
@@ -167,7 +176,7 @@ export default function AdminShippingEditor({ initial }: Props) {
     (
       list: ShippingCountryWithPorts[],
       meta: {
-        source: "database" | "static";
+        source: "database" | "static" | "error";
         tablesMissing: boolean;
         fallbackReason: "tables_missing" | "client_unavailable" | null;
         countryCount?: number;
@@ -176,6 +185,9 @@ export default function AdminShippingEditor({ initial }: Props) {
         publicProjectRef?: string | null;
         resolvedProjectRef?: string | null;
         urlMismatch?: boolean;
+        keyTypeUsed?: "secret" | "service-role" | "anon" | "missing";
+        countriesQueryErrorCode?: string | null;
+        countriesQueryErrorMessage?: string | null;
       },
       preferCountryId?: string
     ) => {
@@ -194,6 +206,9 @@ export default function AdminShippingEditor({ initial }: Props) {
       setPublicProjectRef(meta.publicProjectRef ?? null);
       setResolvedProjectRef(meta.resolvedProjectRef ?? null);
       setUrlMismatch(Boolean(meta.urlMismatch));
+      setKeyTypeUsed(meta.keyTypeUsed ?? "missing");
+      setCountriesQueryErrorCode(meta.countriesQueryErrorCode ?? null);
+      setCountriesQueryErrorMessage(meta.countriesQueryErrorMessage ?? null);
       setSelectedCountryId((prev) =>
         pickDefaultCountryId(sorted, preferCountryId ?? prev)
       );
@@ -220,7 +235,10 @@ export default function AdminShippingEditor({ initial }: Props) {
         applyList(
           list,
           {
-            source: data.source === "database" ? "database" : "static",
+            source:
+              data.source === "database" || data.source === "error"
+                ? data.source
+                : "static",
             tablesMissing: Boolean(data.tablesMissing),
             fallbackReason:
               data.fallbackReason === "tables_missing" ||
@@ -248,8 +266,25 @@ export default function AdminShippingEditor({ initial }: Props) {
             resolvedProjectRef:
               typeof data.resolvedProjectRef === "string"
                 ? data.resolvedProjectRef
-                : null,
+                : typeof data.projectRef === "string"
+                  ? data.projectRef
+                  : null,
             urlMismatch: Boolean(data.urlMismatch),
+            keyTypeUsed:
+              data.keyTypeUsed === "secret" ||
+              data.keyTypeUsed === "service-role" ||
+              data.keyTypeUsed === "anon" ||
+              data.keyTypeUsed === "missing"
+                ? data.keyTypeUsed
+                : "missing",
+            countriesQueryErrorCode:
+              typeof data.countriesQueryErrorCode === "string"
+                ? data.countriesQueryErrorCode
+                : null,
+            countriesQueryErrorMessage:
+              typeof data.countriesQueryErrorMessage === "string"
+                ? data.countriesQueryErrorMessage
+                : null,
           },
           preferCountryId
         );
@@ -523,23 +558,35 @@ export default function AdminShippingEditor({ initial }: Props) {
         诊断：国家 {countryCount} · 港口 {portCount} · 来源 {source}
         {selectedCountryId ? ` · 已选 ${selectedCountryId}` : ""}
         {resolvedProjectRef ? ` · 项目 ${resolvedProjectRef}` : ""}
+        {` · 密钥 ${keyTypeUsed}`}
+        {countriesQueryErrorCode
+          ? ` · 国家错误 ${countriesQueryErrorCode}`
+          : ""}
         {urlMismatch
           ? ` · URL不一致(server=${serverProjectRef ?? "?"} public=${publicProjectRef ?? "?"})`
           : ""}
         {loading ? " · 刷新中…" : ""}
       </p>
+      {countriesQueryErrorMessage && (
+        <p className="text-xs text-red-600 break-all">
+          查询错误：{countriesQueryErrorMessage}
+        </p>
+      )}
+      {source === "error" && (
+        <div className="rounded-sm border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+          运费数据库查询失败（不是空表）。请查看上方诊断中的错误码，并确认服务器使用
+          secret / service-role 密钥。
+        </div>
+      )}
       {countryCount === 0 && source === "database" && resolvedProjectRef && (
         <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <p className="font-medium">当前连接的 Supabase 项目中没有运费国家数据</p>
           <p className="mt-1">
             网站正在查询项目{" "}
             <code className="rounded bg-amber-100 px-1">{resolvedProjectRef}</code>
-            。请在该项目的 SQL Editor 中确认{" "}
-            <code className="rounded bg-amber-100 px-1">shipping_countries</code>{" "}
-            是否有 8 行；若数据在另一个项目，请把 Vercel 的{" "}
-            <code className="rounded bg-amber-100 px-1">SUPABASE_URL</code> /{" "}
-            <code className="rounded bg-amber-100 px-1">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
-            与密钥对齐到同一项目，或在此项目中执行运费种子 SQL。
+            （密钥类型：{keyTypeUsed}）。若 SQL Editor 能看到 8
+            行，通常是密钥未以管理员身份生效（例如新版 sb_secret 被当成 JWT
+            Authorization）。请部署最新修复后再试。
           </p>
         </div>
       )}

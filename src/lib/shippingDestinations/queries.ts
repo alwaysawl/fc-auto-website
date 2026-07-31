@@ -230,11 +230,17 @@ export function toCartShippingDestinations(
     .filter((d) => d.ports.length > 0);
 }
 
-function withCounts(
+function withMeta(
   countries: ShippingCountryWithPorts[],
-  source: "database" | "static",
+  source: ShippingListResult["source"],
   tablesMissing: boolean,
-  fallbackReason: ShippingFallbackReason
+  fallbackReason: ShippingFallbackReason,
+  queryErrors?: {
+    countriesQueryErrorCode?: string | null;
+    countriesQueryErrorMessage?: string | null;
+    portsQueryErrorCode?: string | null;
+    portsQueryErrorMessage?: string | null;
+  }
 ): ShippingListResult {
   const sorted = sortShippingCountries(countries);
   const portCount = sorted.reduce((sum, c) => sum + c.ports.length, 0);
@@ -250,6 +256,12 @@ function withCounts(
     publicProjectRef: diag.publicProjectRef,
     resolvedProjectRef: diag.resolvedProjectRef,
     urlMismatch: diag.urlMismatch,
+    projectRef: diag.resolvedProjectRef,
+    keyTypeUsed: diag.keyTypeUsed,
+    countriesQueryErrorCode: queryErrors?.countriesQueryErrorCode ?? null,
+    countriesQueryErrorMessage: queryErrors?.countriesQueryErrorMessage ?? null,
+    portsQueryErrorCode: queryErrors?.portsQueryErrorCode ?? null,
+    portsQueryErrorMessage: queryErrors?.portsQueryErrorMessage ?? null,
   };
 }
 
@@ -263,7 +275,19 @@ function staticFallbackResult(
         .filter((c) => c.enabled)
         .map((c) => ({ ...c, ports: c.ports.filter((p) => p.enabled) }))
     : countries;
-  return withCounts(filtered, "static", reason === "tables_missing", reason);
+  return withMeta(filtered, "static", reason === "tables_missing", reason);
+}
+
+function errorResult(
+  countryError: { message?: string; code?: string } | null,
+  portError: { message?: string; code?: string } | null
+): ShippingListResult {
+  return withMeta([], "error", false, null, {
+    countriesQueryErrorCode: countryError?.code ?? null,
+    countriesQueryErrorMessage: countryError?.message ?? null,
+    portsQueryErrorCode: portError?.code ?? null,
+    portsQueryErrorMessage: portError?.message ?? null,
+  });
 }
 
 export async function listShippingCountriesWithPorts(options?: {
@@ -272,10 +296,7 @@ export async function listShippingCountriesWithPorts(options?: {
   const enabledOnly = options?.enabledOnly === true;
 
   let supabase: SupabaseClient;
-  let keyRole: string | null = null;
   try {
-    const diag = getSupabaseProjectDiagnostics();
-    keyRole = diag.keyJwtRole;
     supabase = getSupabaseAdmin();
   } catch (err) {
     logShippingDbError(
@@ -295,6 +316,8 @@ export async function listShippingCountriesWithPorts(options?: {
               resolvedProjectRef: d.resolvedProjectRef,
               urlMismatch: d.urlMismatch,
               keySource: d.keySource,
+              keyTypeUsed: d.keyTypeUsed,
+              keyFormat: d.keyFormat,
             };
           } catch {
             return {};
@@ -304,6 +327,8 @@ export async function listShippingCountriesWithPorts(options?: {
     );
     return staticFallbackResult(enabledOnly, "client_unavailable");
   }
+
+  const diag = getSupabaseProjectDiagnostics();
 
   let countryQuery = supabase
     .from("shipping_countries")
@@ -318,13 +343,19 @@ export async function listShippingCountriesWithPorts(options?: {
 
   if (countryError) {
     logShippingDbError("listShippingCountriesWithPorts: countries", countryError, {
-      keyRole,
-      supabaseHost: supabaseHostHint(),
+      keyTypeUsed: diag.keyTypeUsed,
+      keyFormat: diag.keyFormat,
+      keySource: diag.keySource,
+      projectRef: diag.resolvedProjectRef,
     });
     if (isMissingRelationError(countryError)) {
       return staticFallbackResult(enabledOnly, "tables_missing");
     }
-    throw new Error("加载运费国家失败，请稍后重试");
+    // Public/cart: keep UX available via static rates. Admin: report error, not fake empty DB.
+    if (enabledOnly) {
+      return staticFallbackResult(true, "client_unavailable");
+    }
+    return errorResult(countryError, null);
   }
 
   let portQuery = supabase
@@ -340,13 +371,18 @@ export async function listShippingCountriesWithPorts(options?: {
 
   if (portError) {
     logShippingDbError("listShippingCountriesWithPorts: ports", portError, {
-      keyRole,
-      supabaseHost: supabaseHostHint(),
+      keyTypeUsed: diag.keyTypeUsed,
+      keyFormat: diag.keyFormat,
+      keySource: diag.keySource,
+      projectRef: diag.resolvedProjectRef,
     });
     if (isMissingRelationError(portError)) {
       return staticFallbackResult(enabledOnly, "tables_missing");
     }
-    throw new Error("加载运费港口失败，请稍后重试");
+    if (enabledOnly) {
+      return staticFallbackResult(true, "client_unavailable");
+    }
+    return errorResult(null, portError);
   }
 
   const portsByCountry = new Map<string, ShippingPortRow[]>();
@@ -365,40 +401,29 @@ export async function listShippingCountriesWithPorts(options?: {
     };
   });
 
-  const result = withCounts(countries, "database", false, null);
-  const diag = getSupabaseProjectDiagnostics();
+  const result = withMeta(countries, "database", false, null);
 
   console.info("[shippingDestinations] list ok", {
     source: result.source,
     countryCount: result.countryCount,
     portCount: result.portCount,
-    serverProjectRef: diag.serverProjectRef,
-    publicProjectRef: diag.publicProjectRef,
-    resolvedProjectRef: diag.resolvedProjectRef,
-    urlMismatch: diag.urlMismatch,
-    keySource: diag.keySource,
+    projectRef: result.projectRef,
+    keyTypeUsed: result.keyTypeUsed,
     keyFormat: diag.keyFormat,
-    keyJwtRole: diag.keyJwtRole,
-    keyJwtRef: diag.keyJwtRef,
-    keyRefMatchesResolvedUrl: diag.keyRefMatchesResolvedUrl,
+    keySource: diag.keySource,
   });
 
   if (result.countryCount === 0) {
     console.error(
-      "[shippingDestinations] shipping_countries returned 0 rows from project",
+      "[shippingDestinations] shipping_countries returned 0 rows (no PostgREST error)",
       {
-        resolvedProjectRef: diag.resolvedProjectRef,
-        hint: "Compare this project ref with the Supabase SQL Editor project where you see 8 countries. Apply the seed SQL in the SAME project, or align Vercel SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL.",
+        projectRef: result.projectRef,
+        keyTypeUsed: result.keyTypeUsed,
+        keyFormat: diag.keyFormat,
+        keySource: diag.keySource,
+        hint:
+          "If sb_secret was sent as Authorization Bearer, PostgREST treats the request as anon and RLS hides shipping rows.",
       }
-    );
-  }
-
-  if (result.countryCount === 0 && keyRole === "anon") {
-    console.error(
-      "[shippingDestinations] empty shipping_countries while using anon key; RLS likely blocks rows. Set SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY."
-    );
-    throw new Error(
-      "运费数据因权限无法读取：请配置 SUPABASE_SECRET_KEY 或 SUPABASE_SERVICE_ROLE_KEY"
     );
   }
 

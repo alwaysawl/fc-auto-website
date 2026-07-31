@@ -3,7 +3,7 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let adminClient: SupabaseClient | null = null;
-let adminClientUrl: string | null = null;
+let adminClientCacheKey: string | null = null;
 
 export type SupabaseKeySource =
   | "SUPABASE_SECRET_KEY"
@@ -19,6 +19,9 @@ export type SupabaseKeyFormat =
   | "other"
   | "missing";
 
+/** Compact key type for admin UI diagnostics. */
+export type SupabaseKeyTypeUsed = "secret" | "service-role" | "anon" | "missing";
+
 /** Safe diagnostics only — never includes key material. */
 export type SupabaseProjectDiagnostics = {
   serverProjectRef: string | null;
@@ -27,6 +30,7 @@ export type SupabaseProjectDiagnostics = {
   urlMismatch: boolean;
   keySource: SupabaseKeySource;
   keyFormat: SupabaseKeyFormat;
+  keyTypeUsed: SupabaseKeyTypeUsed;
   keyJwtRole: string | null;
   keyJwtRef: string | null;
   keyRefMatchesResolvedUrl: boolean | null;
@@ -44,7 +48,6 @@ export function extractSupabaseProjectRef(url: string | null | undefined): strin
   try {
     const host = new URL(raw).hostname;
     if (!host) return null;
-    // https://PROJECT_REF.supabase.co
     if (host.endsWith(".supabase.co")) {
       const ref = host.split(".")[0];
       return ref || null;
@@ -78,15 +81,104 @@ function detectKeyFormat(key: string): SupabaseKeyFormat {
   return "other";
 }
 
-function readKeyWithSource(): { key: string; source: SupabaseKeySource } {
-  const secret = (process.env.SUPABASE_SECRET_KEY ?? "").trim();
-  if (secret) return { key: secret, source: "SUPABASE_SECRET_KEY" };
+function isPrivilegedAdminKey(key: string): boolean {
+  const format = detectKeyFormat(key);
+  if (format === "sb_secret") return true;
+  if (format === "jwt") {
+    const role = peekJwtClaims(key).role;
+    return role === "service_role";
+  }
+  return false;
+}
 
-  const service = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
-  if (service) return { key: service, source: "SUPABASE_SERVICE_ROLE_KEY" };
+function isAnonLikeKey(key: string): boolean {
+  const format = detectKeyFormat(key);
+  if (format === "sb_publishable") return true;
+  if (format === "jwt") {
+    const role = peekJwtClaims(key).role;
+    return role === "anon" || role === "authenticated";
+  }
+  return false;
+}
 
-  // Admin/data mutations must not silently fall back to anon (RLS → empty rows).
+function keyTypeUsedFrom(key: string, source: SupabaseKeySource): SupabaseKeyTypeUsed {
+  if (!key || source === "missing") return "missing";
+  const format = detectKeyFormat(key);
+  if (format === "sb_secret") return "secret";
+  if (format === "jwt" && peekJwtClaims(key).role === "service_role") {
+    return "service-role";
+  }
+  if (isAnonLikeKey(key)) return "anon";
+  if (source === "SUPABASE_SERVICE_ROLE_KEY") return "service-role";
+  if (source === "SUPABASE_SECRET_KEY") return "secret";
+  return "anon";
+}
+
+/**
+ * Pick a privileged server key.
+ * Skips anon/publishable values even if mis-filed under SUPABASE_SECRET_KEY.
+ */
+function readPrivilegedKeyWithSource(): { key: string; source: SupabaseKeySource } {
+  const candidates: { key: string; source: SupabaseKeySource }[] = [
+    {
+      key: (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim(),
+      source: "SUPABASE_SERVICE_ROLE_KEY",
+    },
+    {
+      key: (process.env.SUPABASE_SECRET_KEY ?? "").trim(),
+      source: "SUPABASE_SECRET_KEY",
+    },
+  ];
+
+  // Prefer an explicitly privileged key (service_role JWT or sb_secret)
+  for (const candidate of candidates) {
+    if (candidate.key && isPrivilegedAdminKey(candidate.key)) {
+      return candidate;
+    }
+  }
+
+  // Accept non-empty secret/service env if not clearly anon-like
+  for (const candidate of candidates) {
+    if (candidate.key && !isAnonLikeKey(candidate.key)) {
+      return candidate;
+    }
+  }
+
   return { key: "", source: "missing" };
+}
+
+/**
+ * New publishable/secret keys are NOT JWTs. supabase-js still sets
+ * Authorization: Bearer <key> by default; PostgREST then fails JWT parsing
+ * and the request runs as anon → RLS returns empty rows (no error).
+ * Strip non-JWT Authorization and keep apikey only.
+ */
+function createAdminFetch(apiKey: string): typeof fetch {
+  const keyFormat = detectKeyFormat(apiKey);
+  const mustStripBearer = keyFormat === "sb_secret" || keyFormat === "sb_publishable";
+
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    if (!headers.has("apikey")) {
+      headers.set("apikey", apiKey);
+    }
+
+    if (mustStripBearer) {
+      const auth = headers.get("Authorization");
+      if (auth) {
+        const token = auth.replace(/^Bearer\s+/i, "").trim();
+        if (
+          token === apiKey ||
+          token.startsWith("sb_secret") ||
+          token.startsWith("sb_publishable")
+        ) {
+          headers.delete("Authorization");
+        }
+      }
+    }
+
+    return fetch(input, { ...init, headers });
+  };
 }
 
 /**
@@ -134,17 +226,12 @@ export function getSupabaseAnonKey(): string {
 }
 
 /**
- * Privileged server key only (secret / service_role).
- * Does not fall back to anon — that caused empty shipping reads under RLS.
+ * Privileged server key only (sb_secret or service_role JWT).
+ * Does not fall back to anon/publishable.
  */
 export function getSupabaseSecretKey(): string {
-  const { key, source } = readKeyWithSource();
-  if (!key) {
-    throw new Error(
-      "Missing required environment variable: SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY"
-    );
-  }
-  if (source === "missing") {
+  const { key, source } = readPrivilegedKeyWithSource();
+  if (!key || source === "missing") {
     throw new Error(
       "Missing required environment variable: SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY"
     );
@@ -165,14 +252,9 @@ export function getSupabaseProjectDiagnostics(): SupabaseProjectDiagnostics {
     resolvedProjectRef = serverProjectRef || publicProjectRef;
   }
 
-  const { key, source } = readKeyWithSource();
-  // Also report if only anon keys exist (without using them for admin)
-  const anon =
-    (process.env.SUPABASE_ANON_KEY ?? "").trim() ||
-    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
-  const effectiveForFormat = key || anon;
-  const keyFormat = detectKeyFormat(effectiveForFormat);
+  const { key, source } = readPrivilegedKeyWithSource();
   const claims = key ? peekJwtClaims(key) : { role: null, ref: null };
+  const keyFormat = key ? detectKeyFormat(key) : "missing";
 
   let keyRefMatchesResolvedUrl: boolean | null = null;
   if (claims.ref && resolvedProjectRef) {
@@ -187,7 +269,8 @@ export function getSupabaseProjectDiagnostics(): SupabaseProjectDiagnostics {
       serverProjectRef && publicProjectRef && serverProjectRef !== publicProjectRef
     ),
     keySource: source,
-    keyFormat: key ? detectKeyFormat(key) : keyFormat === "missing" ? "missing" : keyFormat,
+    keyFormat,
+    keyTypeUsed: keyTypeUsedFrom(key, source),
     keyJwtRole: claims.role,
     keyJwtRef: claims.ref,
     keyRefMatchesResolvedUrl,
@@ -202,9 +285,15 @@ export function getSupabaseProjectDiagnostics(): SupabaseProjectDiagnostics {
 
 export function getSupabaseAdmin(): SupabaseClient {
   const url = getSupabaseUrl();
-  const key = getSupabaseSecretKey();
+  const { key, source } = readPrivilegedKeyWithSource();
+  if (!key || source === "missing") {
+    throw new Error(
+      "Missing required environment variable: SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY"
+    );
+  }
 
-  if (adminClient && adminClientUrl === url) {
+  const cacheKey = `${url}::${source}::${detectKeyFormat(key)}`;
+  if (adminClient && adminClientCacheKey === cacheKey) {
     return adminClient;
   }
 
@@ -216,9 +305,13 @@ export function getSupabaseAdmin(): SupabaseClient {
     urlMismatch: diagnostics.urlMismatch,
     keySource: diagnostics.keySource,
     keyFormat: diagnostics.keyFormat,
+    keyTypeUsed: diagnostics.keyTypeUsed,
     keyJwtRole: diagnostics.keyJwtRole,
     keyJwtRef: diagnostics.keyJwtRef,
     keyRefMatchesResolvedUrl: diagnostics.keyRefMatchesResolvedUrl,
+    stripsBearerForNewApiKey:
+      diagnostics.keyFormat === "sb_secret" ||
+      diagnostics.keyFormat === "sb_publishable",
   });
 
   if (diagnostics.keyRefMatchesResolvedUrl === false) {
@@ -237,8 +330,11 @@ export function getSupabaseAdmin(): SupabaseClient {
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
+    global: {
+      fetch: createAdminFetch(key),
+    },
   });
-  adminClientUrl = url;
+  adminClientCacheKey = cacheKey;
 
   return adminClient;
 }

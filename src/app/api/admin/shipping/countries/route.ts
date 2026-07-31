@@ -28,6 +28,12 @@ export async function GET(request: Request) {
         publicProjectRef: result.publicProjectRef,
         resolvedProjectRef: result.resolvedProjectRef,
         urlMismatch: result.urlMismatch,
+        projectRef: result.projectRef,
+        keyTypeUsed: result.keyTypeUsed,
+        countriesQueryErrorCode: result.countriesQueryErrorCode,
+        countriesQueryErrorMessage: result.countriesQueryErrorMessage,
+        portsQueryErrorCode: result.portsQueryErrorCode,
+        portsQueryErrorMessage: result.portsQueryErrorMessage,
       },
       {
         headers: {
