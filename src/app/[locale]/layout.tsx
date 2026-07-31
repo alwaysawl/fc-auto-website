@@ -7,6 +7,7 @@ import LocaleDocumentSync from "@/components/LocaleDocumentSync";
 import { CartProvider } from "@/components/CartProvider";
 import CartToast from "@/components/CartToast";
 import FloatingActionStack from "@/components/FloatingActionStack";
+import AnalyticsPageTracker from "@/components/AnalyticsPageTracker";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -52,6 +53,7 @@ export default async function LocaleLayout({
   return (
     <CartProvider>
       <LocaleDocumentSync locale={locale} />
+      <AnalyticsPageTracker locale={locale} />
       <HeaderWrapper locale={locale} t={t} />
       <MainWrapper locale={locale}>{children}</MainWrapper>
       <Footer locale={locale} t={t} />

@@ -337,6 +337,7 @@ export default function VehicleDetailClient({
                 vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
                 vehicleYear={String(vehicle.year)}
                 stockNumber={stockNumber}
+                vehicleId={vehicle.id}
                 className="h-11 inline-flex items-center justify-center gap-2 px-4 bg-[#25D366] text-white text-sm font-semibold rounded-lg hover:bg-[#20BD5A] transition-colors"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -549,6 +550,7 @@ export default function VehicleDetailClient({
             vehicleTitle={`${vehicle.brand} ${vehicle.model}`}
             vehicleYear={String(vehicle.year)}
             stockNumber={stockNumber}
+            vehicleId={vehicle.id}
             className="min-h-11 inline-flex items-center justify-center gap-1 bg-[#25D366] text-white text-[11px] sm:text-sm font-semibold rounded-lg px-1"
           >
             {t.nav.whatsapp}

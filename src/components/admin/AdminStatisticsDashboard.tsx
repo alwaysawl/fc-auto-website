@@ -159,6 +159,151 @@ function TrendChart({ buckets }: { buckets: { label: string; count: number }[] }
   );
 }
 
+function MultiTrendChart({
+  buckets,
+}: {
+  buckets: {
+    label: string;
+    pageViews: number;
+    visitors: number;
+    sessions: number;
+  }[];
+}) {
+  const max = Math.max(
+    ...buckets.flatMap((b) => [b.pageViews, b.visitors, b.sessions]),
+    1
+  );
+  const total = buckets.reduce((s, b) => s + b.pageViews, 0);
+  if (total === 0) {
+    return <EmptyLine text="所选时间范围内暂无数据" />;
+  }
+  return (
+    <div className="space-y-3">
+      <div className="overflow-x-auto">
+        <div
+          className="flex items-end gap-1.5 min-h-[150px] min-w-0"
+          role="img"
+          aria-label="网站访问趋势"
+        >
+          {buckets.map((b) => (
+            <div
+              key={b.label}
+              className="flex flex-col items-center justify-end gap-1 flex-1 min-w-[14px] max-w-[56px]"
+            >
+              <div className="flex items-end gap-0.5 w-full h-[120px]">
+                <div
+                  className="flex-1 rounded-t-sm bg-[#1E293B] min-h-[2px]"
+                  style={{
+                    height: `${Math.max((b.pageViews / max) * 110, b.pageViews > 0 ? 4 : 2)}px`,
+                  }}
+                  title={`浏览量 ${b.pageViews}`}
+                />
+                <div
+                  className="flex-1 rounded-t-sm bg-[#FACC15] min-h-[2px]"
+                  style={{
+                    height: `${Math.max((b.visitors / max) * 110, b.visitors > 0 ? 4 : 2)}px`,
+                  }}
+                  title={`访客 ${b.visitors}`}
+                />
+                <div
+                  className="flex-1 rounded-t-sm bg-slate-400 min-h-[2px]"
+                  style={{
+                    height: `${Math.max((b.sessions / max) * 110, b.sessions > 0 ? 4 : 2)}px`,
+                  }}
+                  title={`会话 ${b.sessions}`}
+                />
+              </div>
+              <span className="text-[9px] text-slate-400 truncate w-full text-center">
+                {b.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <ul className="flex flex-wrap gap-3 text-xs text-slate-500">
+        <li className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#1E293B]" />
+          页面浏览量
+        </li>
+        <li className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#FACC15]" />
+          匿名访客
+        </li>
+        <li className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-400" />
+          会话
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+function percentChange(
+  current: number | null,
+  previous: number | null
+): string | null {
+  if (current == null || previous == null) return null;
+  if (previous === 0) {
+    if (current === 0) return "0%";
+    return null; // avoid infinite %
+  }
+  const delta = ((current - previous) / previous) * 100;
+  if (!Number.isFinite(delta)) return null;
+  const rounded = Math.round(delta * 10) / 10;
+  const sign = rounded > 0 ? "+" : "";
+  return `${sign}${rounded}%`;
+}
+
+function ChangeHint({
+  current,
+  previous,
+  isRate,
+}: {
+  current: number | null;
+  previous: number | null;
+  isRate?: boolean;
+}) {
+  const label = percentChange(current, previous);
+  if (label == null) {
+    return <span className="text-[11px] text-slate-400">暂无可比数据</span>;
+  }
+  const up = label.startsWith("+") && label !== "+0%";
+  const down = label.startsWith("-");
+  return (
+    <span
+      className={`text-[11px] ${
+        up ? "text-emerald-700" : down ? "text-amber-700" : "text-slate-500"
+      }`}
+    >
+      较上期 {label}
+      {isRate ? "（百分点同比）" : ""}
+      {previous != null && (
+        <span className="text-slate-400">
+          {" "}
+          · 上期 {isRate ? `${previous}%` : previous}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function sourceLabel(source: string): string {
+  const map: Record<string, string> = {
+    floating_button: "悬浮按钮",
+    header: "页头",
+    vehicle_detail: "车辆详情",
+    cart_checkout: "购物车结算",
+    quotation: "报价相关",
+    contact_page: "联系页面",
+    inventory: "库存列表",
+    home: "首页",
+    footer: "页脚",
+    shipping_calculator: "运费估算",
+    other: "其他",
+  };
+  return map[source] ?? source;
+}
+
 function RankedList({
   title,
   items,
@@ -363,6 +508,74 @@ export default function AdminStatisticsDashboard({
           数据加载失败，请稍后重试
         </div>
       )}
+
+      {/* Analytics summary */}
+      <section>
+        <h2 className="text-base font-semibold text-[#1E293B] mb-1">
+          网站访问与转化摘要
+        </h2>
+        <p className="text-xs text-slate-400 mb-3">
+          第一方匿名统计 · 范围 {data.range.startLabel} ~ {data.range.endLabel} ·
+          不存储电话、邮箱、VIN 或完整 IP
+        </p>
+        {!data.analytics?.available ? (
+          <EmptyLine
+            text={data.analytics?.error || "该统计项暂无可用数据来源"}
+          />
+        ) : data.analytics.emptyWaiting ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            统计功能已启用，等待新的访问数据。
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+            <MetricCard label="页面浏览量">
+              <div>{data.analytics.summaryCards.pageViews}</div>
+              <ChangeHint
+                current={data.analytics.summaryCards.pageViews}
+                previous={data.analytics.summaryCards.prevPageViews}
+              />
+            </MetricCard>
+            <MetricCard label="独立访客" hint="匿名访客标识，非精确人数">
+              <div>{data.analytics.summaryCards.uniqueVisitors}</div>
+              <ChangeHint
+                current={data.analytics.summaryCards.uniqueVisitors}
+                previous={data.analytics.summaryCards.prevUniqueVisitors}
+              />
+            </MetricCard>
+            <MetricCard label="WhatsApp 点击">
+              <div>{data.analytics.summaryCards.whatsappClicks}</div>
+              <ChangeHint
+                current={data.analytics.summaryCards.whatsappClicks}
+                previous={data.analytics.summaryCards.prevWhatsappClicks}
+              />
+            </MetricCard>
+            <MetricCard
+              label="购物车转化率"
+              hint="结算访客 ÷ 加购访客"
+            >
+              {data.analytics.summaryCards.cartConversionRate == null ? (
+                <span className="text-base font-semibold text-slate-500">
+                  暂无数据
+                </span>
+              ) : (
+                <div>{data.analytics.summaryCards.cartConversionRate}%</div>
+              )}
+              <ChangeHint
+                current={data.analytics.summaryCards.cartConversionRate}
+                previous={data.analytics.summaryCards.prevCartConversionRate}
+                isRate
+              />
+            </MetricCard>
+            <MetricCard label="报价下载次数">
+              <div>{data.analytics.summaryCards.quoteDownloads}</div>
+              <ChangeHint
+                current={data.analytics.summaryCards.quoteDownloads}
+                previous={data.analytics.summaryCards.prevQuoteDownloads}
+              />
+            </MetricCard>
+          </div>
+        )}
+      </section>
 
       {/* Live inventory */}
       <section>
@@ -601,21 +814,356 @@ export default function AdminStatisticsDashboard({
         )}
       </section>
 
+      {/* First-party website analytics */}
+      {data.analytics?.available && !data.analytics.emptyWaiting && (
+        <>
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-[#1E293B]">
+                网站访问统计
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                页面浏览量 = page_view 次数；独立访客 = 匿名访客标识去重；访问会话
+                = session 去重；平均页数 = 浏览量 ÷ 会话数
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+              <MetricCard label="页面浏览量">
+                {data.analytics.website.pageViews}
+              </MetricCard>
+              <MetricCard label="独立访客数" hint="匿名访客，非精确人数">
+                {data.analytics.website.uniqueVisitors}
+              </MetricCard>
+              <MetricCard label="访问会话数">
+                {data.analytics.website.sessions}
+              </MetricCard>
+              <MetricCard label="车辆详情浏览量">
+                {data.analytics.website.vehicleDetailViews}
+              </MetricCard>
+              <MetricCard label="平均每次会话浏览页数">
+                {data.analytics.website.pagesPerSession ?? "—"}
+              </MetricCard>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+            <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+              网站访问趋势
+            </h2>
+            <MultiTrendChart buckets={data.analytics.websiteTrend} />
+          </section>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+              <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+                热门页面
+              </h2>
+              {data.analytics.popularPages.length === 0 ? (
+                <EmptyLine text="所选时间范围内暂无数据" />
+              ) : (
+                <ul className="space-y-2">
+                  {data.analytics.popularPages.map((page) => (
+                    <li
+                      key={page.path}
+                      className="flex items-center justify-between gap-3 text-sm border-b border-slate-50 pb-2 last:border-0"
+                    >
+                      <span className="font-medium text-[#1E293B] truncate min-w-0">
+                        {page.path}
+                      </span>
+                      <span className="tabular-nums text-slate-600 flex-shrink-0 text-right">
+                        {page.views} 次（{page.percent}%）
+                        <span className="block text-[11px] text-slate-400">
+                          {page.visitors} 匿名访客
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+              <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+                热门车辆
+              </h2>
+              {data.analytics.popularVehicles.length === 0 ? (
+                <EmptyLine text="所选时间范围内暂无数据" />
+              ) : (
+                <ul className="space-y-3">
+                  {data.analytics.popularVehicles.map((v) => (
+                    <li
+                      key={v.vehicleId}
+                      className="flex gap-3 border-b border-slate-50 pb-3 last:border-0"
+                    >
+                      {v.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={v.coverUrl}
+                          alt=""
+                          className="h-14 w-20 rounded object-cover bg-slate-100 flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="h-14 w-20 rounded bg-slate-100 flex-shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={`/admin/vehicles/${v.vehicleId}/edit`}
+                          className="text-sm font-medium text-[#1E293B] hover:underline line-clamp-2"
+                        >
+                          {v.title}
+                        </a>
+                        <p className="text-xs text-slate-500 mt-1 tabular-nums">
+                          详情 {v.detailViews} · WhatsApp {v.whatsappClicks} ·
+                          报价 {v.quoteDownloads}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-[#1E293B]">
+                WhatsApp 点击统计
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                仅统计用户主动点击打开 WhatsApp，不代表成交；不存储电话号码。
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+              <MetricCard label="WhatsApp 总点击量">
+                {data.analytics.whatsapp.totalClicks}
+              </MetricCard>
+              <MetricCard label="独立点击访客数">
+                {data.analytics.whatsapp.uniqueVisitors}
+              </MetricCard>
+              <MetricCard label="车辆详情咨询点击">
+                {data.analytics.whatsapp.vehicleDetail}
+              </MetricCard>
+              <MetricCard label="购物车结算点击">
+                {data.analytics.whatsapp.cartCheckout}
+              </MetricCard>
+              <MetricCard label="悬浮按钮点击">
+                {data.analytics.whatsapp.floatingButton}
+              </MetricCard>
+              <MetricCard label="联系页面点击">
+                {data.analytics.whatsapp.contactPage}
+              </MetricCard>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#1E293B] mb-2">
+                  点击来源分布
+                </h3>
+                {data.analytics.whatsapp.bySource.length === 0 ? (
+                  <EmptyLine text="所选时间范围内暂无数据" />
+                ) : (
+                  <ul className="space-y-2">
+                    {data.analytics.whatsapp.bySource.map((row) => (
+                      <li
+                        key={row.source}
+                        className="flex justify-between gap-2 text-sm border-b border-slate-50 pb-2"
+                      >
+                        <span>{sourceLabel(row.source)}</span>
+                        <span className="tabular-nums text-slate-600">
+                          {row.count}（{row.percent}%）
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#1E293B] mb-2">
+                  销售联系人分配点击
+                </h3>
+                <p className="text-[11px] text-slate-400 mb-2">
+                  点击归因，非销售业绩
+                </p>
+                {data.analytics.whatsapp.byContact.length === 0 ? (
+                  <EmptyLine text="所选时间范围内暂无数据" />
+                ) : (
+                  <ul className="space-y-2">
+                    {data.analytics.whatsapp.byContact.map((row) => (
+                      <li
+                        key={row.name}
+                        className="flex justify-between gap-2 text-sm border-b border-slate-50 pb-2"
+                      >
+                        <span className="font-medium">{row.name}</span>
+                        <span className="tabular-nums text-slate-600">
+                          {row.count}（{row.percent}%）
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-[#1E293B]">
+                购物车转化统计
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                购物车转化率 = 发起 WhatsApp 结算的访客数 ÷ 加入购物车的访客数
+              </p>
+            </div>
+            {data.analytics.cart.addVisitors === 0 ? (
+              <EmptyLine text="所选时间范围内暂无购物车转化数据" />
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                  <MetricCard label="加入购物车次数">
+                    {data.analytics.cart.addCount}
+                  </MetricCard>
+                  <MetricCard label="进入购物车人数">
+                    {data.analytics.cart.viewVisitors}
+                  </MetricCard>
+                  <MetricCard label="发起 WhatsApp 结算人数">
+                    {data.analytics.cart.checkoutVisitors}
+                  </MetricCard>
+                  <MetricCard label="购物车转化率">
+                    {data.analytics.cart.conversionRate == null
+                      ? "—"
+                      : `${data.analytics.cart.conversionRate}%`}
+                  </MetricCard>
+                  <MetricCard label="平均购物车车辆数">
+                    {data.analytics.cart.avgCartItems ?? "—"}
+                  </MetricCard>
+                  <MetricCard label="平均购物车车辆金额">
+                    {data.analytics.cart.avgCartValue == null
+                      ? "—"
+                      : formatMoney(data.analytics.cart.avgCartValue, "USD")}
+                  </MetricCard>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#1E293B] mb-3">
+                    转化漏斗（匿名访客）
+                  </h3>
+                  <div className="space-y-2">
+                    {data.analytics.cart.funnel.map((step, idx) => {
+                      const max = Math.max(
+                        ...data.analytics.cart.funnel.map((f) => f.visitors),
+                        1
+                      );
+                      return (
+                        <div key={step.stage} className="min-w-0">
+                          <div className="mb-1 flex justify-between text-sm">
+                            <span>
+                              {idx + 1}. {step.stage}
+                            </span>
+                            <span className="tabular-nums text-slate-600">
+                              {step.visitors}
+                            </span>
+                          </div>
+                          <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#1E293B]"
+                              style={{
+                                width: `${Math.max(
+                                  (step.visitors / max) * 100,
+                                  step.visitors > 0 ? 4 : 0
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-[#1E293B]">
+                报价下载统计
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                仅统计成功下载；不代表成交，不存储 PDF 内容或客户隐私。
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <MetricCard label="报价下载总次数">
+                {data.analytics.quotes.downloads}
+              </MetricCard>
+              <MetricCard label="独立下载访客数">
+                {data.analytics.quotes.uniqueVisitors}
+              </MetricCard>
+              <MetricCard label="下载报价的车辆数量">
+                {data.analytics.quotes.vehicleCount}
+              </MetricCard>
+              <MetricCard label="平均每辆车下载次数">
+                {data.analytics.quotes.avgPerVehicle ?? "—"}
+              </MetricCard>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[#1E293B] mb-2">
+                报价下载趋势
+              </h3>
+              <TrendChart buckets={data.analytics.quotes.trend} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[#1E293B] mb-2">
+                下载最多的车辆
+              </h3>
+              {data.analytics.quotes.topVehicles.length === 0 ? (
+                <EmptyLine text="所选时间范围内暂无数据" />
+              ) : (
+                <ul className="space-y-2">
+                  {data.analytics.quotes.topVehicles.map((v) => (
+                    <li
+                      key={v.vehicleId}
+                      className="flex justify-between gap-3 text-sm border-b border-slate-50 pb-2"
+                    >
+                      <a
+                        href={`/admin/vehicles/${v.vehicleId}/edit`}
+                        className="font-medium text-[#1E293B] hover:underline truncate min-w-0"
+                      >
+                        {v.title}
+                      </a>
+                      <span className="tabular-nums text-slate-600 flex-shrink-0">
+                        {v.downloads}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      {data.analytics?.available && data.analytics.emptyWaiting && (
+        <section className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+          统计功能已启用，等待新的访问数据。历史指标自部署日起开始累积，不含虚构回填。
+        </section>
+      )}
+
       {/* Not enabled */}
-      <section className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-        <h2 className="text-sm font-semibold text-[#1E293B] mb-2">
-          尚未启用的数据统计
-        </h2>
-        <ul className="space-y-1.5 text-sm text-slate-600">
-          {data.notEnabled.map((item) => (
-            <li key={item.name}>
-              <span className="font-medium text-[#1E293B]">{item.name}</span>
-              {" — "}
-              {item.reason}
-            </li>
-          ))}
-        </ul>
-      </section>
+      {data.notEnabled.length > 0 && (
+        <section className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+          <h2 className="text-sm font-semibold text-[#1E293B] mb-2">
+            尚未启用的数据统计
+          </h2>
+          <ul className="space-y-1.5 text-sm text-slate-600">
+            {data.notEnabled.map((item) => (
+              <li key={item.name}>
+                <span className="font-medium text-[#1E293B]">{item.name}</span>
+                {" — "}
+                {item.reason}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Diagnostics */}
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -631,6 +1179,9 @@ export default function AdminStatisticsDashboard({
         </button>
         {sourcesOpen && (
           <div className="border-t border-slate-100 px-4 py-3 space-y-2">
+            <p className="text-[11px] text-slate-400 pb-1">
+              第一方匿名分析：不存储客户电话/邮箱、不展示完整 IP、不做侵入式指纹识别。
+            </p>
             {data.sources.map((src) => (
               <div
                 key={src.id}
@@ -639,6 +1190,18 @@ export default function AdminStatisticsDashboard({
                 <div className="min-w-0">
                   <p className="font-medium text-[#1E293B]">{src.name}</p>
                   <p className="text-xs text-slate-500">{src.detail}</p>
+                  {(src.totalEvents != null || src.periodEvents != null) && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {src.totalEvents != null && `总事件 ${src.totalEvents}`}
+                      {src.totalEvents != null &&
+                        src.periodEvents != null &&
+                        " · "}
+                      {src.periodEvents != null &&
+                        `所选范围 ${src.periodEvents}`}
+                      {src.latestEventAt &&
+                        ` · 最近 ${formatShanghai(src.latestEventAt)}`}
+                    </p>
+                  )}
                   {src.error && (
                     <p className="text-xs text-amber-700 mt-0.5">{src.error}</p>
                   )}

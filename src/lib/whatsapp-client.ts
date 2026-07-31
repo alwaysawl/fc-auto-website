@@ -28,7 +28,7 @@ function fallbackOpen(input: OpenAssignedWhatsAppInput) {
 
 export async function openAssignedWhatsApp(
   input: OpenAssignedWhatsAppInput
-): Promise<boolean> {
+): Promise<{ success: boolean; agentName?: string }> {
   // inquiryNote is message-only — do not send to assign RPC / DB
   const payload: WhatsAppAssignRequest = {
     sourcePage: input.sourcePage,
@@ -57,7 +57,7 @@ export async function openAssignedWhatsApp(
         !data.success ? data.error : response.status
       );
       fallbackOpen({ ...payload, inquiryNote: input.inquiryNote });
-      return false;
+      return { success: false };
     }
 
     const message = buildWhatsAppMessage({
@@ -73,13 +73,13 @@ export async function openAssignedWhatsApp(
 
     const url = buildWhatsAppUrl(data.assignment.whatsappNumber, message);
     window.open(url, "_blank", "noopener,noreferrer");
-    return true;
+    return { success: true, agentName: data.assignment.agentName };
   } catch (error) {
     console.error(
       "[whatsapp] assignment error:",
       error instanceof Error ? error.message : "unknown"
     );
     fallbackOpen({ ...payload, inquiryNote: input.inquiryNote });
-    return false;
+    return { success: false };
   }
 }

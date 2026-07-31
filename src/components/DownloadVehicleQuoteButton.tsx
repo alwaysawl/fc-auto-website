@@ -5,6 +5,7 @@ import type { Locale, Vehicle } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { useCart } from "@/components/CartProvider";
 import { downloadVehicleQuotePdf } from "@/lib/vehicleQuote/buildQuotePdf";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 type DownloadVehicleQuoteButtonProps = {
   vehicle: Vehicle;
@@ -26,7 +27,16 @@ export default function DownloadVehicleQuoteButton({
     if (busy) return;
     setBusy(true);
     try {
-      await downloadVehicleQuotePdf(vehicle, locale);
+      const result = await downloadVehicleQuotePdf(vehicle, locale);
+      trackAnalyticsEvent("quote_download", {
+        vehicleId: vehicle.id,
+        locale,
+        metadata: {
+          assigned_contact_name: result.contactName.slice(0, 40),
+          quote_type: "vehicle",
+        },
+        dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
+      });
       showToast(t.vehicleDetail.quoteDownloadSuccess);
     } catch (err) {
       console.error("[DownloadVehicleQuote]", err);

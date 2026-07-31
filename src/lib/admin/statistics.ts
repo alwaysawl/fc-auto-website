@@ -1,9 +1,11 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getAnalyticsDashboardBlock } from "@/lib/analytics/aggregate";
 import type { VehicleStatus } from "@/lib/types";
 import type {
   ActivityItem,
+  AnalyticsDashboard,
   AssignmentAgentStat,
   DataSourceStatus,
   MetricValue,
@@ -16,6 +18,7 @@ import type {
 
 export type {
   ActivityItem,
+  AnalyticsDashboard,
   AssignmentAgentStat,
   DataSourceStatus,
   MetricValue,
@@ -309,12 +312,147 @@ export async function getAdminStatistics(options: {
   const loadedAt = formatShanghaiDateTime(generatedAt);
 
   const sources: DataSourceStatus[] = [];
-  const notEnabled = [
-    { name: "网站访问量", reason: "尚未建立事件记录，暂时无法统计。" },
-    { name: "WhatsApp 点击量", reason: "尚未建立事件记录，暂时无法统计。" },
-    { name: "购物车转化率", reason: "尚未建立事件记录，暂时无法统计。" },
-    { name: "报价下载次数", reason: "尚未建立事件记录，暂时无法统计。" },
-  ];
+  const notEnabled: { name: string; reason: string }[] = [];
+
+  // First-party analytics (isolated — failure must not break other stats)
+  let analytics: AnalyticsDashboard;
+  try {
+    const block = await getAnalyticsDashboardBlock({
+      range,
+      loadedAtLabel: loadedAt,
+    });
+    analytics = {
+      available: block.available,
+      emptyWaiting: block.emptyWaiting,
+      error: block.error,
+      website: block.website,
+      websiteTrend: block.websiteTrend,
+      popularPages: block.popularPages,
+      popularVehicles: block.popularVehicles,
+      whatsapp: block.whatsapp,
+      cart: block.cart,
+      quotes: block.quotes,
+      summaryCards: block.summaryCards,
+    };
+
+    const baseDetail = block.emptyWaiting
+      ? "统计功能已启用，等待新的访问数据。"
+      : block.available
+        ? "第一方匿名事件"
+        : "事件表不可用";
+
+    sources.push(
+      {
+        id: "analytics_page_views",
+        name: "网站访问事件",
+        available: block.available,
+        detail: baseDetail,
+        lastLoadedAt: block.available ? loadedAt : null,
+        latestEventAt: block.source.latestEventAt,
+        totalEvents: block.source.totalEvents,
+        periodEvents: block.available ? block.website.pageViews : null,
+        error: block.error,
+      },
+      {
+        id: "analytics_whatsapp",
+        name: "WhatsApp 点击事件",
+        available: block.available,
+        detail: baseDetail,
+        lastLoadedAt: block.available ? loadedAt : null,
+        latestEventAt: block.source.latestEventAt,
+        totalEvents: block.source.totalEvents,
+        periodEvents: block.available ? block.whatsapp.totalClicks : null,
+        error: block.error,
+      },
+      {
+        id: "analytics_cart",
+        name: "购物车事件",
+        available: block.available,
+        detail: baseDetail,
+        lastLoadedAt: block.available ? loadedAt : null,
+        latestEventAt: block.source.latestEventAt,
+        totalEvents: block.source.totalEvents,
+        periodEvents: block.available ? block.cart.addCount : null,
+        error: block.error,
+      },
+      {
+        id: "analytics_quotes",
+        name: "报价下载事件",
+        available: block.available,
+        detail: baseDetail,
+        lastLoadedAt: block.available ? loadedAt : null,
+        latestEventAt: block.source.latestEventAt,
+        totalEvents: block.source.totalEvents,
+        periodEvents: block.available ? block.quotes.downloads : null,
+        error: block.error,
+      }
+    );
+  } catch (err) {
+    logSafe("analytics", err);
+    analytics = {
+      available: false,
+      emptyWaiting: false,
+      error: "数据加载失败，请稍后重试",
+      website: {
+        pageViews: 0,
+        uniqueVisitors: 0,
+        sessions: 0,
+        vehicleDetailViews: 0,
+        pagesPerSession: null,
+      },
+      websiteTrend: [],
+      popularPages: [],
+      popularVehicles: [],
+      whatsapp: {
+        totalClicks: 0,
+        uniqueVisitors: 0,
+        bySource: [],
+        byContact: [],
+        vehicleDetail: 0,
+        cartCheckout: 0,
+        floatingButton: 0,
+        contactPage: 0,
+      },
+      cart: {
+        addCount: 0,
+        addVisitors: 0,
+        viewVisitors: 0,
+        checkoutVisitors: 0,
+        conversionRate: null,
+        avgCartItems: null,
+        avgCartValue: null,
+        funnel: [],
+      },
+      quotes: {
+        downloads: 0,
+        uniqueVisitors: 0,
+        vehicleCount: 0,
+        avgPerVehicle: null,
+        topVehicles: [],
+        trend: [],
+      },
+      summaryCards: {
+        pageViews: 0,
+        uniqueVisitors: 0,
+        whatsappClicks: 0,
+        cartConversionRate: null,
+        quoteDownloads: 0,
+        prevPageViews: null,
+        prevUniqueVisitors: null,
+        prevWhatsappClicks: null,
+        prevCartConversionRate: null,
+        prevQuoteDownloads: null,
+      },
+    };
+    sources.push({
+      id: "analytics_events",
+      name: "analytics_events（第一方事件）",
+      available: false,
+      detail: "事件统计暂时不可用",
+      lastLoadedAt: null,
+      error: "数据加载失败，请稍后重试",
+    });
+  }
 
   // ── Vehicles ──────────────────────────────────────────────────────────────
   let vehicles: VehicleStatRow[] = [];
@@ -727,6 +865,29 @@ export async function getAdminStatistics(options: {
     error: activityItems.length > 0 ? null : "暂无可用动态记录",
   };
 
+  // Wire period PDF downloads from first-party quote_download events
+  if (analytics.available) {
+    period.pdfDownloads = {
+      available: true,
+      value: analytics.quotes.downloads,
+      message: null,
+    };
+  }
+
+  // Remaining business metrics that still lack dedicated tables
+  if (!period.inquiries.available) {
+    notEnabled.push({
+      name: "询盘数量（独立询盘表）",
+      reason: "尚无独立询盘数据表，暂用 WhatsApp 分配与点击统计代替部分意向。",
+    });
+  }
+  if (!period.quotes.available) {
+    notEnabled.push({
+      name: "报价数量（报价单表）",
+      reason: "尚无独立报价单表；报价下载次数已由第一方事件统计。",
+    });
+  }
+
   return {
     generatedAt,
     timezone: ADMIN_TZ,
@@ -741,5 +902,6 @@ export async function getAdminStatistics(options: {
     activity,
     sources,
     notEnabled,
+    analytics,
   };
 }

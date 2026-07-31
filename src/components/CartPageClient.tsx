@@ -29,6 +29,7 @@ import {
   getCartFreightFromDestinations,
   isCartFreightConfigured,
 } from "@/lib/shippingDestinations/cartFreightLookup";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 interface CartPageClientProps {
   locale: Locale;
@@ -131,6 +132,21 @@ export default function CartPageClient({
       setShipping({ arrangement: "fc_auto" });
     }
   }, [ready, shipping.arrangement, setShipping]);
+
+  // cart_view once when cart page opens with items
+  useEffect(() => {
+    if (!ready || items.length === 0) return;
+    trackAnalyticsEvent("cart_view", {
+      cartItemCount: items.length,
+      cartValueUsd: items.reduce((s, i) => s + (i.fobPrice || 0), 0),
+      countryId: shipping.countryId || null,
+      portId: shipping.portId || null,
+      locale,
+      dedupeKey: `cart_view|session`,
+    });
+    // Intentionally once per cart page visit after ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   const nameLocale = locale === "fr" || locale === "zh" ? locale : "en";
   const safeCountryId = isCartDestinationAllowed(
@@ -942,6 +958,9 @@ export default function CartPageClient({
           <WhatsAppAssignLink
             sourcePage="cart-checkout"
             inquiryNote={inquiryNote}
+            cartItemCount={items.length}
+            countryId={shipping.countryId || undefined}
+            portId={shipping.portId || undefined}
             className="mt-5 w-full min-h-12 inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] text-white font-bold text-sm hover:bg-[#20BD5A] transition-colors px-4 text-center"
           >
             <svg
@@ -973,6 +992,9 @@ export default function CartPageClient({
           <WhatsAppAssignLink
             sourcePage="cart-checkout-mobile"
             inquiryNote={inquiryNote}
+            cartItemCount={items.length}
+            countryId={shipping.countryId || undefined}
+            portId={shipping.portId || undefined}
             className="min-h-11 flex-shrink-0 inline-flex items-center justify-center px-4 rounded-lg bg-[#25D366] text-white text-sm font-bold"
           >
             {t.cart.sendWhatsApp}

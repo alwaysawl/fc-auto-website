@@ -218,7 +218,7 @@ async function drawCoverImage(
 export async function downloadVehicleQuotePdf(
   vehicle: Vehicle,
   locale: Locale
-): Promise<void> {
+): Promise<{ contactName: string }> {
   const copy = getVehicleQuoteCopy(locale);
   const contact = assignNextQuoteContact();
   const whatsappDisplay = contact.whatsappDisplay;
@@ -608,4 +608,5 @@ export async function downloadVehicleQuotePdf(
   finalizePageNumbers(doc, copy);
 
   doc.save(buildQuoteFilename(vehicle));
+  return { contactName: contact.name };
 }

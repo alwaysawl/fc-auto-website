@@ -1,16 +1,28 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import {
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import {
   openAssignedWhatsApp,
   type OpenAssignedWhatsAppInput,
 } from "@/lib/whatsapp-client";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
+import { mapWhatsAppSource } from "@/lib/analytics/types";
 
 type WhatsAppAssignLinkProps = OpenAssignedWhatsAppInput & {
   className?: string;
   children: ReactNode;
   "aria-label"?: string;
   title?: string;
+  vehicleId?: string;
+  cartItemCount?: number;
+  countryId?: string;
+  portId?: string;
 };
 
 export default function WhatsAppAssignLink({
@@ -22,6 +34,10 @@ export default function WhatsAppAssignLink({
   vehicleYear,
   stockNumber,
   inquiryNote,
+  vehicleId,
+  cartItemCount,
+  countryId,
+  portId,
   "aria-label": ariaLabel,
   title,
 }: WhatsAppAssignLinkProps) {
@@ -46,7 +62,7 @@ export default function WhatsAppAssignLink({
 
     setBusy(true);
     try {
-      await openAssignedWhatsApp({
+      const opened = await openAssignedWhatsApp({
         sourcePage,
         pageUrl: pageUrl ?? window.location.href,
         vehicleTitle,
@@ -54,6 +70,33 @@ export default function WhatsAppAssignLink({
         stockNumber,
         inquiryNote,
       });
+
+      const page = sourcePage ?? "unknown";
+      trackAnalyticsEvent("whatsapp_click", {
+        vehicleId: vehicleId ?? stockNumber ?? null,
+        cartItemCount: cartItemCount ?? null,
+        countryId: countryId ?? null,
+        portId: portId ?? null,
+        metadata: {
+          source: mapWhatsAppSource(page),
+          source_page: page.slice(0, 40),
+          assigned_contact_name: opened.agentName?.slice(0, 40) ?? null,
+        },
+        dedupeKey: `whatsapp_click|${page}|${Date.now()}`,
+      });
+
+      if (page.includes("cart")) {
+        trackAnalyticsEvent("cart_checkout_click", {
+          vehicleId: vehicleId ?? null,
+          cartItemCount: cartItemCount ?? null,
+          countryId: countryId ?? null,
+          portId: portId ?? null,
+          metadata: {
+            assigned_contact_name: opened.agentName?.slice(0, 40) ?? null,
+          },
+          dedupeKey: `cart_checkout_click|${Date.now()}`,
+        });
+      }
     } finally {
       setBusy(false);
       setLockedSize(null);

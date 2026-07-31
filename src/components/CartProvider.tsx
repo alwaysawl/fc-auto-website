@@ -20,6 +20,7 @@ import {
   writeCartShippingToStorage,
   vehicleToCartItem,
 } from "@/lib/cart";
+import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 type CartContextValue = {
   ready: boolean;
@@ -87,22 +88,51 @@ export function CartProvider({ children }: { children: ReactNode }) {
         added = true;
         return [...prev, vehicleToCartItem(vehicle)];
       });
-      if (added && toastMessage) showToast(toastMessage);
+      if (added) {
+        trackAnalyticsEvent("cart_add", {
+          vehicleId: vehicle.id,
+          cartItemCount: items.length + 1,
+          cartValueUsd: undefined,
+          metadata: { brand: vehicle.brand?.slice(0, 40) },
+          dedupeKey: `cart_add|${vehicle.id}|${Date.now()}`,
+        });
+        if (toastMessage) showToast(toastMessage);
+      }
       return added;
     },
-    [showToast]
+    [showToast, items.length]
   );
 
   const removeItem = useCallback((id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    setItems((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      if (next.length !== prev.length) {
+        trackAnalyticsEvent("cart_remove", {
+          vehicleId: id,
+          cartItemCount: next.length,
+          dedupeKey: `cart_remove|${id}|${Date.now()}`,
+        });
+      }
+      return next;
+    });
+  }, []);
+
+  const clearCart = useCallback(() => {
+    setItems((prev) => {
+      if (prev.length > 0) {
+        trackAnalyticsEvent("cart_clear", {
+          cartItemCount: 0,
+          dedupeKey: `cart_clear|${Date.now()}`,
+        });
+      }
+      return [];
+    });
   }, []);
 
   const hasItem = useCallback(
     (id: string) => items.some((item) => item.id === id),
     [items]
   );
-
-  const clearCart = useCallback(() => setItems([]), []);
 
   const setShipping = useCallback((next: Partial<CartShippingSelection>) => {
     setShippingState((prev) => {

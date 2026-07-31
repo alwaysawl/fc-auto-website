@@ -14,6 +14,84 @@ export type DataSourceStatus = {
   detail: string;
   lastLoadedAt: string | null;
   error: string | null;
+  latestEventAt?: string | null;
+  totalEvents?: number | null;
+  periodEvents?: number | null;
+};
+
+/** Aggregated first-party analytics for Admin 数据统计 (no raw event rows). */
+export type AnalyticsDashboard = {
+  available: boolean;
+  emptyWaiting: boolean;
+  error: string | null;
+  website: {
+    pageViews: number;
+    uniqueVisitors: number;
+    sessions: number;
+    vehicleDetailViews: number;
+    pagesPerSession: number | null;
+  };
+  websiteTrend: {
+    key: string;
+    label: string;
+    pageViews: number;
+    visitors: number;
+    sessions: number;
+  }[];
+  popularPages: {
+    path: string;
+    views: number;
+    percent: number;
+    visitors: number;
+  }[];
+  popularVehicles: {
+    vehicleId: string;
+    title: string;
+    coverUrl: string | null;
+    detailViews: number;
+    whatsappClicks: number;
+    quoteDownloads: number;
+  }[];
+  whatsapp: {
+    totalClicks: number;
+    uniqueVisitors: number;
+    bySource: { source: string; count: number; percent: number }[];
+    byContact: { name: string; count: number; percent: number }[];
+    vehicleDetail: number;
+    cartCheckout: number;
+    floatingButton: number;
+    contactPage: number;
+  };
+  cart: {
+    addCount: number;
+    addVisitors: number;
+    viewVisitors: number;
+    checkoutVisitors: number;
+    conversionRate: number | null;
+    avgCartItems: number | null;
+    avgCartValue: number | null;
+    funnel: { stage: string; visitors: number }[];
+  };
+  quotes: {
+    downloads: number;
+    uniqueVisitors: number;
+    vehicleCount: number;
+    avgPerVehicle: number | null;
+    topVehicles: { vehicleId: string; title: string; downloads: number }[];
+    trend: { key: string; label: string; count: number }[];
+  };
+  summaryCards: {
+    pageViews: number;
+    uniqueVisitors: number;
+    whatsappClicks: number;
+    cartConversionRate: number | null;
+    quoteDownloads: number;
+    prevPageViews: number | null;
+    prevUniqueVisitors: number | null;
+    prevWhatsappClicks: number | null;
+    prevCartConversionRate: number | null;
+    prevQuoteDownloads: number | null;
+  };
 };
 
 export type RankedItem = {
@@ -122,4 +200,5 @@ export type StatisticsPayload = {
   };
   sources: DataSourceStatus[];
   notEnabled: { name: string; reason: string }[];
+  analytics: AnalyticsDashboard;
 };
