@@ -24,6 +24,10 @@ export async function GET(request: Request) {
         fallbackReason: result.fallbackReason,
         countryCount: result.countryCount,
         portCount: result.portCount,
+        serverProjectRef: result.serverProjectRef,
+        publicProjectRef: result.publicProjectRef,
+        resolvedProjectRef: result.resolvedProjectRef,
+        urlMismatch: result.urlMismatch,
       },
       {
         headers: {

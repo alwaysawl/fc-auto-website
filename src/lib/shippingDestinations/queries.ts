@@ -6,7 +6,7 @@ import {
   type PortRate,
   type ShippingDestination,
 } from "@/data/shippingRates";
-import { getSupabaseAdmin, getSupabaseSecretKey } from "@/lib/supabase/admin";
+import { getSupabaseAdmin, getSupabaseProjectDiagnostics } from "@/lib/supabase/admin";
 import type {
   ShippingCountryInput,
   ShippingCountryRow,
@@ -141,17 +141,7 @@ function mapPort(row: Record<string, unknown>): ShippingPortRow {
 
 /** Sort helper lives in sortCountries.ts (shared with client). */
 
-function peekJwtRole(token: string): string | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const json = Buffer.from(parts[1], "base64url").toString("utf8");
-    const payload = JSON.parse(json) as { role?: string };
-    return typeof payload.role === "string" ? payload.role : null;
-  } catch {
-    return null;
-  }
-}
+/** JWT role peek helper removed — use getSupabaseProjectDiagnostics(). */
 
 function supabaseHostHint(): string | null {
   try {
@@ -248,6 +238,7 @@ function withCounts(
 ): ShippingListResult {
   const sorted = sortShippingCountries(countries);
   const portCount = sorted.reduce((sum, c) => sum + c.ports.length, 0);
+  const diag = getSupabaseProjectDiagnostics();
   return {
     countries: sorted,
     source,
@@ -255,6 +246,10 @@ function withCounts(
     fallbackReason,
     countryCount: sorted.length,
     portCount,
+    serverProjectRef: diag.serverProjectRef,
+    publicProjectRef: diag.publicProjectRef,
+    resolvedProjectRef: diag.resolvedProjectRef,
+    urlMismatch: diag.urlMismatch,
   };
 }
 
@@ -279,7 +274,8 @@ export async function listShippingCountriesWithPorts(options?: {
   let supabase: SupabaseClient;
   let keyRole: string | null = null;
   try {
-    keyRole = peekJwtRole(getSupabaseSecretKey());
+    const diag = getSupabaseProjectDiagnostics();
+    keyRole = diag.keyJwtRole;
     supabase = getSupabaseAdmin();
   } catch (err) {
     logShippingDbError(
@@ -287,7 +283,24 @@ export async function listShippingCountriesWithPorts(options?: {
       {
         message: err instanceof Error ? err.message : "unknown",
       },
-      { fallback: "client_unavailable", supabaseHost: supabaseHostHint() }
+      {
+        fallback: "client_unavailable",
+        supabaseHost: supabaseHostHint(),
+        ...(() => {
+          try {
+            const d = getSupabaseProjectDiagnostics();
+            return {
+              serverProjectRef: d.serverProjectRef,
+              publicProjectRef: d.publicProjectRef,
+              resolvedProjectRef: d.resolvedProjectRef,
+              urlMismatch: d.urlMismatch,
+              keySource: d.keySource,
+            };
+          } catch {
+            return {};
+          }
+        })(),
+      }
     );
     return staticFallbackResult(enabledOnly, "client_unavailable");
   }
@@ -353,14 +366,32 @@ export async function listShippingCountriesWithPorts(options?: {
   });
 
   const result = withCounts(countries, "database", false, null);
+  const diag = getSupabaseProjectDiagnostics();
 
   console.info("[shippingDestinations] list ok", {
     source: result.source,
     countryCount: result.countryCount,
     portCount: result.portCount,
-    keyRole,
-    supabaseHost: supabaseHostHint(),
+    serverProjectRef: diag.serverProjectRef,
+    publicProjectRef: diag.publicProjectRef,
+    resolvedProjectRef: diag.resolvedProjectRef,
+    urlMismatch: diag.urlMismatch,
+    keySource: diag.keySource,
+    keyFormat: diag.keyFormat,
+    keyJwtRole: diag.keyJwtRole,
+    keyJwtRef: diag.keyJwtRef,
+    keyRefMatchesResolvedUrl: diag.keyRefMatchesResolvedUrl,
   });
+
+  if (result.countryCount === 0) {
+    console.error(
+      "[shippingDestinations] shipping_countries returned 0 rows from project",
+      {
+        resolvedProjectRef: diag.resolvedProjectRef,
+        hint: "Compare this project ref with the Supabase SQL Editor project where you see 8 countries. Apply the seed SQL in the SAME project, or align Vercel SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL.",
+      }
+    );
+  }
 
   if (result.countryCount === 0 && keyRole === "anon") {
     console.error(

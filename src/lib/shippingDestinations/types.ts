@@ -56,4 +56,8 @@ export type ShippingListResult = {
   fallbackReason: "tables_missing" | "client_unavailable" | null;
   countryCount: number;
   portCount: number;
+  serverProjectRef: string | null;
+  publicProjectRef: string | null;
+  resolvedProjectRef: string | null;
+  urlMismatch: boolean;
 };

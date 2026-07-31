@@ -126,6 +126,16 @@ export default function AdminShippingEditor({ initial }: Props) {
     initial.portCount ??
       initialList.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0)
   );
+  const [serverProjectRef, setServerProjectRef] = useState(
+    initial.serverProjectRef ?? null
+  );
+  const [publicProjectRef, setPublicProjectRef] = useState(
+    initial.publicProjectRef ?? null
+  );
+  const [resolvedProjectRef, setResolvedProjectRef] = useState(
+    initial.resolvedProjectRef ?? null
+  );
+  const [urlMismatch, setUrlMismatch] = useState(Boolean(initial.urlMismatch));
   const [loading, setLoading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState("");
   const [globalOk, setGlobalOk] = useState(false);
@@ -162,6 +172,10 @@ export default function AdminShippingEditor({ initial }: Props) {
         fallbackReason: "tables_missing" | "client_unavailable" | null;
         countryCount?: number;
         portCount?: number;
+        serverProjectRef?: string | null;
+        publicProjectRef?: string | null;
+        resolvedProjectRef?: string | null;
+        urlMismatch?: boolean;
       },
       preferCountryId?: string
     ) => {
@@ -176,6 +190,10 @@ export default function AdminShippingEditor({ initial }: Props) {
         meta.portCount ??
           sorted.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0)
       );
+      setServerProjectRef(meta.serverProjectRef ?? null);
+      setPublicProjectRef(meta.publicProjectRef ?? null);
+      setResolvedProjectRef(meta.resolvedProjectRef ?? null);
+      setUrlMismatch(Boolean(meta.urlMismatch));
       setSelectedCountryId((prev) =>
         pickDefaultCountryId(sorted, preferCountryId ?? prev)
       );
@@ -219,6 +237,19 @@ export default function AdminShippingEditor({ initial }: Props) {
               typeof data.portCount === "number"
                 ? data.portCount
                 : list.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0),
+            serverProjectRef:
+              typeof data.serverProjectRef === "string"
+                ? data.serverProjectRef
+                : null,
+            publicProjectRef:
+              typeof data.publicProjectRef === "string"
+                ? data.publicProjectRef
+                : null,
+            resolvedProjectRef:
+              typeof data.resolvedProjectRef === "string"
+                ? data.resolvedProjectRef
+                : null,
+            urlMismatch: Boolean(data.urlMismatch),
           },
           preferCountryId
         );
@@ -488,11 +519,30 @@ export default function AdminShippingEditor({ initial }: Props) {
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-slate-500 font-mono">
+      <p className="text-xs text-slate-500 font-mono break-all">
         诊断：国家 {countryCount} · 港口 {portCount} · 来源 {source}
         {selectedCountryId ? ` · 已选 ${selectedCountryId}` : ""}
+        {resolvedProjectRef ? ` · 项目 ${resolvedProjectRef}` : ""}
+        {urlMismatch
+          ? ` · URL不一致(server=${serverProjectRef ?? "?"} public=${publicProjectRef ?? "?"})`
+          : ""}
         {loading ? " · 刷新中…" : ""}
       </p>
+      {countryCount === 0 && source === "database" && resolvedProjectRef && (
+        <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-medium">当前连接的 Supabase 项目中没有运费国家数据</p>
+          <p className="mt-1">
+            网站正在查询项目{" "}
+            <code className="rounded bg-amber-100 px-1">{resolvedProjectRef}</code>
+            。请在该项目的 SQL Editor 中确认{" "}
+            <code className="rounded bg-amber-100 px-1">shipping_countries</code>{" "}
+            是否有 8 行；若数据在另一个项目，请把 Vercel 的{" "}
+            <code className="rounded bg-amber-100 px-1">SUPABASE_URL</code> /{" "}
+            <code className="rounded bg-amber-100 px-1">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
+            与密钥对齐到同一项目，或在此项目中执行运费种子 SQL。
+          </p>
+        </div>
+      )}
 
       {readOnly && fallbackReason === "tables_missing" && (
         <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
