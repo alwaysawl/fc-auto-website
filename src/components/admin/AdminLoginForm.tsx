@@ -1,21 +1,59 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface AdminLoginFormProps {
   configured: boolean;
+  adminPasswordConfigured: boolean;
+  sessionSecretConfigured: boolean;
 }
 
-export default function AdminLoginForm({ configured }: AdminLoginFormProps) {
+type Diagnostics = {
+  adminPasswordConfigured: boolean;
+  sessionSecretConfigured: boolean;
+  configured: boolean;
+};
+
+export default function AdminLoginForm({
+  configured: configuredProp,
+  adminPasswordConfigured: passwordProp,
+  sessionSecretConfigured: sessionProp,
+}: AdminLoginFormProps) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<Diagnostics>({
+    configured: configuredProp,
+    adminPasswordConfigured: passwordProp,
+    sessionSecretConfigured: sessionProp,
+  });
+
+  // Re-check at runtime via Node route handler (same env reads as login API).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/session", { credentials: "include", cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled || typeof data !== "object" || data === null) return;
+        setDiagnostics({
+          configured: Boolean(data.configured),
+          adminPasswordConfigured: Boolean(data.adminPasswordConfigured),
+          sessionSecretConfigured: Boolean(data.sessionSecretConfigured),
+        });
+      })
+      .catch(() => {
+        /* keep server-rendered props */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!configured || loading) return;
+    if (!diagnostics.configured || loading) return;
     setLoading(true);
     setError(null);
     try {
@@ -23,6 +61,7 @@ export default function AdminLoginForm({ configured }: AdminLoginFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        cache: "no-store",
         body: JSON.stringify({ password }),
       });
       const data = await res.json().catch(() => ({}));
@@ -45,11 +84,23 @@ export default function AdminLoginForm({ configured }: AdminLoginFormProps) {
           车辆管理与含 VIN 的数据仅在登录后可用。
         </p>
 
-        {!configured ? (
-          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            服务器尚未配置 <code className="font-mono">ADMIN_PASSWORD</code>
-            。请在环境变量中设置管理员密码后重试（会话签名可使用现有
-            SUPABASE_SECRET_KEY）。
+        {!diagnostics.configured ? (
+          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-2">
+            <p>服务器尚未完成管理员鉴权配置（仅显示是否已配置，不包含密钥内容）：</p>
+            <ul className="list-disc pl-5 space-y-1 font-mono text-xs">
+              <li>
+                ADMIN_PASSWORD:{" "}
+                {diagnostics.adminPasswordConfigured ? "configured" : "missing"}
+              </li>
+              <li>
+                session signing key (ADMIN_SESSION_SECRET / SUPABASE_SECRET_KEY):{" "}
+                {diagnostics.sessionSecretConfigured ? "configured" : "missing"}
+              </li>
+            </ul>
+            <p className="text-amber-800/90">
+              请确认变量名完全一致（区分大小写）、已勾选 Production、并重新部署。不要使用
+              NEXT_PUBLIC_ 前缀。
+            </p>
           </div>
         ) : (
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -66,9 +117,7 @@ export default function AdminLoginForm({ configured }: AdminLoginFormProps) {
                 required
               />
             </div>
-            {error && (
-              <p className="text-sm text-red-600">{error}</p>
-            )}
+            {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               type="submit"
               disabled={loading}

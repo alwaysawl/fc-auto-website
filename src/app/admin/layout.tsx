@@ -3,6 +3,7 @@ import AdminSidebarToggle from "@/components/admin/AdminSidebarToggle";
 import AdminLoginForm from "@/components/admin/AdminLoginForm";
 import AdminLogoutButton from "@/components/admin/AdminLogoutButton";
 import {
+  getAdminAuthDiagnostics,
   isAdminAuthConfigured,
   isAdminSessionActive,
 } from "@/lib/admin/auth";
@@ -11,16 +12,27 @@ export const metadata = {
   title: "Admin | FC Auto Export",
 };
 
+/** Always evaluate auth against runtime env + cookies (never bake login state at build). */
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const diagnostics = getAdminAuthDiagnostics();
   const configured = isAdminAuthConfigured();
   const authenticated = configured ? await isAdminSessionActive() : false;
 
   if (!authenticated) {
-    return <AdminLoginForm configured={configured} />;
+    return (
+      <AdminLoginForm
+        configured={configured}
+        adminPasswordConfigured={diagnostics.adminPasswordConfigured}
+        sessionSecretConfigured={diagnostics.sessionSecretConfigured}
+      />
+    );
   }
 
   return (

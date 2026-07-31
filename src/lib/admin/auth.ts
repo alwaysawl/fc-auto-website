@@ -7,22 +7,48 @@ import { NextResponse } from "next/server";
 export const ADMIN_SESSION_COOKIE = "fc_admin_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
 
+/**
+ * Read server-only env at runtime.
+ * Use bracket access so Next/webpack cannot replace missing keys with a
+ * build-time undefined constant.
+ */
+function readEnv(name: string): string {
+  const value = process.env[name];
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function getSigningKey(): string {
   return (
-    (process.env.ADMIN_SESSION_SECRET ?? "").trim() ||
-    (process.env.ADMIN_API_SECRET ?? "").trim() ||
-    (process.env.SUPABASE_SECRET_KEY ?? "").trim() ||
-    (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim() ||
+    readEnv("ADMIN_SESSION_SECRET") ||
+    readEnv("ADMIN_API_SECRET") ||
+    readEnv("SUPABASE_SECRET_KEY") ||
+    readEnv("SUPABASE_SERVICE_ROLE_KEY") ||
     ""
   );
 }
 
 export function getAdminPassword(): string {
-  return (process.env.ADMIN_PASSWORD ?? "").trim();
+  return readEnv("ADMIN_PASSWORD");
+}
+
+export function isAdminPasswordConfigured(): boolean {
+  return Boolean(getAdminPassword());
+}
+
+export function isSessionSecretConfigured(): boolean {
+  return Boolean(getSigningKey());
 }
 
 export function isAdminAuthConfigured(): boolean {
-  return Boolean(getSigningKey() && getAdminPassword());
+  return isAdminPasswordConfigured() && isSessionSecretConfigured();
+}
+
+/** Safe diagnostics — never include secret values. */
+export function getAdminAuthDiagnostics() {
+  return {
+    adminPasswordConfigured: isAdminPasswordConfigured(),
+    sessionSecretConfigured: isSessionSecretConfigured(),
+  };
 }
 
 function signPayload(payload: string): string {
@@ -70,9 +96,7 @@ export function verifyAdminPassword(password: string): boolean {
 }
 
 export function verifyAdminBearer(request: Request): boolean {
-  const secret =
-    (process.env.ADMIN_API_SECRET ?? "").trim() ||
-    (process.env.ADMIN_PASSWORD ?? "").trim();
+  const secret = readEnv("ADMIN_API_SECRET") || readEnv("ADMIN_PASSWORD");
   if (!secret) return false;
   const header = request.headers.get("authorization") || "";
   const match = header.match(/^Bearer\s+(.+)$/i);
@@ -97,21 +121,23 @@ export async function isAdminSessionActive(): Promise<boolean> {
 export async function requireAdminApi(
   request: Request
 ): Promise<NextResponse | null> {
-  if (!getSigningKey()) {
+  if (!isSessionSecretConfigured()) {
     return NextResponse.json(
       {
         error: "管理员鉴权未配置：缺少会话签名密钥",
         code: "ADMIN_AUTH_NOT_CONFIGURED",
+        ...getAdminAuthDiagnostics(),
       },
       { status: 503 }
     );
   }
 
-  if (!getAdminPassword() && !((process.env.ADMIN_API_SECRET ?? "").trim())) {
+  if (!isAdminPasswordConfigured() && !readEnv("ADMIN_API_SECRET")) {
     return NextResponse.json(
       {
         error: "管理员鉴权未配置：请设置 ADMIN_PASSWORD（或 ADMIN_API_SECRET）",
         code: "ADMIN_AUTH_NOT_CONFIGURED",
+        ...getAdminAuthDiagnostics(),
       },
       { status: 503 }
     );

@@ -11,11 +11,13 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   if (!isAdminAuthConfigured()) {
+    const { getAdminAuthDiagnostics } = await import("@/lib/admin/auth");
     return NextResponse.json(
       {
         error:
           "管理员登录未配置。请在服务器环境变量中设置 ADMIN_PASSWORD，并确保存在可用的会话签名密钥（ADMIN_SESSION_SECRET 或现有 SUPABASE_SECRET_KEY）。",
         code: "ADMIN_AUTH_NOT_CONFIGURED",
+        ...getAdminAuthDiagnostics(),
       },
       { status: 503 }
     );
