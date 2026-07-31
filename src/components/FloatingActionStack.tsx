@@ -34,12 +34,15 @@ export default function FloatingActionStack() {
 
   if (!showCart && !showWhatsApp) return null;
 
+  // Vehicle detail has a sticky CTA bar (lg:hidden). Raise the stack on mobile
+  // so the cart never covers 立即结算; desktop / other pages keep the original offset.
+  const bottomClass = isVehicleDetail
+    ? "bottom-[calc(88px+env(safe-area-inset-bottom,0px))] lg:bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))]"
+    : "bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))]";
+
   return (
     <div
-      className="pointer-events-none fixed right-4 z-[90] flex flex-col items-end gap-3 sm:right-6"
-      style={{
-        bottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))",
-      }}
+      className={`pointer-events-none fixed right-4 z-[90] flex flex-col items-end gap-3 sm:right-6 ${bottomClass}`}
     >
       {showCart && (
         <Link
