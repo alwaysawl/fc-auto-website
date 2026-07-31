@@ -40,6 +40,9 @@ function parseFreight(value: string): number | null {
 export default function AdminShippingEditor() {
   const [countries, setCountries] = useState<ShippingCountryWithPorts[]>([]);
   const [tablesMissing, setTablesMissing] = useState(false);
+  const [fallbackReason, setFallbackReason] = useState<
+    "tables_missing" | "client_unavailable" | null
+  >(null);
   const [source, setSource] = useState<"database" | "static">("static");
   const [loading, setLoading] = useState(true);
   const [globalMessage, setGlobalMessage] = useState("");
@@ -89,6 +92,14 @@ export default function AdminShippingEditor() {
       const list = (data.countries ?? []) as ShippingCountryWithPorts[];
       setCountries(list);
       setTablesMissing(Boolean(data.tablesMissing));
+      setFallbackReason(
+        data.fallbackReason === "tables_missing" ||
+          data.fallbackReason === "client_unavailable"
+          ? data.fallbackReason
+          : data.tablesMissing
+            ? "tables_missing"
+            : null
+      );
       setSource(data.source === "database" ? "database" : "static");
       const drafts: Record<string, PortDraft> = {};
       for (const c of list) {
@@ -373,13 +384,15 @@ export default function AdminShippingEditor() {
     }
   };
 
+  const readOnly = source !== "database";
+
   if (loading) {
     return <p className="text-sm text-slate-500">加载中…</p>;
   }
 
   return (
     <div className="space-y-8">
-      {tablesMissing && (
+      {readOnly && fallbackReason === "tables_missing" && (
         <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <p className="font-medium">运费数据表尚未创建</p>
           <p className="mt-1">
@@ -389,6 +402,22 @@ export default function AdminShippingEditor() {
             </code>
             后再管理运费。来源：{source}
           </p>
+        </div>
+      )}
+      {readOnly && fallbackReason === "client_unavailable" && (
+        <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-medium">无法连接运费数据库</p>
+          <p className="mt-1">
+            当前显示的是静态示例数据（只读）。请检查服务器是否已配置
+            SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL 与
+            SUPABASE_SECRET_KEY（或 SUPABASE_SERVICE_ROLE_KEY）。来源：{source}
+          </p>
+        </div>
+      )}
+      {readOnly && !fallbackReason && tablesMissing && (
+        <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-medium">运费数据暂不可用</p>
+          <p className="mt-1">当前显示静态示例数据（只读）。来源：{source}</p>
         </div>
       )}
 
@@ -409,7 +438,7 @@ export default function AdminShippingEditor() {
             <input
               value={newCountryEn}
               onChange={(e) => setNewCountryEn(e.target.value)}
-              disabled={tablesMissing || addingCountry}
+              disabled={readOnly || addingCountry}
               className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
               placeholder="Cameroon"
             />
@@ -419,7 +448,7 @@ export default function AdminShippingEditor() {
             <input
               value={newCountryZh}
               onChange={(e) => setNewCountryZh(e.target.value)}
-              disabled={tablesMissing || addingCountry}
+              disabled={readOnly || addingCountry}
               className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
               placeholder="喀麦隆"
             />
@@ -428,7 +457,7 @@ export default function AdminShippingEditor() {
         <button
           type="button"
           onClick={() => void handleAddCountry()}
-          disabled={tablesMissing || addingCountry}
+          disabled={readOnly || addingCountry}
           className="btn-primary disabled:opacity-50"
         >
           {addingCountry ? "添加中…" : "添加国家"}
@@ -489,7 +518,7 @@ export default function AdminShippingEditor() {
                       <>
                         <button
                           type="button"
-                          disabled={busyKey !== null || tablesMissing}
+                          disabled={busyKey !== null || readOnly}
                           onClick={() => void handleSaveCountry(country.id)}
                           className="rounded-sm bg-gold px-3 py-1.5 text-sm font-medium text-charcoal disabled:opacity-50"
                         >
@@ -506,7 +535,7 @@ export default function AdminShippingEditor() {
                     ) : (
                       <button
                         type="button"
-                        disabled={tablesMissing}
+                        disabled={readOnly}
                         onClick={() => {
                           setEditingCountryId(country.id);
                           setEditCountryEn(country.name_en);
@@ -519,7 +548,7 @@ export default function AdminShippingEditor() {
                     )}
                     <button
                       type="button"
-                      disabled={busyKey !== null || tablesMissing}
+                      disabled={busyKey !== null || readOnly}
                       onClick={() => void handleToggleCountry(country)}
                       className="rounded-sm border border-white/40 px-3 py-1.5 text-sm disabled:opacity-50"
                     >
@@ -527,7 +556,7 @@ export default function AdminShippingEditor() {
                     </button>
                     <button
                       type="button"
-                      disabled={busyKey !== null || tablesMissing}
+                      disabled={busyKey !== null || readOnly}
                       onClick={() => void handleDeleteCountry(country)}
                       className="rounded-sm border border-red-300/60 px-3 py-1.5 text-sm text-red-200 disabled:opacity-50"
                     >
@@ -580,7 +609,7 @@ export default function AdminShippingEditor() {
                                 <span className="text-gray-600">港口名称（英文）</span>
                                 <input
                                   value={draft.name_en}
-                                  disabled={tablesMissing || saving}
+                                  disabled={readOnly || saving}
                                   onChange={(e) =>
                                     setPortDrafts((prev) => ({
                                       ...prev,
@@ -597,7 +626,7 @@ export default function AdminShippingEditor() {
                                 <span className="text-gray-600">港口名称（中文）</span>
                                 <input
                                   value={draft.name_zh}
-                                  disabled={tablesMissing || saving}
+                                  disabled={readOnly || saving}
                                   onChange={(e) =>
                                     setPortDrafts((prev) => ({
                                       ...prev,
@@ -619,7 +648,7 @@ export default function AdminShippingEditor() {
                                   min={0}
                                   step={1}
                                   value={draft.single_vehicle_usd}
-                                  disabled={tablesMissing || saving}
+                                  disabled={readOnly || saving}
                                   onChange={(e) =>
                                     setPortDrafts((prev) => ({
                                       ...prev,
@@ -641,7 +670,7 @@ export default function AdminShippingEditor() {
                                   min={0}
                                   step={1}
                                   value={draft.container_40ft_usd}
-                                  disabled={tablesMissing || saving}
+                                  disabled={readOnly || saving}
                                   onChange={(e) =>
                                     setPortDrafts((prev) => ({
                                       ...prev,
@@ -659,7 +688,7 @@ export default function AdminShippingEditor() {
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
-                                disabled={tablesMissing || saving}
+                                disabled={readOnly || saving}
                                 onClick={() => void handleSavePort(port)}
                                 className="btn-primary disabled:opacity-50"
                               >
@@ -667,7 +696,7 @@ export default function AdminShippingEditor() {
                               </button>
                               <button
                                 type="button"
-                                disabled={busyKey !== null || tablesMissing}
+                                disabled={busyKey !== null || readOnly}
                                 onClick={() => void handleTogglePort(port)}
                                 className="rounded-sm border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
                               >
@@ -675,7 +704,7 @@ export default function AdminShippingEditor() {
                               </button>
                               <button
                                 type="button"
-                                disabled={busyKey !== null || tablesMissing}
+                                disabled={busyKey !== null || readOnly}
                                 onClick={() => void handleDeletePort(port)}
                                 className="rounded-sm border border-red-200 px-3 py-2 text-sm text-red-600 disabled:opacity-50"
                               >
@@ -697,7 +726,7 @@ export default function AdminShippingEditor() {
                         <span className="text-gray-600">港口名称（英文）</span>
                         <input
                           value={newPort.name_en}
-                          disabled={tablesMissing || busyKey !== null}
+                          disabled={readOnly || busyKey !== null}
                           onChange={(e) =>
                             setNewPortByCountry((prev) => ({
                               ...prev,
@@ -715,7 +744,7 @@ export default function AdminShippingEditor() {
                         <span className="text-gray-600">港口名称（中文）</span>
                         <input
                           value={newPort.name_zh}
-                          disabled={tablesMissing || busyKey !== null}
+                          disabled={readOnly || busyKey !== null}
                           onChange={(e) =>
                             setNewPortByCountry((prev) => ({
                               ...prev,
@@ -735,7 +764,7 @@ export default function AdminShippingEditor() {
                           type="number"
                           min={0}
                           value={newPort.single_vehicle_usd}
-                          disabled={tablesMissing || busyKey !== null}
+                          disabled={readOnly || busyKey !== null}
                           onChange={(e) =>
                             setNewPortByCountry((prev) => ({
                               ...prev,
@@ -756,7 +785,7 @@ export default function AdminShippingEditor() {
                           type="number"
                           min={0}
                           value={newPort.container_40ft_usd}
-                          disabled={tablesMissing || busyKey !== null}
+                          disabled={readOnly || busyKey !== null}
                           onChange={(e) =>
                             setNewPortByCountry((prev) => ({
                               ...prev,
@@ -772,7 +801,7 @@ export default function AdminShippingEditor() {
                     </div>
                     <button
                       type="button"
-                      disabled={tablesMissing || busyKey !== null}
+                      disabled={readOnly || busyKey !== null}
                       onClick={() => void handleAddPort(country.id)}
                       className="btn-primary disabled:opacity-50"
                     >

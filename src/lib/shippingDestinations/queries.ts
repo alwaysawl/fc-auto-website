@@ -1,11 +1,12 @@
 import "server-only";
 
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   SHIPPING_DESTINATIONS,
   type PortRate,
   type ShippingDestination,
 } from "@/data/shippingRates";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type {
   ShippingCountryInput,
   ShippingCountryRow,
@@ -14,24 +15,80 @@ import type {
   ShippingPortRow,
 } from "@/lib/shippingDestinations/types";
 
-function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
+export type ShippingFallbackReason =
+  | "tables_missing"
+  | "client_unavailable"
+  | null;
+
+type DbErrorLike = {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+} | null;
+
+/** Safe diagnostics only — never log key values or full URLs with secrets. */
+function logShippingDbError(context: string, error: DbErrorLike, extra?: Record<string, unknown>) {
+  console.error(`[shippingDestinations] ${context}`, {
+    code: error?.code ?? null,
+    message: error?.message ?? null,
+    details: error?.details ?? null,
+    hint: error?.hint ?? null,
+    hasSupabaseUrl: Boolean(
+      (process.env.SUPABASE_URL ?? "").trim() ||
+        (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim()
+    ),
+    hasSupabaseSecretKey: Boolean((process.env.SUPABASE_SECRET_KEY ?? "").trim()),
+    hasSupabaseServiceRoleKey: Boolean(
+      (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim()
+    ),
+    ...extra,
   });
 }
 
-function isMissingRelationError(error: { message?: string; code?: string } | null): boolean {
+/**
+ * True only when PostgREST/Postgres reports the relation itself is missing
+ * (or not yet in schema cache). Permission / RLS failures must NOT match.
+ */
+function isMissingRelationError(error: DbErrorLike): boolean {
   if (!error) return false;
+  if (error.code === "42P01" || error.code === "PGRST205") return true;
   const msg = (error.message ?? "").toLowerCase();
+  if (msg.includes("permission denied") || msg.includes("row-level security")) {
+    return false;
+  }
   return (
-    error.code === "42P01" ||
-    msg.includes("does not exist") ||
     msg.includes("schema cache") ||
-    msg.includes("could not find the table")
+    msg.includes("could not find the table") ||
+    (msg.includes("relation") && msg.includes("does not exist")) ||
+    (/shipping_(countries|ports)/.test(msg) && msg.includes("does not exist"))
   );
+}
+
+function userFacingDbError(error: DbErrorLike, fallback: string): string {
+  if (!error) return fallback;
+  if (isMissingRelationError(error)) {
+    return "运费数据表尚未创建，请先在 Supabase 执行迁移 SQL";
+  }
+  if (error.code === "23505") {
+    return fallback.includes("港口") ? "同一国家下港口已存在，请勿重复添加" : "国家已存在，请勿重复添加";
+  }
+  return fallback;
+}
+
+function requireShippingClient(): SupabaseClient {
+  try {
+    return getSupabaseAdmin();
+  } catch (err) {
+    logShippingDbError(
+      "getSupabaseAdmin failed",
+      {
+        message: err instanceof Error ? err.message : "unknown",
+      },
+      { phase: "client_init" }
+    );
+    throw new Error("服务器未配置数据库连接，无法管理运费");
+  }
 }
 
 function num(value: unknown): number {
@@ -144,26 +201,50 @@ export function toCartShippingDestinations(
     .filter((d) => d.ports.length > 0);
 }
 
+function staticFallbackResult(
+  enabledOnly: boolean,
+  reason: Exclude<ShippingFallbackReason, null>
+): {
+  countries: ShippingCountryWithPorts[];
+  source: "static";
+  tablesMissing: boolean;
+  fallbackReason: ShippingFallbackReason;
+} {
+  const countries = getStaticShippingCountriesWithPorts();
+  return {
+    countries: enabledOnly
+      ? countries
+          .filter((c) => c.enabled)
+          .map((c) => ({ ...c, ports: c.ports.filter((p) => p.enabled) }))
+      : countries,
+    source: "static",
+    tablesMissing: reason === "tables_missing",
+    fallbackReason: reason,
+  };
+}
+
 export async function listShippingCountriesWithPorts(options?: {
   enabledOnly?: boolean;
 }): Promise<{
   countries: ShippingCountryWithPorts[];
   source: "database" | "static";
   tablesMissing: boolean;
+  fallbackReason: ShippingFallbackReason;
 }> {
   const enabledOnly = options?.enabledOnly === true;
-  const supabase = getAdminClient();
-  if (!supabase) {
-    const countries = getStaticShippingCountriesWithPorts();
-    return {
-      countries: enabledOnly
-        ? countries
-            .filter((c) => c.enabled)
-            .map((c) => ({ ...c, ports: c.ports.filter((p) => p.enabled) }))
-        : countries,
-      source: "static",
-      tablesMissing: true,
-    };
+
+  let supabase: SupabaseClient;
+  try {
+    supabase = getSupabaseAdmin();
+  } catch (err) {
+    logShippingDbError(
+      "listShippingCountriesWithPorts: client unavailable",
+      {
+        message: err instanceof Error ? err.message : "unknown",
+      },
+      { fallback: "client_unavailable" }
+    );
+    return staticFallbackResult(enabledOnly, "client_unavailable");
   }
 
   let countryQuery = supabase
@@ -176,14 +257,12 @@ export async function listShippingCountriesWithPorts(options?: {
   const { data: countryData, error: countryError } = await countryQuery;
 
   if (countryError) {
+    logShippingDbError("listShippingCountriesWithPorts: countries", countryError);
     if (isMissingRelationError(countryError)) {
-      return {
-        countries: getStaticShippingCountriesWithPorts(),
-        source: "static",
-        tablesMissing: true,
-      };
+      return staticFallbackResult(enabledOnly, "tables_missing");
     }
-    throw new Error(countryError.message);
+    // Permission / other DB errors: do not pretend tables are missing
+    throw new Error("加载运费国家失败，请稍后重试");
   }
 
   let portQuery = supabase
@@ -196,14 +275,11 @@ export async function listShippingCountriesWithPorts(options?: {
   const { data: portData, error: portError } = await portQuery;
 
   if (portError) {
+    logShippingDbError("listShippingCountriesWithPorts: ports", portError);
     if (isMissingRelationError(portError)) {
-      return {
-        countries: getStaticShippingCountriesWithPorts(),
-        source: "static",
-        tablesMissing: true,
-      };
+      return staticFallbackResult(enabledOnly, "tables_missing");
     }
-    throw new Error(portError.message);
+    throw new Error("加载运费港口失败，请稍后重试");
   }
 
   const portsByCountry = new Map<string, ShippingPortRow[]>();
@@ -222,7 +298,12 @@ export async function listShippingCountriesWithPorts(options?: {
     };
   });
 
-  return { countries, source: "database", tablesMissing: false };
+  return {
+    countries,
+    source: "database",
+    tablesMissing: false,
+    fallbackReason: null,
+  };
 }
 
 export function slugifyPortId(name: string): string {
@@ -250,8 +331,7 @@ export function slugifyCountryId(name: string): string {
 export async function createShippingCountry(
   input: ShippingCountryInput
 ): Promise<ShippingCountryRow> {
-  const supabase = getAdminClient();
-  if (!supabase) throw new Error("缺少 Supabase 配置");
+  const supabase = requireShippingClient();
 
   const id = input.id.trim() || slugifyCountryId(input.name_en);
   const { data, error } = await supabase
@@ -269,11 +349,8 @@ export async function createShippingCountry(
     .single();
 
   if (error) {
-    if (isMissingRelationError(error)) {
-      throw new Error("运费数据表尚未创建，请先在 Supabase 执行迁移 SQL");
-    }
-    if (error.code === "23505") throw new Error("国家已存在，请勿重复添加");
-    throw new Error(error.message);
+    logShippingDbError("createShippingCountry", error);
+    throw new Error(userFacingDbError(error, "添加国家失败"));
   }
   return mapCountry(data as Record<string, unknown>);
 }
@@ -282,8 +359,7 @@ export async function updateShippingCountry(
   id: string,
   patch: Partial<ShippingCountryInput> & { enabled?: boolean }
 ): Promise<ShippingCountryRow> {
-  const supabase = getAdminClient();
-  if (!supabase) throw new Error("缺少 Supabase 配置");
+  const supabase = requireShippingClient();
 
   const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
@@ -302,30 +378,24 @@ export async function updateShippingCountry(
     .single();
 
   if (error) {
-    if (isMissingRelationError(error)) {
-      throw new Error("运费数据表尚未创建，请先在 Supabase 执行迁移 SQL");
-    }
-    throw new Error(error.message);
+    logShippingDbError("updateShippingCountry", error);
+    throw new Error(userFacingDbError(error, "更新国家失败"));
   }
   return mapCountry(data as Record<string, unknown>);
 }
 
 export async function deleteShippingCountry(id: string): Promise<void> {
-  const supabase = getAdminClient();
-  if (!supabase) throw new Error("缺少 Supabase 配置");
+  const supabase = requireShippingClient();
 
   const { error } = await supabase.from("shipping_countries").delete().eq("id", id);
   if (error) {
-    if (isMissingRelationError(error)) {
-      throw new Error("运费数据表尚未创建，请先在 Supabase 执行迁移 SQL");
-    }
-    throw new Error(error.message);
+    logShippingDbError("deleteShippingCountry", error);
+    throw new Error(userFacingDbError(error, "删除国家失败"));
   }
 }
 
 export async function createShippingPort(input: ShippingPortInput): Promise<ShippingPortRow> {
-  const supabase = getAdminClient();
-  if (!supabase) throw new Error("缺少 Supabase 配置");
+  const supabase = requireShippingClient();
 
   const portId = input.port_id.trim() || slugifyPortId(input.name_en);
   const { data, error } = await supabase
@@ -346,11 +416,8 @@ export async function createShippingPort(input: ShippingPortInput): Promise<Ship
     .single();
 
   if (error) {
-    if (isMissingRelationError(error)) {
-      throw new Error("运费数据表尚未创建，请先在 Supabase 执行迁移 SQL");
-    }
-    if (error.code === "23505") throw new Error("同一国家下港口已存在，请勿重复添加");
-    throw new Error(error.message);
+    logShippingDbError("createShippingPort", error);
+    throw new Error(userFacingDbError(error, "添加港口失败"));
   }
   return mapPort(data as Record<string, unknown>);
 }
@@ -359,8 +426,7 @@ export async function updateShippingPort(
   id: string,
   patch: Partial<ShippingPortInput> & { enabled?: boolean }
 ): Promise<ShippingPortRow> {
-  const supabase = getAdminClient();
-  if (!supabase) throw new Error("缺少 Supabase 配置");
+  const supabase = requireShippingClient();
 
   const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
@@ -386,24 +452,18 @@ export async function updateShippingPort(
     .single();
 
   if (error) {
-    if (isMissingRelationError(error)) {
-      throw new Error("运费数据表尚未创建，请先在 Supabase 执行迁移 SQL");
-    }
-    if (error.code === "23505") throw new Error("同一国家下港口已存在，请勿重复添加");
-    throw new Error(error.message);
+    logShippingDbError("updateShippingPort", error);
+    throw new Error(userFacingDbError(error, "更新港口失败"));
   }
   return mapPort(data as Record<string, unknown>);
 }
 
 export async function deleteShippingPort(id: string): Promise<void> {
-  const supabase = getAdminClient();
-  if (!supabase) throw new Error("缺少 Supabase 配置");
+  const supabase = requireShippingClient();
 
   const { error } = await supabase.from("shipping_ports").delete().eq("id", id);
   if (error) {
-    if (isMissingRelationError(error)) {
-      throw new Error("运费数据表尚未创建，请先在 Supabase 执行迁移 SQL");
-    }
-    throw new Error(error.message);
+    logShippingDbError("deleteShippingPort", error);
+    throw new Error(userFacingDbError(error, "删除港口失败"));
   }
 }

@@ -20,11 +20,14 @@ export async function GET(request: Request) {
       countries: result.countries,
       source: result.source,
       tablesMissing: result.tablesMissing,
+      fallbackReason: result.fallbackReason,
     });
   } catch (err) {
-    console.error("[GET /api/admin/shipping/countries]", err);
+    console.error("[GET /api/admin/shipping/countries]", {
+      message: err instanceof Error ? err.message : "unknown",
+    });
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "加载运费目的地失败" },
+      { error: "加载运费目的地失败" },
       { status: 500 }
     );
   }
