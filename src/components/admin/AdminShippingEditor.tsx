@@ -584,9 +584,13 @@ export default function AdminShippingEditor({ initial }: Props) {
           <p className="mt-1">
             网站正在查询项目{" "}
             <code className="rounded bg-amber-100 px-1">{resolvedProjectRef}</code>
-            （密钥类型：{keyTypeUsed}）。若 SQL Editor 能看到 8
-            行，通常是密钥未以管理员身份生效（例如新版 sb_secret 被当成 JWT
-            Authorization）。请部署最新修复后再试。
+            （密钥类型：{keyTypeUsed}）。SQL Editor 能看到行、但接口为 0
+            时，通常是 API
+            密钥未绕过 RLS（车辆表有公开读策略仍可显示，运费表仅 service_role
+            可见）。请确认 Vercel 使用有效的{" "}
+            <code className="rounded bg-amber-100 px-1">SUPABASE_SECRET_KEY</code>{" "}
+            （sb_secret…）或可用的 service_role JWT，且不要把 anon/publishable
+            填进密钥变量。
           </p>
         </div>
       )}

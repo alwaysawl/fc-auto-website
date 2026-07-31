@@ -6,7 +6,12 @@ import {
   type PortRate,
   type ShippingDestination,
 } from "@/data/shippingRates";
-import { getSupabaseAdmin, getSupabaseProjectDiagnostics } from "@/lib/supabase/admin";
+import {
+  createSupabaseAdminWithKey,
+  getSupabaseAdmin,
+  getSupabaseProjectDiagnostics,
+  listPrivilegedKeyCandidates,
+} from "@/lib/supabase/admin";
 import type {
   ShippingCountryInput,
   ShippingCountryRow,
@@ -240,11 +245,12 @@ function withMeta(
     countriesQueryErrorMessage?: string | null;
     portsQueryErrorCode?: string | null;
     portsQueryErrorMessage?: string | null;
-  }
+  },
+  preferredKeySource?: import("@/lib/supabase/admin").SupabaseKeySource
 ): ShippingListResult {
   const sorted = sortShippingCountries(countries);
   const portCount = sorted.reduce((sum, c) => sum + c.ports.length, 0);
-  const diag = getSupabaseProjectDiagnostics();
+  const diag = getSupabaseProjectDiagnostics(preferredKeySource);
   return {
     countries: sorted,
     source,
@@ -280,14 +286,22 @@ function staticFallbackResult(
 
 function errorResult(
   countryError: { message?: string; code?: string } | null,
-  portError: { message?: string; code?: string } | null
+  portError: { message?: string; code?: string } | null,
+  preferredKeySource?: import("@/lib/supabase/admin").SupabaseKeySource
 ): ShippingListResult {
-  return withMeta([], "error", false, null, {
-    countriesQueryErrorCode: countryError?.code ?? null,
-    countriesQueryErrorMessage: countryError?.message ?? null,
-    portsQueryErrorCode: portError?.code ?? null,
-    portsQueryErrorMessage: portError?.message ?? null,
-  });
+  return withMeta(
+    [],
+    "error",
+    false,
+    null,
+    {
+      countriesQueryErrorCode: countryError?.code ?? null,
+      countriesQueryErrorMessage: countryError?.message ?? null,
+      portsQueryErrorCode: portError?.code ?? null,
+      portsQueryErrorMessage: portError?.message ?? null,
+    },
+    preferredKeySource
+  );
 }
 
 export async function listShippingCountriesWithPorts(options?: {
@@ -295,139 +309,164 @@ export async function listShippingCountriesWithPorts(options?: {
 }): Promise<ShippingListResult> {
   const enabledOnly = options?.enabledOnly === true;
 
-  let supabase: SupabaseClient;
-  try {
-    supabase = getSupabaseAdmin();
-  } catch (err) {
+  const candidates = listPrivilegedKeyCandidates();
+  if (candidates.length === 0) {
     logShippingDbError(
       "listShippingCountriesWithPorts: client unavailable",
-      {
-        message: err instanceof Error ? err.message : "unknown",
-      },
-      {
-        fallback: "client_unavailable",
-        supabaseHost: supabaseHostHint(),
-        ...(() => {
-          try {
-            const d = getSupabaseProjectDiagnostics();
-            return {
-              serverProjectRef: d.serverProjectRef,
-              publicProjectRef: d.publicProjectRef,
-              resolvedProjectRef: d.resolvedProjectRef,
-              urlMismatch: d.urlMismatch,
-              keySource: d.keySource,
-              keyTypeUsed: d.keyTypeUsed,
-              keyFormat: d.keyFormat,
-            };
-          } catch {
-            return {};
-          }
-        })(),
-      }
+      { message: "no privileged key configured" },
+      { fallback: "client_unavailable", supabaseHost: supabaseHostHint() }
     );
     return staticFallbackResult(enabledOnly, "client_unavailable");
   }
 
-  const diag = getSupabaseProjectDiagnostics();
+  let lastCountryError: DbErrorLike = null;
+  let lastPortError: DbErrorLike = null;
+  let lastKeySource = candidates[0]?.source;
 
-  let countryQuery = supabase
-    .from("shipping_countries")
-    .select(
-      "id, name_en, name_fr, name_zh, enabled, display_order, created_at, updated_at"
-    )
-    .order("display_order", { ascending: true })
-    .order("name_en", { ascending: true });
-  if (enabledOnly) countryQuery = countryQuery.eq("enabled", true);
+  for (let i = 0; i < candidates.length; i += 1) {
+    const candidate = candidates[i];
+    const isLastCandidate = i === candidates.length - 1;
+    lastKeySource = candidate.source;
+    const supabase = createSupabaseAdminWithKey(candidate.key, candidate.source);
+    const diag = getSupabaseProjectDiagnostics(candidate.source);
 
-  const { data: countryData, error: countryError } = await countryQuery;
+    let countryQuery = supabase
+      .from("shipping_countries")
+      .select(
+        "id, name_en, name_fr, name_zh, enabled, display_order, created_at, updated_at"
+      )
+      .order("display_order", { ascending: true })
+      .order("name_en", { ascending: true });
+    if (enabledOnly) countryQuery = countryQuery.eq("enabled", true);
 
-  if (countryError) {
-    logShippingDbError("listShippingCountriesWithPorts: countries", countryError, {
-      keyTypeUsed: diag.keyTypeUsed,
-      keyFormat: diag.keyFormat,
-      keySource: diag.keySource,
-      projectRef: diag.resolvedProjectRef,
-    });
-    if (isMissingRelationError(countryError)) {
-      return staticFallbackResult(enabledOnly, "tables_missing");
-    }
-    // Public/cart: keep UX available via static rates. Admin: report error, not fake empty DB.
-    if (enabledOnly) {
-      return staticFallbackResult(true, "client_unavailable");
-    }
-    return errorResult(countryError, null);
-  }
+    const { data: countryData, error: countryError } = await countryQuery;
 
-  let portQuery = supabase
-    .from("shipping_ports")
-    .select(
-      "id, country_id, port_id, name_en, name_fr, name_zh, single_vehicle_usd, container_40ft_usd, enabled, display_order, created_at, updated_at"
-    )
-    .order("display_order", { ascending: true })
-    .order("name_en", { ascending: true });
-  if (enabledOnly) portQuery = portQuery.eq("enabled", true);
-
-  const { data: portData, error: portError } = await portQuery;
-
-  if (portError) {
-    logShippingDbError("listShippingCountriesWithPorts: ports", portError, {
-      keyTypeUsed: diag.keyTypeUsed,
-      keyFormat: diag.keyFormat,
-      keySource: diag.keySource,
-      projectRef: diag.resolvedProjectRef,
-    });
-    if (isMissingRelationError(portError)) {
-      return staticFallbackResult(enabledOnly, "tables_missing");
-    }
-    if (enabledOnly) {
-      return staticFallbackResult(true, "client_unavailable");
-    }
-    return errorResult(null, portError);
-  }
-
-  const portsByCountry = new Map<string, ShippingPortRow[]>();
-  for (const raw of portData ?? []) {
-    const port = mapPort(raw as Record<string, unknown>);
-    const list = portsByCountry.get(port.country_id) ?? [];
-    list.push(port);
-    portsByCountry.set(port.country_id, list);
-  }
-
-  const countries: ShippingCountryWithPorts[] = (countryData ?? []).map((raw) => {
-    const country = mapCountry(raw as Record<string, unknown>);
-    return {
-      ...country,
-      ports: portsByCountry.get(country.id) ?? [],
-    };
-  });
-
-  const result = withMeta(countries, "database", false, null);
-
-  console.info("[shippingDestinations] list ok", {
-    source: result.source,
-    countryCount: result.countryCount,
-    portCount: result.portCount,
-    projectRef: result.projectRef,
-    keyTypeUsed: result.keyTypeUsed,
-    keyFormat: diag.keyFormat,
-    keySource: diag.keySource,
-  });
-
-  if (result.countryCount === 0) {
-    console.error(
-      "[shippingDestinations] shipping_countries returned 0 rows (no PostgREST error)",
-      {
-        projectRef: result.projectRef,
-        keyTypeUsed: result.keyTypeUsed,
+    if (countryError) {
+      lastCountryError = countryError;
+      logShippingDbError("listShippingCountriesWithPorts: countries", countryError, {
+        keyTypeUsed: diag.keyTypeUsed,
         keyFormat: diag.keyFormat,
         keySource: diag.keySource,
-        hint:
-          "If sb_secret was sent as Authorization Bearer, PostgREST treats the request as anon and RLS hides shipping rows.",
+        projectRef: diag.resolvedProjectRef,
+      });
+      if (isMissingRelationError(countryError)) {
+        return staticFallbackResult(enabledOnly, "tables_missing");
       }
-    );
+      // Try next privileged key if available
+      continue;
+    }
+
+    let portQuery = supabase
+      .from("shipping_ports")
+      .select(
+        "id, country_id, port_id, name_en, name_fr, name_zh, single_vehicle_usd, container_40ft_usd, enabled, display_order, created_at, updated_at"
+      )
+      .order("display_order", { ascending: true })
+      .order("name_en", { ascending: true });
+    if (enabledOnly) portQuery = portQuery.eq("enabled", true);
+
+    const { data: portData, error: portError } = await portQuery;
+
+    if (portError) {
+      lastPortError = portError;
+      logShippingDbError("listShippingCountriesWithPorts: ports", portError, {
+        keyTypeUsed: diag.keyTypeUsed,
+        keyFormat: diag.keyFormat,
+        keySource: diag.keySource,
+        projectRef: diag.resolvedProjectRef,
+      });
+      if (isMissingRelationError(portError)) {
+        return staticFallbackResult(enabledOnly, "tables_missing");
+      }
+      continue;
+    }
+
+    const countryCount = (countryData ?? []).length;
+
+    // RLS / anon-like success: 0 rows, no error. Vehicles can still load via
+    // public_read policies while shipping tables (service_role only) look empty.
+    // Retry with the next privileged key when available.
+    if (countryCount === 0 && !isLastCandidate) {
+      console.error(
+        "[shippingDestinations] 0 shipping_countries with no error — likely RLS; trying next key",
+        {
+          keySource: candidate.source,
+          keyTypeUsed: candidate.typeUsed,
+          keyFormat: candidate.format,
+          projectRef: diag.resolvedProjectRef,
+        }
+      );
+      continue;
+    }
+
+    const portsByCountry = new Map<string, ShippingPortRow[]>();
+    for (const raw of portData ?? []) {
+      const port = mapPort(raw as Record<string, unknown>);
+      const list = portsByCountry.get(port.country_id) ?? [];
+      list.push(port);
+      portsByCountry.set(port.country_id, list);
+    }
+
+    const countries: ShippingCountryWithPorts[] = (countryData ?? []).map((raw) => {
+      const country = mapCountry(raw as Record<string, unknown>);
+      return {
+        ...country,
+        ports: portsByCountry.get(country.id) ?? [],
+      };
+    });
+
+    const result = withMeta(countries, "database", false, null, undefined, candidate.source);
+
+    console.info("[shippingDestinations] list ok", {
+      source: result.source,
+      countryCount: result.countryCount,
+      portCount: result.portCount,
+      projectRef: result.projectRef,
+      keyTypeUsed: result.keyTypeUsed,
+      keyFormat: candidate.format,
+      keySource: candidate.source,
+    });
+
+    if (result.countryCount === 0) {
+      console.error(
+        "[shippingDestinations] shipping_countries returned 0 rows (no PostgREST error)",
+        {
+          projectRef: result.projectRef,
+          keyTypeUsed: result.keyTypeUsed,
+          keyFormat: candidate.format,
+          keySource: candidate.source,
+          hint:
+            "SQL Editor may still show rows. This usually means the API key is not bypassing RLS (anon/publishable behavior). Prefer SUPABASE_SECRET_KEY (sb_secret) or a valid service_role JWT.",
+        }
+      );
+    }
+
+    return result;
   }
 
-  return result;
+  // All candidates failed with errors, or all returned empty.
+  if (lastCountryError || lastPortError) {
+    if (enabledOnly) {
+      return staticFallbackResult(true, "client_unavailable");
+    }
+    return errorResult(lastCountryError, lastPortError, lastKeySource);
+  }
+
+  // Empty with no error on every key — report as database empty but keep diagnostics.
+  const empty = withMeta([], "database", false, null, undefined, lastKeySource);
+  console.error(
+    "[shippingDestinations] all privileged keys returned 0 shipping_countries",
+    {
+      projectRef: empty.projectRef,
+      keyTypeUsed: empty.keyTypeUsed,
+      candidatesTried: candidates.map((c) => ({
+        source: c.source,
+        format: c.format,
+        typeUsed: c.typeUsed,
+      })),
+    }
+  );
+  return empty;
 }
 
 export function slugifyPortId(name: string): string {
