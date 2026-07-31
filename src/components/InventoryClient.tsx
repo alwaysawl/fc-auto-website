@@ -478,6 +478,7 @@ function InventoryVehicleCard({
   return (
     <article className="bg-white rounded-xl border border-slate-100 shadow-soft overflow-hidden hover:shadow-soft-lg transition-shadow flex flex-col min-w-0">
       <VehicleCardGallery
+        key={vehicle.id}
         images={galleryImages}
         alt={`${vehicle.brand} ${vehicle.model}`}
         priority={priority}

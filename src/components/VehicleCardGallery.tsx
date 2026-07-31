@@ -4,13 +4,16 @@ import Image from "next/image";
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type KeyboardEvent,
-  type TouchEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 const PLACEHOLDER = "/images/rav4.jpg";
+const SWIPE_THRESHOLD_PX = 40;
+const DIRECTION_LOCK_PX = 8;
 
 export type VehicleCardGalleryLabels = {
   previousImage: string;
@@ -27,7 +30,8 @@ type VehicleCardGalleryProps = {
   className?: string;
 };
 
-function uniqueImages(urls: string[]): string[] {
+/** Ordered unique valid image URLs (no blob:, no empties, no duplicates). */
+export function uniqueVehicleImages(urls: Array<string | null | undefined>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of urls) {
@@ -36,7 +40,7 @@ function uniqueImages(urls: string[]): string[] {
     seen.add(u);
     out.push(u);
   }
-  return out.length > 0 ? out : [PLACEHOLDER];
+  return out;
 }
 
 function formatPosition(template: string, current: number, total: number) {
@@ -47,6 +51,7 @@ function formatPosition(template: string, current: number, total: number) {
 
 /**
  * Swipeable card gallery — image tap does nothing; only View Details opens detail.
+ * Each instance keeps its own active index (never shared across cards).
  */
 export default function VehicleCardGallery({
   images,
@@ -55,76 +60,106 @@ export default function VehicleCardGallery({
   priority = false,
   className = "",
 }: VehicleCardGalleryProps) {
-  const photos = uniqueImages(images);
-  const multi = photos.length > 1;
+  const photos = uniqueVehicleImages(images);
+  const resolved = photos.length > 0 ? photos : [PLACEHOLDER];
+  const multi = resolved.length > 1;
+  const reactId = useId();
+
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState<Record<number, boolean>>({});
-  const trackRef = useRef<HTMLDivElement>(null);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const pointerStart = useRef<{ x: number; y: number; id: number } | null>(
+    null
+  );
+  const axisLock = useRef<"x" | "y" | null>(null);
   const swiped = useRef(false);
 
   const goTo = useCallback(
     (next: number) => {
       if (!multi) return;
-      const clamped = ((next % photos.length) + photos.length) % photos.length;
+      const clamped =
+        ((next % resolved.length) + resolved.length) % resolved.length;
       setIndex(clamped);
     },
-    [multi, photos.length]
+    [multi, resolved.length]
   );
 
   const prev = useCallback(() => goTo(index - 1), [goTo, index]);
   const next = useCallback(() => goTo(index + 1), [goTo, index]);
 
+  const photosKey = resolved.join("|");
   useEffect(() => {
     setIndex(0);
     setFailed({});
-  }, [photos.join("|")]);
-
-  // Non-passive touchmove so horizontal swipes can call preventDefault
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el || !multi) return;
-
-    const onMove = (e: globalThis.TouchEvent) => {
-      if (!touchStart.current) return;
-      const t = e.touches[0];
-      if (!t) return;
-      const dx = t.clientX - touchStart.current.x;
-      const dy = t.clientY - touchStart.current.y;
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
-        swiped.current = true;
-        e.preventDefault();
-      }
-    };
-
-    el.addEventListener("touchmove", onMove, { passive: false });
-    return () => el.removeEventListener("touchmove", onMove);
-  }, [multi]);
-
-  function onTouchStart(e: TouchEvent) {
-    const t = e.touches[0];
-    if (!t) return;
-    touchStart.current = { x: t.clientX, y: t.clientY };
+    pointerStart.current = null;
+    axisLock.current = null;
     swiped.current = false;
+  }, [photosKey]);
+
+  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!multi || e.button !== 0) return;
+    // Ignore controls (buttons)
+    if ((e.target as HTMLElement | null)?.closest?.("button")) return;
+    pointerStart.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    axisLock.current = null;
+    swiped.current = false;
+    try {
+      rootRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
   }
 
-  function onTouchEnd(e: TouchEvent) {
-    if (!touchStart.current || !multi) {
-      touchStart.current = null;
+  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!multi || !pointerStart.current) return;
+    if (pointerStart.current.id !== e.pointerId) return;
+    const dx = e.clientX - pointerStart.current.x;
+    const dy = e.clientY - pointerStart.current.y;
+
+    if (!axisLock.current) {
+      if (Math.abs(dx) < DIRECTION_LOCK_PX && Math.abs(dy) < DIRECTION_LOCK_PX) {
+        return;
+      }
+      axisLock.current = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    }
+
+    if (axisLock.current === "x") {
+      swiped.current = true;
+      // Prevent the page from treating this as a click target drag
+      e.preventDefault();
+    }
+  }
+
+  function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!pointerStart.current || pointerStart.current.id !== e.pointerId) {
+      pointerStart.current = null;
+      axisLock.current = null;
       return;
     }
-    const t = e.changedTouches[0];
-    if (!t) {
-      touchStart.current = null;
+    const dx = e.clientX - pointerStart.current.x;
+    const dy = e.clientY - pointerStart.current.y;
+    const locked = axisLock.current;
+    pointerStart.current = null;
+    axisLock.current = null;
+
+    try {
+      rootRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    if (!multi || locked !== "x") return;
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) {
       return;
     }
-    const dx = t.clientX - touchStart.current.x;
-    const dy = t.clientY - touchStart.current.y;
-    touchStart.current = null;
-    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
     swiped.current = true;
     if (dx < 0) next();
     else prev();
+  }
+
+  function onPointerCancel() {
+    pointerStart.current = null;
+    axisLock.current = null;
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -139,23 +174,23 @@ export default function VehicleCardGallery({
   }
 
   function srcFor(i: number) {
-    return failed[i] ? PLACEHOLDER : photos[i] ?? PLACEHOLDER;
+    return failed[i] ? PLACEHOLDER : resolved[i] ?? PLACEHOLDER;
   }
 
   return (
     <div
-      ref={trackRef}
-      className={`relative aspect-[4/3] bg-slate-100 overflow-hidden select-none ${className}`}
-      style={{ touchAction: "pan-y" }}
+      ref={rootRef}
+      className={`relative aspect-[4/3] bg-slate-100 overflow-hidden select-none touch-pan-y ${className}`}
       role="group"
-      aria-roledescription="carousel"
-      aria-label={formatPosition(labels.imagePosition, index + 1, photos.length)}
+      aria-roledescription={multi ? "carousel" : undefined}
+      aria-label={formatPosition(labels.imagePosition, index + 1, resolved.length)}
       tabIndex={multi ? 0 : undefined}
       onKeyDown={onKeyDown}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onClickCapture={(e) => {
-        // After a swipe, block any accidental click/navigation
         if (swiped.current) {
           e.preventDefault();
           e.stopPropagation();
@@ -163,7 +198,7 @@ export default function VehicleCardGallery({
         }
       }}
     >
-      {/* Non-interactive image plane — tap does nothing */}
+      {/* Non-interactive image plane — tap does not open a gallery */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden>
         <Image
           src={srcFor(index)}
@@ -178,13 +213,12 @@ export default function VehicleCardGallery({
         />
       </div>
 
-      {/* Preload adjacent images lazily via hidden imgs once user navigates */}
       {multi &&
-        photos.map((url, i) =>
+        resolved.map((url, i) =>
           i === index || Math.abs(i - index) > 1 ? null : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              key={url + i}
+              key={`${reactId}-preload-${i}`}
               src={url}
               alt=""
               className="hidden"
@@ -203,8 +237,9 @@ export default function VehicleCardGallery({
               e.stopPropagation();
               prev();
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label={labels.previousImage}
-            className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 items-center justify-center rounded-full bg-white/90 text-brand-slate shadow-soft hover:bg-white transition-colors"
+            className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg font-bold text-brand-slate shadow-soft hover:bg-white"
           >
             ‹
           </button>
@@ -215,27 +250,36 @@ export default function VehicleCardGallery({
               e.stopPropagation();
               next();
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label={labels.nextImage}
-            className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 items-center justify-center rounded-full bg-white/90 text-brand-slate shadow-soft hover:bg-white transition-colors"
+            className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg font-bold text-brand-slate shadow-soft hover:bg-white"
           >
             ›
           </button>
 
           <div
-            className="absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5 px-2 pointer-events-none"
+            className="pointer-events-none absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-1.5 px-2"
             role="tablist"
-            aria-label={formatPosition(labels.imagePosition, index + 1, photos.length)}
+            aria-label={formatPosition(
+              labels.imagePosition,
+              index + 1,
+              resolved.length
+            )}
           >
-            {photos.map((_, i) => (
+            {resolved.map((_, i) => (
               <span
-                key={i}
+                key={`${reactId}-dot-${i}`}
                 role="tab"
                 aria-selected={i === index}
-                aria-label={formatPosition(labels.imagePosition, i + 1, photos.length)}
+                aria-label={formatPosition(
+                  labels.imagePosition,
+                  i + 1,
+                  resolved.length
+                )}
                 className={`h-1.5 rounded-full transition-all ${
                   i === index
                     ? "w-4 bg-accent-yellow shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
-                    : "w-1.5 bg-white/70 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]"
+                    : "w-1.5 bg-white/80 shadow-[0_0_0_1px_rgba(0,0,0,0.2)]"
                 }`}
               />
             ))}
@@ -246,22 +290,18 @@ export default function VehicleCardGallery({
   );
 }
 
-/** Collect ordered unique photo URLs for a vehicle card gallery. */
+/**
+ * Collect ordered unique photo URLs for a vehicle card gallery.
+ * Prefer hydrated photos[] (from withPublicPhotos), then main + gallery arrays.
+ */
 export function collectVehicleCardImages(vehicle: {
   mainImageUrl?: string | null;
   galleryImageUrls?: string[] | null;
   photos?: string[] | null;
 }): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  const push = (url?: string | null) => {
-    const u = url?.trim();
-    if (!u || u.startsWith("blob:") || seen.has(u)) return;
-    seen.add(u);
-    out.push(u);
-  };
-  push(vehicle.mainImageUrl);
-  for (const u of vehicle.galleryImageUrls ?? []) push(u);
-  for (const u of vehicle.photos ?? []) push(u);
-  return out;
+  return uniqueVehicleImages([
+    vehicle.mainImageUrl,
+    ...(vehicle.galleryImageUrls ?? []),
+    ...(vehicle.photos ?? []),
+  ]);
 }
