@@ -116,7 +116,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
     >
       <div className="container-max px-4 sm:px-6 xl:px-8">
         <div
-          className={`flex flex-nowrap items-center gap-2 sm:gap-3 min-h-14 sm:min-h-16 md:min-h-[72px] py-1.5 ${
+          className={`flex flex-nowrap items-center gap-1.5 md:gap-3 min-h-14 sm:min-h-16 md:min-h-[72px] py-1.5 ${
             isHero && !scrolled
               ? "max-xl:bg-black/30 max-xl:backdrop-blur-sm max-xl:-mx-4 max-xl:px-4 sm:max-xl:-mx-6 sm:max-xl:px-6"
               : isHero && scrolled
@@ -126,7 +126,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
         >
           <Link
             href={getLocalizedPath("/", locale)}
-            className="flex items-center gap-2 sm:gap-3 flex-shrink-0 min-w-0"
+            className="flex items-center gap-1.5 md:gap-3 flex-shrink-0 min-w-0"
           >
             <div
               className={`flex items-center justify-center flex-shrink-0 ${
@@ -143,14 +143,14 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
                 FC
               </span>
             </div>
-            <div className="min-w-0 hidden min-[360px]:block">
+            <div className="min-w-0">
               <span
-                className={`block font-bold leading-tight whitespace-nowrap truncate max-w-[9.5rem] sm:max-w-none ${
+                className={`block font-bold leading-tight whitespace-nowrap truncate max-w-[7.5rem] min-[380px]:max-w-[9.5rem] sm:max-w-none ${
                   isHero
-                    ? "text-white text-sm sm:text-base"
+                    ? "text-white text-xs min-[380px]:text-sm sm:text-base"
                     : isLight
-                      ? "text-brand-slate text-sm sm:text-base"
-                      : "text-white text-sm sm:text-base"
+                      ? "text-brand-slate text-xs min-[380px]:text-sm sm:text-base"
+                      : "text-white text-xs min-[380px]:text-sm sm:text-base"
                 }`}
               >
                 FC Auto Export
@@ -181,7 +181,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
             ))}
           </nav>
 
-          <div className="flex flex-nowrap items-center gap-1 md:gap-2.5 flex-shrink-0 ml-auto">
+          <div className="flex flex-nowrap items-center gap-0.5 md:gap-2.5 flex-shrink-0 ml-auto">
             <Link
               href={cartHref}
               className={`relative inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 md:min-w-0 px-1.5 md:px-2.5 rounded-lg text-sm font-semibold transition-colors flex-shrink-0 ${
@@ -238,7 +238,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
             <button
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
-              className={`xl:hidden inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 md:min-w-0 px-1.5 md:px-3 rounded-lg transition-colors flex-shrink-0 text-sm font-semibold ${
+              className={`xl:hidden inline-flex items-center justify-center gap-1 md:gap-1.5 min-h-11 px-1 md:px-3 rounded-lg transition-colors flex-shrink-0 text-sm font-semibold whitespace-nowrap ${
                 isHero
                   ? "text-white hover:bg-white/10"
                   : isLight
@@ -271,7 +271,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
                   />
                 )}
               </svg>
-              <span className="hidden md:inline">{menuLabel}</span>
+              <span>{menuLabel}</span>
             </button>
           </div>
         </div>
