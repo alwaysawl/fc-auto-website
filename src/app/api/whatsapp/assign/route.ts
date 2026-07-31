@@ -175,6 +175,13 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error("[whatsapp/assign] rpc failed:", error.message);
+      const msg = String(error.message || "");
+      if (msg.includes("NO_ACTIVE_SALES_AGENT")) {
+        return NextResponse.json(
+          { success: false, error: "Assignment unavailable" },
+          { status: 503 }
+        );
+      }
       return NextResponse.json(
         { success: false, error: "Assignment unavailable" },
         { status: 503 }

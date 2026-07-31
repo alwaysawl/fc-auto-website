@@ -1,8 +1,8 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { assignNextSalesContact } from "@/lib/admin/sales-team/service";
 import {
-  ASSIGNABLE_CONTACTS,
   INQUIRY_STATUS_LABELS,
   type FollowUpFilter,
   type InquiryActivity,
@@ -177,50 +177,6 @@ async function generateInquiryNumber(): Promise<string> {
   const ymd = shanghaiYmd().replace(/-/g, "");
   const suffix = Math.floor(Math.random() * 9000 + 1000);
   return `FC-${ymd}-${suffix}`;
-}
-
-/** Next Shawn/Miles from shared sales_router_state (same queue as WhatsApp). */
-export async function assignNextSalesContact(): Promise<{
-  agentId: string | null;
-  name: string;
-} | null> {
-  try {
-    const supabase = getSupabaseAdmin();
-    const { data: agents, error: agentsError } = await supabase
-      .from("sales_agents")
-      .select("id, name, display_order, is_active")
-      .eq("is_active", true)
-      .order("display_order", { ascending: true });
-    if (agentsError) throw agentsError;
-    const list = (agents ?? []).filter((a) =>
-      ASSIGNABLE_CONTACTS.includes(a.name as (typeof ASSIGNABLE_CONTACTS)[number])
-    );
-    if (list.length === 0) {
-      return { agentId: null, name: "Shawn" };
-    }
-
-    const { data: stateRows } = await supabase
-      .from("sales_router_state")
-      .select("id, last_display_order")
-      .eq("id", 1)
-      .limit(1);
-    const last = Number(stateRows?.[0]?.last_display_order ?? 0);
-    const next =
-      list.find((a) => Number(a.display_order) > last) ?? list[0]!;
-
-    await supabase
-      .from("sales_router_state")
-      .upsert({
-        id: 1,
-        last_display_order: next.display_order,
-        updated_at: new Date().toISOString(),
-      });
-
-    return { agentId: String(next.id), name: String(next.name) };
-  } catch (err) {
-    logSafe("assignNextSalesContact", err);
-    return { agentId: null, name: "Shawn" };
-  }
 }
 
 export async function findInquiryDuplicates(input: {

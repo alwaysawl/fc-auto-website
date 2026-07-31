@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   INQUIRY_PRIORITIES,
   INQUIRY_PRIORITY_LABELS,
@@ -92,12 +93,34 @@ export default function AdminInquiriesClient({
 }: {
   initial: InquiryListResult;
 }) {
-  const [filters, setFilters] = useState<Filters>(defaultFilters);
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...defaultFilters,
+    assigned: searchParams.get("assigned") || "",
+    status: searchParams.get("status") || "",
+    followUp: searchParams.get("followUp") || "",
+    priority: searchParams.get("priority") || "",
+    source: searchParams.get("source") || "",
+    q: searchParams.get("q") || "",
+  }));
   const [data, setData] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initial.error);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFilters((f) => ({
+      ...f,
+      assigned: searchParams.get("assigned") || f.assigned,
+      status: searchParams.get("status") || f.status,
+      followUp: searchParams.get("followUp") || f.followUp,
+      priority: searchParams.get("priority") || f.priority,
+      source: searchParams.get("source") || f.source,
+      q: searchParams.get("q") || f.q,
+      page: 1,
+    }));
+  }, [searchParams]);
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();

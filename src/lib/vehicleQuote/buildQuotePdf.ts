@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { Locale, Vehicle } from "@/lib/types";
 import { getVehicleQuoteCopy } from "@/lib/vehicleQuote/copy";
-import { assignNextQuoteContact, getQuoteContactByName } from "@/lib/vehicleQuote/contacts";
+import { resolveQuoteContact } from "@/lib/vehicleQuote/contacts";
 import {
   buildQuoteFilename,
   buildQuoteSpecRows,
@@ -222,8 +222,7 @@ export async function downloadVehicleQuotePdf(
   options?: { contactName?: string | null }
 ): Promise<{ contactName: string }> {
   const copy = getVehicleQuoteCopy(locale);
-  const contact =
-    getQuoteContactByName(options?.contactName) ?? assignNextQuoteContact();
+  const contact = await resolveQuoteContact(options?.contactName);
   const whatsappDisplay = contact.whatsappDisplay;
   const useBitmap = locale === "zh";
   const doc = new jsPDF({ unit: "pt", format: "a4" });
