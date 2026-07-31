@@ -1,0 +1,125 @@
+import type { VehicleStatus } from "@/lib/types";
+
+export type StatisticsRangePreset =
+  | "today"
+  | "7d"
+  | "30d"
+  | "month"
+  | "custom";
+
+export type DataSourceStatus = {
+  id: string;
+  name: string;
+  available: boolean;
+  detail: string;
+  lastLoadedAt: string | null;
+  error: string | null;
+};
+
+export type RankedItem = {
+  name: string;
+  count: number;
+  percent: number;
+};
+
+export type TrendBucket = {
+  key: string;
+  label: string;
+  count: number;
+};
+
+export type AssignmentAgentStat = {
+  name: string;
+  count: number;
+  percent: number;
+  latestAt: string | null;
+};
+
+export type ActivityItem = {
+  type: string;
+  description: string;
+  at: string;
+};
+
+export type MetricValue = {
+  available: boolean;
+  value: number | null;
+  message: string | null;
+};
+
+export type RankedSection = {
+  available: boolean;
+  items: RankedItem[];
+  error: string | null;
+};
+
+export type StatisticsPayload = {
+  generatedAt: string;
+  timezone: string;
+  range: {
+    preset: StatisticsRangePreset;
+    startIso: string;
+    endIso: string;
+    startLabel: string;
+    endLabel: string;
+  };
+  inventory: {
+    available: boolean;
+    total: number;
+    onSale: number;
+    draft: number;
+    sold: number;
+    delisted: number;
+    featured: number;
+    error: string | null;
+  };
+  period: {
+    newVehicles: MetricValue;
+    inquiries: MetricValue;
+    quotes: MetricValue;
+    whatsappAssignments: MetricValue;
+    pdfDownloads: MetricValue;
+    completedSales: MetricValue;
+  };
+  statusChart: {
+    available: boolean;
+    items: { status: VehicleStatus; label: string; count: number }[];
+    error: string | null;
+  };
+  vehicleTrend: {
+    available: boolean;
+    buckets: TrendBucket[];
+    error: string | null;
+  };
+  breakdowns: {
+    brand: RankedSection;
+    bodyType: RankedSection;
+    year: RankedSection;
+    fuel: RankedSection;
+    transmission: RankedSection;
+  };
+  inventoryValue: {
+    available: boolean;
+    currency: string;
+    totalListPrice: number;
+    averageListPrice: number | null;
+    maxListPrice: number | null;
+    minListPrice: number | null;
+    vehicleCount: number;
+    error: string | null;
+  };
+  assignments: {
+    available: boolean;
+    total: number;
+    agents: AssignmentAgentStat[];
+    balanceLabel: string;
+    error: string | null;
+  };
+  activity: {
+    available: boolean;
+    items: ActivityItem[];
+    error: string | null;
+  };
+  sources: DataSourceStatus[];
+  notEnabled: { name: string; reason: string }[];
+};
