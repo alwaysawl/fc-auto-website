@@ -9,15 +9,16 @@ export default function AdminShippingEditor() {
   const [tiers, setTiers] = useState<ShippingTier[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageOk, setMessageOk] = useState(false);
 
   useEffect(() => {
     fetch("/api/vehicles", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
-        setVehicles(data.vehicles);
-        if (data.vehicles.length > 0) {
+        setVehicles(data.vehicles ?? []);
+        if (data.vehicles?.length > 0) {
           setSelectedId(data.vehicles[0].id);
-          setTiers(data.vehicles[0].shippingTiers);
+          setTiers(data.vehicles[0].shippingTiers ?? []);
         }
       });
   }, []);
@@ -26,9 +27,10 @@ export default function AdminShippingEditor() {
     setSelectedId(id);
     const vehicle = vehicles.find((v) => v.id === id);
     if (vehicle) {
-      setTiers([...vehicle.shippingTiers]);
+      setTiers([...(vehicle.shippingTiers ?? [])]);
     }
     setMessage("");
+    setMessageOk(false);
   };
 
   const updateTier = (index: number, field: "quantity" | "price", value: number) => {
@@ -49,6 +51,7 @@ export default function AdminShippingEditor() {
   const handleSave = async () => {
     setSaving(true);
     setMessage("");
+    setMessageOk(false);
     try {
       const res = await fetch(`/api/vehicles/${selectedId}`, {
         method: "PUT",
@@ -59,12 +62,15 @@ export default function AdminShippingEditor() {
       if (res.ok) {
         const updated = await res.json();
         setVehicles(vehicles.map((v) => (v.id === selectedId ? updated : v)));
-        setMessage("Shipping prices saved successfully!");
+        setMessage("运费价格保存成功！");
+        setMessageOk(true);
       } else {
-        setMessage("Failed to save. Please try again.");
+        setMessage("保存失败，请重试。");
+        setMessageOk(false);
       }
     } catch {
-      setMessage("Failed to save. Please try again.");
+      setMessage("保存失败，请重试。");
+      setMessageOk(false);
     }
     setSaving(false);
   };
@@ -75,13 +81,16 @@ export default function AdminShippingEditor() {
     <div className="space-y-6">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Vehicle
+          选择车辆
         </label>
         <select
           value={selectedId}
           onChange={(e) => handleVehicleChange(e.target.value)}
           className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-sm bg-white focus:ring-2 focus:ring-gold focus:border-gold outline-none"
         >
+          {vehicles.length === 0 && (
+            <option value="">暂无车辆</option>
+          )}
           {vehicles.map((v) => (
             <option key={v.id} value={v.id}>
               {v.brand} {v.model} ({v.year})
@@ -95,86 +104,95 @@ export default function AdminShippingEditor() {
           <div className="bg-white border border-gray-200 rounded-sm overflow-hidden">
             <div className="bg-charcoal text-white px-4 py-3 flex justify-between items-center">
               <h3 className="font-semibold">
-                {selectedVehicle.brand} {selectedVehicle.model} — Shipping Price Table
+                {selectedVehicle.brand} {selectedVehicle.model} — 运费价格表
               </h3>
               <button
+                type="button"
                 onClick={addTier}
                 className="text-sm bg-gold text-charcoal px-3 py-1 rounded-sm hover:bg-gold-light transition-colors font-medium"
               >
-                + Add Tier
+                + 添加价格阶梯
               </button>
             </div>
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
-                    Quantity (up to)
+                    数量上限
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
-                    Shipping Price ($)
+                    运费价格（美元）
                   </th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">
-                    Actions
+                    操作
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {tiers.map((tier, index) => (
-                  <tr key={index} className="border-b border-gray-100">
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        min={1}
-                        value={tier.quantity}
-                        onChange={(e) =>
-                          updateTier(index, "quantity", parseInt(e.target.value) || 1)
-                        }
-                        className="w-24 px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-gold focus:border-gold outline-none"
-                      />
-                      <span className="ml-2 text-sm text-gray-500">
-                        vehicle{tier.quantity > 1 ? "s" : ""}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-400">$</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={tier.price}
-                          onChange={(e) =>
-                            updateTier(index, "price", parseInt(e.target.value) || 0)
-                          }
-                          className="w-32 px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-gold focus:border-gold outline-none"
-                        />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => removeTier(index)}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        Remove
-                      </button>
+                {tiers.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
+                      暂无价格阶梯，请点击“添加价格阶梯”。
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  tiers.map((tier, index) => (
+                    <tr key={index} className="border-b border-gray-100">
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min={1}
+                          value={tier.quantity}
+                          onChange={(e) =>
+                            updateTier(index, "quantity", parseInt(e.target.value) || 1)
+                          }
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-gold focus:border-gold outline-none"
+                        />
+                        <span className="ml-2 text-sm text-gray-500">辆车</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-400">$</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={tier.price}
+                            onChange={(e) =>
+                              updateTier(index, "price", parseInt(e.target.value) || 0)
+                            }
+                            className="w-32 px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-gold focus:border-gold outline-none"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => removeTier(index)}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
           <div className="flex items-center gap-4">
             <button
+              type="button"
               onClick={handleSave}
               disabled={saving}
               className="btn-primary disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save Shipping Prices"}
+              {saving ? "保存中…" : "保存运费价格"}
             </button>
             {message && (
               <span
                 className={`text-sm ${
-                  message.includes("success") ? "text-green-600" : "text-red-600"
+                  messageOk ? "text-green-600" : "text-red-600"
                 }`}
               >
                 {message}
@@ -182,11 +200,14 @@ export default function AdminShippingEditor() {
             )}
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-sm p-4 text-sm text-blue-800">
-            <strong>How tier pricing works:</strong> When a customer selects a quantity,
-            the system finds the smallest tier where quantity ≤ tier quantity and uses
-            that price. For example, if tiers are 1=$1200, 2=$2200, 3=$2200, then
-            ordering 2 or 3 vehicles both cost $2200 shipping (not multiplied).
+          <div className="bg-blue-50 border border-blue-200 rounded-sm p-4 text-sm text-blue-800 space-y-2">
+            <p>
+              <strong>阶梯定价说明：</strong>
+              当客户选择车辆数量时，系统会寻找第一个满足“客户数量 ≤ 阶梯数量上限”的价格，并使用该阶梯的运费。
+            </p>
+            <p>
+              例如：若阶梯价格为 1 辆 = 1200 美元、2 辆 = 2200 美元、3 辆 = 2200 美元，则购买 2 辆或 3 辆车的总运费都是 2200 美元，不会按车辆数量重复相乘。
+            </p>
           </div>
         </>
       )}
