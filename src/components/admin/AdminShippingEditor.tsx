@@ -182,23 +182,21 @@ export default function AdminShippingEditor({ initial }: Props) {
     initial.portCount ??
       initialList.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0)
   );
-  const [serverProjectRef, setServerProjectRef] = useState(
-    initial.serverProjectRef ?? null
-  );
-  const [publicProjectRef, setPublicProjectRef] = useState(
-    initial.publicProjectRef ?? null
-  );
   const [resolvedProjectRef, setResolvedProjectRef] = useState(
     initial.resolvedProjectRef ?? null
   );
-  const [urlMismatch, setUrlMismatch] = useState(Boolean(initial.urlMismatch));
-  const [keyTypeUsed, setKeyTypeUsed] = useState(initial.keyTypeUsed ?? "missing");
   const [countriesQueryErrorCode, setCountriesQueryErrorCode] = useState<
     string | null
   >(initial.countriesQueryErrorCode ?? null);
   const [countriesQueryErrorMessage, setCountriesQueryErrorMessage] = useState<
     string | null
   >(initial.countriesQueryErrorMessage ?? null);
+  const [portsQueryErrorCode, setPortsQueryErrorCode] = useState<string | null>(
+    initial.portsQueryErrorCode ?? null
+  );
+  const [portsQueryErrorMessage, setPortsQueryErrorMessage] = useState<
+    string | null
+  >(initial.portsQueryErrorMessage ?? null);
   const [loading, setLoading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState("");
   const [globalOk, setGlobalOk] = useState(false);
@@ -244,13 +242,11 @@ export default function AdminShippingEditor({ initial }: Props) {
         fallbackReason: "tables_missing" | "client_unavailable" | null;
         countryCount?: number;
         portCount?: number;
-        serverProjectRef?: string | null;
-        publicProjectRef?: string | null;
         resolvedProjectRef?: string | null;
-        urlMismatch?: boolean;
-        keyTypeUsed?: "secret" | "service-role" | "anon" | "missing";
         countriesQueryErrorCode?: string | null;
         countriesQueryErrorMessage?: string | null;
+        portsQueryErrorCode?: string | null;
+        portsQueryErrorMessage?: string | null;
       },
       preferCountryId?: string,
       preferPortId?: string
@@ -266,13 +262,11 @@ export default function AdminShippingEditor({ initial }: Props) {
         meta.portCount ??
           sorted.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0)
       );
-      setServerProjectRef(meta.serverProjectRef ?? null);
-      setPublicProjectRef(meta.publicProjectRef ?? null);
       setResolvedProjectRef(meta.resolvedProjectRef ?? null);
-      setUrlMismatch(Boolean(meta.urlMismatch));
-      setKeyTypeUsed(meta.keyTypeUsed ?? "missing");
       setCountriesQueryErrorCode(meta.countriesQueryErrorCode ?? null);
       setCountriesQueryErrorMessage(meta.countriesQueryErrorMessage ?? null);
+      setPortsQueryErrorCode(meta.portsQueryErrorCode ?? null);
+      setPortsQueryErrorMessage(meta.portsQueryErrorMessage ?? null);
 
       const nextCountryId = pickDefaultCountryId(
         sorted,
@@ -328,28 +322,12 @@ export default function AdminShippingEditor({ initial }: Props) {
               typeof data.portCount === "number"
                 ? data.portCount
                 : list.reduce((sum, c) => sum + (c.ports?.length ?? 0), 0),
-            serverProjectRef:
-              typeof data.serverProjectRef === "string"
-                ? data.serverProjectRef
-                : null,
-            publicProjectRef:
-              typeof data.publicProjectRef === "string"
-                ? data.publicProjectRef
-                : null,
             resolvedProjectRef:
               typeof data.resolvedProjectRef === "string"
                 ? data.resolvedProjectRef
                 : typeof data.projectRef === "string"
                   ? data.projectRef
                   : null,
-            urlMismatch: Boolean(data.urlMismatch),
-            keyTypeUsed:
-              data.keyTypeUsed === "secret" ||
-              data.keyTypeUsed === "service-role" ||
-              data.keyTypeUsed === "anon" ||
-              data.keyTypeUsed === "missing"
-                ? data.keyTypeUsed
-                : "missing",
             countriesQueryErrorCode:
               typeof data.countriesQueryErrorCode === "string"
                 ? data.countriesQueryErrorCode
@@ -357,6 +335,14 @@ export default function AdminShippingEditor({ initial }: Props) {
             countriesQueryErrorMessage:
               typeof data.countriesQueryErrorMessage === "string"
                 ? data.countriesQueryErrorMessage
+                : null,
+            portsQueryErrorCode:
+              typeof data.portsQueryErrorCode === "string"
+                ? data.portsQueryErrorCode
+                : null,
+            portsQueryErrorMessage:
+              typeof data.portsQueryErrorMessage === "string"
+                ? data.portsQueryErrorMessage
                 : null,
           },
           preferCountryId,
@@ -384,6 +370,8 @@ export default function AdminShippingEditor({ initial }: Props) {
     () => sortPorts(selectedCountry?.ports ?? []),
     [selectedCountry]
   );
+
+  const matchingPortCount = countryPorts.length;
 
   const selectedPort = useMemo(
     () => countryPorts.find((p) => p.id === selectedPortId) ?? null,
@@ -758,27 +746,35 @@ export default function AdminShippingEditor({ initial }: Props) {
       <p className="text-xs text-slate-500 font-mono break-all">
         诊断：国家 {countryCount} · 港口 {portCount} · 来源 {source}
         {selectedCountryId ? ` · 已选 ${selectedCountryId}` : ""}
-        {selectedPortId ? ` · 港口 ${selectedPort?.port_id ?? selectedPortId}` : ""}
-        {resolvedProjectRef ? ` · 项目 ${resolvedProjectRef}` : ""}
-        {` · 密钥 ${keyTypeUsed}`}
+        {selectedCountryId
+          ? ` · 匹配港口 ${matchingPortCount}`
+          : ""}
         {countriesQueryErrorCode
           ? ` · 国家错误 ${countriesQueryErrorCode}`
           : ""}
-        {urlMismatch
-          ? ` · URL不一致(server=${serverProjectRef ?? "?"} public=${publicProjectRef ?? "?"})`
-          : ""}
+        {portsQueryErrorCode ? ` · 港口错误 ${portsQueryErrorCode}` : ""}
         {loading ? " · 刷新中…" : ""}
       </p>
 
-      {countriesQueryErrorMessage && (
+      {(countriesQueryErrorMessage || portsQueryErrorMessage) && (
         <p className="text-xs text-red-600 break-all">
-          查询错误：{countriesQueryErrorMessage}
+          查询错误：
+          {[countriesQueryErrorMessage, portsQueryErrorMessage]
+            .filter(Boolean)
+            .join(" | ")}
         </p>
       )}
       {source === "error" && (
         <div className="rounded-sm border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
           运费数据库查询失败（不是空表）。请查看上方诊断中的错误码，并确认服务器使用
           secret / service-role 密钥。
+        </div>
+      )}
+      {portCount === 0 && countryCount > 0 && source === "database" && (
+        <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          国家已加载，但 shipping_ports 返回 0
+          行。请在 Supabase SQL Editor 执行已批准港口种子
+          SQL（INSERT … ON CONFLICT，不覆盖已有非零运费）。
         </div>
       )}
       {countryCount === 0 && source === "database" && resolvedProjectRef && (
@@ -889,7 +885,11 @@ export default function AdminShippingEditor({ initial }: Props) {
 
       {/* 4–7. Selected port freight form */}
       {selectedCountry && countryPorts.length === 0 && (
-        <p className="text-sm text-slate-500">该国家暂无港口，请先添加港口。</p>
+        <p className="text-sm text-slate-500">
+          {portCount === 0
+            ? "数据库中尚无港口记录（全部国家均为 0）。请先执行港口种子 SQL，或在下方添加港口。"
+            : "该国家暂无港口，请先添加港口。"}
+        </p>
       )}
 
       {selectedPort && selectedDraft && (
