@@ -129,6 +129,12 @@ function buildSavedFreightRows(
   return rows;
 }
 
+/** Explicit colors for Safari — body inherits light text-gray-200 onto white selects. */
+const adminSelectClassName =
+  "mt-1.5 w-full rounded-sm border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-[#1E293B] outline-none focus:border-gold focus:ring-2 focus:ring-gold [color-scheme:light] [-webkit-text-fill-color:#1E293B] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 disabled:[-webkit-text-fill-color:#475569] disabled:opacity-100";
+
+const adminSelectOptionClassName = "bg-white text-[#1E293B]";
+
 function normalizeCountriesPayload(data: unknown): ShippingCountryWithPorts[] {
   if (!data || typeof data !== "object") return [];
   const obj = data as Record<string, unknown>;
@@ -809,13 +815,19 @@ export default function AdminShippingEditor({ initial }: Props) {
           <select
             value={selectedCountryId}
             onChange={(e) => selectCountry(e.target.value)}
-            className="mt-1.5 w-full rounded-sm border border-gray-300 bg-white px-3 py-2.5 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+            className={adminSelectClassName}
           >
             {countries.length === 0 && (
-              <option value="">暂无国家，请先添加</option>
+              <option value="" className={adminSelectOptionClassName}>
+                暂无国家，请先添加
+              </option>
             )}
             {countries.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option
+                key={c.id}
+                value={c.id}
+                className={adminSelectOptionClassName}
+              >
                 {countryOptionLabel(c)}
                 {c.enabled ? "" : "（已停用）"}
               </option>
@@ -852,13 +864,19 @@ export default function AdminShippingEditor({ initial }: Props) {
                 setGlobalMessage("");
               }}
               disabled={countryPorts.length === 0}
-              className="mt-1.5 w-full rounded-sm border border-gray-300 bg-white px-3 py-2.5 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
+              className={adminSelectClassName}
             >
               {countryPorts.length === 0 ? (
-                <option value="">该国家暂无港口，请先添加港口。</option>
+                <option value="" className={adminSelectOptionClassName}>
+                  该国家暂无港口，请先添加港口。
+                </option>
               ) : (
                 countryPorts.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option
+                    key={p.id}
+                    value={p.id}
+                    className={adminSelectOptionClassName}
+                  >
                     {portOptionLabel(p)}
                     {p.enabled ? "" : "（已停用）"}
                   </option>
@@ -963,11 +981,17 @@ export default function AdminShippingEditor({ initial }: Props) {
             <select
               value={listCountryFilter}
               onChange={(e) => setListCountryFilter(e.target.value)}
-              className="mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+              className={adminSelectClassName}
             >
-              <option value="">全部国家</option>
+              <option value="" className={adminSelectOptionClassName}>
+                全部国家
+              </option>
               {sortShippingCountries(countries).map((c) => (
-                <option key={c.id} value={c.id}>
+                <option
+                  key={c.id}
+                  value={c.id}
+                  className={adminSelectOptionClassName}
+                >
                   {countryOptionLabel(c)}
                 </option>
               ))}
@@ -982,11 +1006,17 @@ export default function AdminShippingEditor({ initial }: Props) {
                   e.target.value as "all" | "enabled" | "disabled"
                 )
               }
-              className="mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+              className={adminSelectClassName}
             >
-              <option value="all">全部</option>
-              <option value="enabled">启用</option>
-              <option value="disabled">停用</option>
+              <option value="all" className={adminSelectOptionClassName}>
+                全部
+              </option>
+              <option value="enabled" className={adminSelectOptionClassName}>
+                启用
+              </option>
+              <option value="disabled" className={adminSelectOptionClassName}>
+                停用
+              </option>
             </select>
           </label>
           <label className="block text-sm min-w-0 sm:col-span-1">
