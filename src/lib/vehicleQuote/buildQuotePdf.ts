@@ -283,11 +283,12 @@ export async function downloadVehicleQuotePdf(
 
   // —— Page 1 hero: ~55% image left / info right ——
   const gap = 14;
-  const leftW = contentW * 0.55;
+  // ~12% larger image frame vs prior 0.55×210 while keeping cover aspect fitting
+  const leftW = contentW * 0.58;
   const rightW = contentW - leftW - gap;
   const leftX = margin;
   const rightX = margin + leftW + gap;
-  const heroH = 210;
+  const heroH = 236;
   const heroTop = y;
 
   if (mainImage) {
@@ -348,12 +349,18 @@ export async function downloadVehicleQuotePdf(
   y += 8;
 
   // —— Unified contact + QR card ——
-  const qrSize = 72;
-  const qrQuiet = 8;
-  const qrBlockW = qrSize + qrQuiet * 2;
-  const hintMaxW = qrBlockW + 16;
-  const hintH = useBitmap ? 26 : 16;
-  const contactCardH = Math.max(100, 12 + qrSize + 6 + hintH + 10);
+  const qrSize = 76;
+  const qrQuiet = 10;
+  const qrColW = qrSize + qrQuiet * 2 + 8;
+  const scanHints = [
+    { line: "Scan to contact us on WhatsApp", forceBitmap: false },
+    { line: "扫描二维码，通过 WhatsApp 联系我们", forceBitmap: true },
+    { line: "Scannez pour nous contacter sur WhatsApp", forceBitmap: false },
+  ] as const;
+  const scanLineH = 11;
+  const scanBlockH = scanHints.length * scanLineH + 4;
+  const qrSectionH = qrSize + 8 + scanBlockH;
+  const contactCardH = Math.max(118, qrSectionH + 20);
 
   if (y + contactCardH > pageH - footerSafe) {
     addFooter(doc, copy, whatsappDisplay);
@@ -366,59 +373,80 @@ export async function downloadVehicleQuotePdf(
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(margin, y, contentW, contactCardH, 6, 6, "FD");
 
-  const dividerX = margin + contentW - qrBlockW - 24;
+  const dividerX = margin + contentW - qrColW - 18;
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.6);
   doc.line(dividerX, y + 10, dividerX, y + contactCardH - 10);
 
   const leftMaxW = dividerX - margin - 22;
-  let cy = y + 12;
-  cy += text(copy.companyName, margin + 12, cy, 11, {
+  let cy = y + 14;
+  cy += text(copy.companyName, margin + 14, cy, 12, {
     bold: true,
+    maxWidth: leftMaxW,
+  });
+  cy += 4;
+  cy += text(copy.quotationContact, margin + 14, cy, 10, {
+    bold: true,
+    maxWidth: leftMaxW,
+  });
+  cy += 10;
+  cy += text(`${copy.assignedContact}:`, margin + 14, cy, 9, {
+    color: SLATE,
     maxWidth: leftMaxW,
   });
   cy += 2;
-  cy += text(copy.quotationContact, margin + 12, cy, 10, {
+  cy += text(contact.name, margin + 14, cy, 11, {
     bold: true,
     maxWidth: leftMaxW,
   });
-  cy += 7;
-  cy += text(
-    `${copy.assignedContact}: ${contact.name}`,
-    margin + 12,
-    cy,
-    10,
-    { color: SLATE, maxWidth: leftMaxW }
-  );
-  cy += 4;
-  cy += text(
-    `${copy.whatsappLabel}: ${whatsappDisplay}`,
-    margin + 12,
-    cy,
-    10,
-    { color: SLATE, maxWidth: leftMaxW }
-  );
+  cy += 8;
+  cy += text(`${copy.whatsappLabel}:`, margin + 14, cy, 9, {
+    color: SLATE,
+    maxWidth: leftMaxW,
+  });
+  cy += 2;
+  cy += text(whatsappDisplay, margin + 14, cy, 11, {
+    bold: true,
+    maxWidth: leftMaxW,
+  });
 
+  // Right: vertically centered QR + trilingual scan hints
+  const rightColW = margin + contentW - dividerX;
+  const qrColCenterX = dividerX + rightColW / 2;
+  const qrSectionTop = y + (contactCardH - qrSectionH) / 2;
   if (qrDataUrl) {
-    const qrX = margin + contentW - qrBlockW - 12 + qrQuiet;
-    const qrY = y + 10;
+    const qrX = qrColCenterX - qrSize / 2;
+    const qrY = qrSectionTop;
     doc.setFillColor(...WHITE);
     doc.roundedRect(
       qrX - qrQuiet,
-      qrY - 2,
+      qrY - 4,
       qrSize + qrQuiet * 2,
-      qrSize + 6,
+      qrSize + 8,
       4,
       4,
       "F"
     );
     doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
-    text(copy.scanQrHint, qrX + qrSize / 2, qrY + qrSize + 6, 7, {
-      color: SLATE,
-      maxWidth: hintMaxW,
-      align: "center",
-    });
+    let hintY = qrY + qrSize + 8;
+    for (const hint of scanHints) {
+      if (hint.forceBitmap || useBitmap) {
+        putBitmap(doc, hint.line, qrColCenterX, hintY, {
+          fontSize: 6.5,
+          color: `rgb(${SLATE[0]},${SLATE[1]},${SLATE[2]})`,
+          maxWidthPt: qrColW + 24,
+          locale: hint.forceBitmap ? "zh" : locale,
+          align: "center",
+        });
+      } else {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.5);
+        doc.setTextColor(...SLATE);
+        doc.text(hint.line, qrColCenterX, hintY + 6, { align: "center" });
+      }
+      hintY += scanLineH;
+    }
   }
 
   // Compact spacing above footer — no large empty band
@@ -512,7 +540,7 @@ export async function downloadVehicleQuotePdf(
     y += 8;
     const thumbGap = 10;
     const colW = (contentW - thumbGap * 2) / 3;
-    const thumbH = 92;
+    const thumbH = 118;
     for (let i = 0; i < extraImages.length; i++) {
       const asset = extraImages[i];
       if (!asset) continue;
@@ -532,22 +560,49 @@ export async function downloadVehicleQuotePdf(
     drawHeaderBar(doc, copy, whatsappDisplay);
     y = 42;
   }
+
+  // Expand notice vertically to balance remaining page 2 space (no new copy)
+  const discPadTop = 14;
+  const discPadBottom = 16;
+  const discLineGap = 8;
+  let discContentH = 14; // title
+  for (const para of copy.disclaimerBody) {
+    if (useBitmap) {
+      const bmp = renderTextBitmap(para, {
+        fontSize: 16,
+        maxWidth: (contentW - 28) * 2,
+        locale: "zh",
+      });
+      discContentH += bmp.height / 2 + discLineGap;
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      const lines = doc.splitTextToSize(para, contentW - 28) as string[];
+      discContentH += lines.length * 8 * 1.25 + discLineGap;
+    }
+  }
+  const minDiscBottom = pageH - footerSafe - 8;
+  const idealDiscH = Math.max(
+    discContentH + discPadTop + discPadBottom,
+    minDiscBottom - y - 6
+  );
+
   y += 6;
   doc.setFillColor(255, 251, 235);
   doc.setDrawColor(253, 224, 71);
   const discStart = y;
-  y += 8;
-  y += text(copy.disclaimerTitle, margin + 10, y, 11, { bold: true });
-  y += 6;
+  const discBoxH = Math.min(idealDiscH, minDiscBottom - discStart);
+  doc.roundedRect(margin, discStart, contentW, discBoxH, 4, 4, "FD");
+  let dy = discStart + discPadTop;
+  dy += text(copy.disclaimerTitle, margin + 14, dy, 11, { bold: true });
+  dy += 8;
   for (const para of copy.disclaimerBody) {
-    y += text(para, margin + 10, y, 8, {
+    dy += text(para, margin + 14, dy, 8, {
       color: SLATE,
-      maxWidth: contentW - 20,
+      maxWidth: contentW - 28,
     });
-    y += 6;
+    dy += discLineGap;
   }
-  y += 4;
-  doc.roundedRect(margin, discStart, contentW, y - discStart, 4, 4, "D");
 
   addFooter(doc, copy, whatsappDisplay);
   finalizePageNumbers(doc, copy);
