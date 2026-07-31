@@ -16,7 +16,8 @@ export interface Vehicle {
   fuel: string;
   transmission: string;
   steering: string;
-  vin: string;
+  /** Admin-only chassis number. Never select/return on public paths. */
+  vin?: string;
   fobPrice: number;
   photos: string[];
   shippingTiers: ShippingTier[];
@@ -34,6 +35,7 @@ export interface Vehicle {
   titleEn?: string;           // English title for listing
   descriptionEn?: string;     // English description
   features?: string;          // Key features, newline-separated
+  /** Admin-only internal notes. Never select/return on public paths. */
   notes?: string;             // Internal notes
   updatedAt?: string;         // ISO timestamp
   createdAt?: string;         // ISO timestamp

@@ -11,7 +11,7 @@ export default function AdminVehicleEditor() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetch("/api/vehicles")
+    fetch("/api/vehicles", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         setVehicles(data.vehicles);
@@ -40,6 +40,7 @@ export default function AdminVehicleEditor() {
       const res = await fetch("/api/vehicles", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id: selectedId, ...form }),
       });
       if (res.ok) {

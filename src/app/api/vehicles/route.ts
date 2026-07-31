@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { dbGetAllVehicles, dbCreateVehicle, dbUpdateVehicle } from "@/lib/supabase/vehicle-queries";
+import { requireAdminApi } from "@/lib/admin/auth";
 import type { Vehicle } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+/** Admin-only: full vehicle rows including VIN. Unauthenticated → 401. */
+export async function GET(request: Request) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
+
   try {
     const vehicles = await dbGetAllVehicles();
-    // Return in the same shape the legacy AdminVehicleEditor expects
     return NextResponse.json({ vehicles });
   } catch (err) {
     console.error("[GET /api/vehicles]", err instanceof Error ? err.message : err);
@@ -17,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const vehicle = body as Vehicle;
@@ -33,12 +40,14 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "创建车辆失败";
     console.error("[POST /api/vehicles]", message);
-    // Surface Supabase message/code already embedded by dbCreateVehicle
     return NextResponse.json({ error: message, message }, { status: 500 });
   }
 }
 
 export async function PUT(request: Request) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
+
   try {
     const body = await request.json();
     const { id, ...updates } = body as { id: string } & Partial<Vehicle>;

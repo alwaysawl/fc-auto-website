@@ -11,7 +11,7 @@ export default function AdminShippingEditor() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetch("/api/vehicles")
+    fetch("/api/vehicles", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         setVehicles(data.vehicles);
@@ -53,6 +53,7 @@ export default function AdminShippingEditor() {
       const res = await fetch(`/api/vehicles/${selectedId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ shippingTiers: tiers }),
       });
       if (res.ok) {

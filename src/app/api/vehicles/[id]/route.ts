@@ -5,6 +5,7 @@ import {
   dbDeleteVehicle,
 } from "@/lib/supabase/vehicle-queries";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { requireAdminApi } from "@/lib/admin/auth";
 import type { ShippingTier, Vehicle } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -43,10 +44,14 @@ function collectStoragePaths(vehicle: Vehicle): string[] {
   return [...paths];
 }
 
+/** Admin-only: full vehicle including VIN. */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
+
   const { id } = await params;
 
   try {
@@ -65,6 +70,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
+
   const { id } = await params;
 
   try {
@@ -101,9 +109,12 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
+
   const { id } = await params;
 
   try {

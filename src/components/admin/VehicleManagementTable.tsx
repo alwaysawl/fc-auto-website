@@ -53,6 +53,7 @@ export default function VehicleManagementTable({
       const res = await fetch("/api/vehicles", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id, status }),
       });
       if (!res.ok) {
@@ -107,6 +108,7 @@ export default function VehicleManagementTable({
     try {
       const res = await fetch(`/api/vehicles/${encodeURIComponent(v.id)}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

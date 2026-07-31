@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { requireAdminApi } from "@/lib/admin/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,9 @@ function sanitizeFilename(name: string): string {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireAdminApi(request);
+  if (denied) return denied;
+
   let body: unknown;
   try {
     body = await request.json();

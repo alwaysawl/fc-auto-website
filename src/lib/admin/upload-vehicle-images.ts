@@ -113,6 +113,7 @@ export async function uploadVehicleImageFiles(
     const metaRes = await fetch("/api/vehicles/upload-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         filename: file.name,
         mimeType: file.type,

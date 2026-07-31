@@ -190,6 +190,75 @@ function vehicleToUpdateRow(updates: Partial<Vehicle>): Partial<VehicleRow> {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+/** Strict public column allowlist — VIN and notes are never selected. */
+export const PUBLIC_VEHICLE_SELECT = [
+  "id",
+  "brand",
+  "model",
+  "year",
+  "mileage",
+  "fuel",
+  "transmission",
+  "steering",
+  "fob_price",
+  "photos",
+  "shipping_tiers",
+  "featured",
+  "status",
+  "currency",
+  "body_type",
+  "displacement",
+  "color",
+  "seats",
+  "export_port",
+  "location",
+  "title_en",
+  "description_en",
+  "features",
+  "main_image_url",
+  "gallery_image_urls",
+  "created_at",
+  "updated_at",
+].join(", ");
+
+type PublicVehicleRow = Omit<VehicleRow, "vin" | "notes">;
+
+/** Public vehicle shape: VIN/notes keys are never present. */
+export type PublicVehicle = Omit<Vehicle, "vin" | "notes">;
+
+function rowToPublicVehicle(row: PublicVehicleRow): PublicVehicle {
+  const vehicle: PublicVehicle = {
+    id: row.id,
+    brand: row.brand,
+    model: row.model,
+    year: row.year,
+    mileage: row.mileage,
+    fuel: row.fuel,
+    transmission: row.transmission,
+    steering: row.steering,
+    fobPrice: row.fob_price,
+    photos: row.photos ?? [],
+    shippingTiers: row.shipping_tiers ?? [],
+    featured: row.featured,
+    status: row.status as Vehicle["status"],
+    currency: row.currency ?? undefined,
+    bodyType: row.body_type ?? undefined,
+    displacement: row.displacement ?? undefined,
+    color: row.color ?? undefined,
+    seats: row.seats ?? undefined,
+    exportPort: row.export_port ?? undefined,
+    location: row.location ?? undefined,
+    titleEn: row.title_en ?? undefined,
+    descriptionEn: row.description_en ?? undefined,
+    features: row.features ?? undefined,
+    mainImageUrl: row.main_image_url ?? undefined,
+    galleryImageUrls: row.gallery_image_urls ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+  return withPublicPhotos(vehicle);
+}
+
 export async function dbGetAllVehicles(): Promise<Vehicle[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -203,13 +272,13 @@ export async function dbGetAllVehicles(): Promise<Vehicle[]> {
 
 /**
  * Public inventory: in-stock vehicles only, ordered for storefront display.
- * Does not change admin list behavior (dbGetAllVehicles).
+ * Selects an explicit allowlist — VIN/notes are excluded at the query level.
  */
-export async function dbGetPublicVehicles(): Promise<Vehicle[]> {
+export async function dbGetPublicVehicles(): Promise<PublicVehicle[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("vehicles")
-    .select("*")
+    .select(PUBLIC_VEHICLE_SELECT)
     .eq("status", "在售")
     .order("featured", { ascending: false })
     .order("updated_at", { ascending: false })
@@ -221,17 +290,16 @@ export async function dbGetPublicVehicles(): Promise<Vehicle[]> {
     throw new Error(`${error.message}${code}`);
   }
 
-  return (data as VehicleRow[]).map(rowToVehicle).map(withPublicPhotos);
+  return ((data ?? []) as unknown as PublicVehicleRow[]).map(rowToPublicVehicle);
 }
 
-/** Prefer main_image_url for card display; fall back only when empty.
- * Strip VIN so public payloads never expose admin-only chassis numbers. */
-export function withPublicPhotos(vehicle: Vehicle): Vehicle {
-  return { ...vehicle, photos: buildVehicleGallery(vehicle), vin: "" };
+/** Prefer main_image_url for card display; fall back only when empty. */
+export function withPublicPhotos(vehicle: PublicVehicle): PublicVehicle {
+  return { ...vehicle, photos: buildVehicleGallery(vehicle) };
 }
 
 /** Deduped gallery: main → gallery → photos; never blob:; fallback if empty. */
-export function buildVehicleGallery(vehicle: Vehicle): string[] {
+export function buildVehicleGallery(vehicle: Pick<Vehicle, "mainImageUrl" | "galleryImageUrls" | "photos">): string[] {
   const FALLBACK = "/images/rav4.jpg";
   const seen = new Set<string>();
   const out: string[] = [];
@@ -265,12 +333,13 @@ export async function dbGetVehicleById(id: string): Promise<Vehicle | null> {
 
 /**
  * Public detail: only 在售 vehicles are visible on the storefront.
+ * VIN/notes excluded at the database select level.
  */
-export async function dbGetPublicVehicleById(id: string): Promise<Vehicle | null> {
+export async function dbGetPublicVehicleById(id: string): Promise<PublicVehicle | null> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("vehicles")
-    .select("*")
+    .select(PUBLIC_VEHICLE_SELECT)
     .eq("id", id)
     .eq("status", "在售")
     .maybeSingle();
@@ -281,7 +350,7 @@ export async function dbGetPublicVehicleById(id: string): Promise<Vehicle | null
     throw new Error(`${error.message}${code}`);
   }
   if (!data) return null;
-  return withPublicPhotos(rowToVehicle(data as VehicleRow));
+  return rowToPublicVehicle(data as unknown as PublicVehicleRow);
 }
 
 /**
@@ -289,9 +358,9 @@ export async function dbGetPublicVehicleById(id: string): Promise<Vehicle | null
  * Prefer same brand or body_type, then fill from other 在售 vehicles.
  */
 export async function dbGetSimilarPublicVehicles(
-  current: Vehicle,
+  current: Pick<Vehicle, "id" | "brand" | "bodyType">,
   limit = 3
-): Promise<Vehicle[]> {
+): Promise<PublicVehicle[]> {
   const all = await dbGetPublicVehicles();
   const others = all.filter((v) => v.id !== current.id);
 

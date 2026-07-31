@@ -274,6 +274,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
       const res = await fetch("/api/vehicles", {
         method: mode === "new" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
