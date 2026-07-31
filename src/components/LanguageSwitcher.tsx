@@ -216,7 +216,7 @@ export default function LanguageSwitcher({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center gap-1.5 min-h-11 min-w-11 px-2.5 sm:px-3 rounded-lg text-xs font-semibold tracking-wide transition-colors ${triggerClass}`}
+        className={`inline-flex items-center gap-1 md:gap-1.5 min-h-11 min-w-0 px-1.5 md:px-3 rounded-lg text-xs font-semibold tracking-wide transition-colors ${triggerClass}`}
         aria-haspopup={isMobile ? "dialog" : "listbox"}
         aria-expanded={open}
         aria-controls={listId}

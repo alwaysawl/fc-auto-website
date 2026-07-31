@@ -116,7 +116,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
     >
       <div className="container-max px-4 sm:px-6 xl:px-8">
         <div
-          className={`flex items-center gap-2 sm:gap-3 min-h-14 sm:min-h-16 md:min-h-[72px] py-1.5 ${
+          className={`flex flex-nowrap items-center gap-2 sm:gap-3 min-h-14 sm:min-h-16 md:min-h-[72px] py-1.5 ${
             isHero && !scrolled
               ? "max-xl:bg-black/30 max-xl:backdrop-blur-sm max-xl:-mx-4 max-xl:px-4 sm:max-xl:-mx-6 sm:max-xl:px-6"
               : isHero && scrolled
@@ -181,10 +181,10 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
             ))}
           </nav>
 
-          <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0 ml-auto">
+          <div className="flex flex-nowrap items-center gap-1 md:gap-2.5 flex-shrink-0 ml-auto">
             <Link
               href={cartHref}
-              className={`relative inline-flex items-center gap-1.5 min-h-11 px-2 sm:px-2.5 rounded-lg text-sm font-semibold transition-colors flex-shrink-0 ${
+              className={`relative inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 md:min-w-0 px-1.5 md:px-2.5 rounded-lg text-sm font-semibold transition-colors flex-shrink-0 ${
                 isHero
                   ? isActive(cartHref)
                     ? "text-accent-yellow bg-white/10"
@@ -202,12 +202,12 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
               <span className="text-base leading-none" aria-hidden>
                 🛒
               </span>
-              <span className="hidden min-[400px]:inline whitespace-nowrap">
+              <span className="hidden md:inline whitespace-nowrap">
                 {cartLabel}
                 {count > 0 ? ` (${count})` : ""}
               </span>
               {count > 0 && (
-                <span className="min-[400px]:hidden absolute -top-0.5 -right-0.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-accent-yellow text-brand-slate text-[10px] font-bold flex items-center justify-center">
+                <span className="md:hidden absolute -top-0.5 -right-0.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-accent-yellow text-brand-slate text-[10px] font-bold flex items-center justify-center">
                   {count > 99 ? "99+" : count}
                 </span>
               )}
@@ -238,7 +238,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
             <button
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
-              className={`xl:hidden inline-flex items-center gap-1.5 min-h-11 px-2.5 sm:px-3 rounded-lg transition-colors flex-shrink-0 text-sm font-semibold ${
+              className={`xl:hidden inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 md:min-w-0 px-1.5 md:px-3 rounded-lg transition-colors flex-shrink-0 text-sm font-semibold ${
                 isHero
                   ? "text-white hover:bg-white/10"
                   : isLight
@@ -271,7 +271,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
                   />
                 )}
               </svg>
-              <span>{menuLabel}</span>
+              <span className="hidden md:inline">{menuLabel}</span>
             </button>
           </div>
         </div>
