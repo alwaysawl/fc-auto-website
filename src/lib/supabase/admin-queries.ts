@@ -36,19 +36,46 @@ export interface DashboardInquiryStats {
   totalInquiries: number;
   todayInquiries: number;
   recentInquiries: InquiryRow[];
-  /** true when public.inquiries is missing from schema */
+  /** @deprecated inquiries table is not used; kept for UI compatibility */
   inquiriesTableMissing?: boolean;
   note?: string;
+  /** Friendly UI message only — never include raw database errors */
   error?: string;
 }
 
 export interface DashboardSalesStats {
   team: SalespersonCount[];
+  /** Friendly UI message only — never include raw database errors */
   error?: string;
 }
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function friendlyDbError(scope: "vehicle" | "inquiry" | "sales"): string {
+  switch (scope) {
+    case "vehicle":
+      return "车辆统计暂时无法加载，请稍后重试。 / Vehicle stats are temporarily unavailable. / Les statistiques véhicules sont temporairement indisponibles.";
+    case "inquiry":
+      return "询盘数据暂时无法加载，请稍后重试。 / Inquiry data is temporarily unavailable. / Les demandes sont temporairement indisponibles.";
+    case "sales":
+      return "销售团队数据暂时无法加载，请稍后重试。 / Sales team data is temporarily unavailable. / Les données de l’équipe commerciale sont temporairement indisponibles.";
+  }
+}
+
+function logSafeDbError(scope: string, err: unknown) {
+  const message =
+    err && typeof err === "object" && "message" in err
+      ? String((err as { message: string }).message)
+      : err instanceof Error
+        ? err.message
+        : String(err);
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code: string }).code)
+      : "";
+  console.error(`[${scope}]`, code || "NO_CODE", message.slice(0, 200));
 }
 
 export async function getDashboardVehicleStats(): Promise<DashboardVehicleStats> {
@@ -72,8 +99,7 @@ export async function getDashboardVehicleStats(): Promise<DashboardVehicleStats>
     }
     return counts;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[getDashboardVehicleStats]", message);
+    logSafeDbError("getDashboardVehicleStats", err);
     return {
       total: 0,
       onSale: 0,
@@ -81,7 +107,7 @@ export async function getDashboardVehicleStats(): Promise<DashboardVehicleStats>
       sold: 0,
       delisted: 0,
       featured: 0,
-      error: `车辆统计加载失败：${message}`,
+      error: friendlyDbError("vehicle"),
     };
   }
 }
@@ -102,26 +128,27 @@ export async function getDashboardRecentVehicles(
     });
     return { vehicles: sorted.slice(0, limit) };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[getDashboardRecentVehicles]", message);
-    return { vehicles: [], error: `最近车辆加载失败：${message}` };
+    logSafeDbError("getDashboardRecentVehicles", err);
+    return { vehicles: [], error: friendlyDbError("vehicle") };
   }
 }
 
 /**
- * Prefer public.inquiries when present.
- * If the table is missing (PGRST205), return zeros + Chinese note — no throw.
+ * Inquiry / lead stats from existing sales_assignments (WhatsApp round-robin log).
+ * Does not query public.inquiries (that table is not present in production).
+ * Does not change assignment / round-robin logic.
  */
 export async function getDashboardInquiryStats(): Promise<DashboardInquiryStats> {
   let supabase;
   try {
     supabase = getSupabaseAdmin();
-  } catch {
+  } catch (err) {
+    logSafeDbError("getDashboardInquiryStats.config", err);
     return {
       totalInquiries: 0,
       todayInquiries: 0,
       recentInquiries: [],
-      error: "数据库配置错误。",
+      error: friendlyDbError("inquiry"),
     };
   }
 
@@ -129,25 +156,13 @@ export async function getDashboardInquiryStats(): Promise<DashboardInquiryStats>
 
   try {
     const { count: totalCount, error: totalError } = await supabase
-      .from("inquiries")
+      .from("sales_assignments")
       .select("*", { count: "exact", head: true });
 
-    if (totalError) {
-      if (totalError.code === "PGRST205" || /Could not find the table/i.test(totalError.message)) {
-        console.error("[getDashboardInquiryStats] inquiries missing:", totalError.message, totalError.code);
-        return {
-          totalInquiries: 0,
-          todayInquiries: 0,
-          recentInquiries: [],
-          inquiriesTableMissing: true,
-          note: "询盘数据库尚未启用",
-        };
-      }
-      throw totalError;
-    }
+    if (totalError) throw totalError;
 
     const { count: todayCount, error: todayError } = await supabase
-      .from("inquiries")
+      .from("sales_assignments")
       .select("*", { count: "exact", head: true })
       .gte("created_at", `${today}T00:00:00.000Z`)
       .lt("created_at", `${today}T23:59:59.999Z`);
@@ -155,9 +170,9 @@ export async function getDashboardInquiryStats(): Promise<DashboardInquiryStats>
     if (todayError) throw todayError;
 
     const { data: recentRows, error: recentError } = await supabase
-      .from("inquiries")
+      .from("sales_assignments")
       .select(
-        "id, inquiry_id, created_at, vehicle_title, source_page, assigned_to, status"
+        "id, inquiry_id, created_at, vehicle_title, source_page, sales_agent_name"
       )
       .order("created_at", { ascending: false })
       .limit(10);
@@ -170,8 +185,8 @@ export async function getDashboardInquiryStats(): Promise<DashboardInquiryStats>
       created_at: String(row.created_at),
       vehicle_title: row.vehicle_title ?? null,
       source_page: row.source_page ?? null,
-      sales_agent_name: row.assigned_to ?? null,
-      status: row.status ?? null,
+      sales_agent_name: row.sales_agent_name ?? null,
+      status: "已分配",
     }));
 
     return {
@@ -180,22 +195,12 @@ export async function getDashboardInquiryStats(): Promise<DashboardInquiryStats>
       recentInquiries,
     };
   } catch (err) {
-    const message =
-      err && typeof err === "object" && "message" in err
-        ? String((err as { message: string }).message)
-        : err instanceof Error
-        ? err.message
-        : String(err);
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? String((err as { code: string }).code)
-        : "";
-    console.error("[getDashboardInquiryStats]", message, code);
+    logSafeDbError("getDashboardInquiryStats", err);
     return {
       totalInquiries: 0,
       todayInquiries: 0,
       recentInquiries: [],
-      error: `询盘数据加载失败：${message}${code ? ` [code: ${code}]` : ""}`,
+      error: friendlyDbError("inquiry"),
     };
   }
 }
@@ -205,8 +210,9 @@ export async function getDashboardSalesTeam(): Promise<DashboardSalesStats> {
   let supabase;
   try {
     supabase = getSupabaseAdmin();
-  } catch {
-    return { team: [], error: "数据库配置错误。" };
+  } catch (err) {
+    logSafeDbError("getDashboardSalesTeam.config", err);
+    return { team: [], error: friendlyDbError("sales") };
   }
 
   try {
@@ -248,13 +254,7 @@ export async function getDashboardSalesTeam(): Promise<DashboardSalesStats> {
 
     return { team };
   } catch (err) {
-    const message =
-      err && typeof err === "object" && "message" in err
-        ? String((err as { message: string }).message)
-        : err instanceof Error
-        ? err.message
-        : String(err);
-    console.error("[getDashboardSalesTeam]", message);
-    return { team: [], error: `销售团队数据加载失败：${message}` };
+    logSafeDbError("getDashboardSalesTeam", err);
+    return { team: [], error: friendlyDbError("sales") };
   }
 }

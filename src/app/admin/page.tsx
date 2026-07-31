@@ -230,31 +230,21 @@ function RecentVehiclesTable({
 
 function RecentInquiriesTable({
   rows,
-  missing,
-  note,
   error,
 }: {
   rows: Awaited<ReturnType<typeof getDashboardInquiryStats>>["recentInquiries"];
-  missing?: boolean;
-  note?: string;
   error?: string;
 }) {
   if (error) return <div className="p-4"><SectionError message={error} /></div>;
 
-  if (missing) {
-    return (
-      <div className="py-10 text-center px-4">
-        <p className="text-sm text-slate-500">{note ?? "询盘数据库尚未启用"}</p>
-        <p className="text-xs text-slate-400 mt-1">
-          「全部询盘」入口暂不可用完整数据。
-        </p>
-      </div>
-    );
-  }
-
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-slate-500 py-8 text-center">暂无询盘记录。</p>
+      <div className="py-10 text-center px-4">
+        <p className="text-sm text-slate-500">暂无询盘记录</p>
+        <p className="text-xs text-slate-400 mt-1">
+          No inquiry records yet. / Aucune demande pour le moment.
+        </p>
+      </div>
     );
   }
 
@@ -297,7 +287,7 @@ function RecentInquiriesTable({
               </td>
               <td className="px-4 py-3">
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                  {row.status ?? "新询盘"}
+                  {row.status ?? "已分配"}
                 </span>
               </td>
             </tr>
@@ -373,37 +363,30 @@ export default async function AdminDashboard() {
           {inquiryStats.error ? (
             <SectionError message={inquiryStats.error} />
           ) : (
-            <>
-              {inquiryStats.inquiriesTableMissing && (
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  {inquiryStats.note ?? "询盘数据库尚未启用"}
-                </p>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <StatCard
-                  label="询盘总数"
-                  value={inquiryStats.totalInquiries}
-                  live={!inquiryStats.inquiriesTableMissing}
-                  icon={
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                  }
-                />
-                <StatCard
-                  label="今日询盘"
-                  value={inquiryStats.todayInquiries}
-                  live={!inquiryStats.inquiriesTableMissing}
-                  icon={
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  }
-                />
-              </div>
-            </>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <StatCard
+                label="询盘总数"
+                value={inquiryStats.totalInquiries}
+                live
+                icon={
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                }
+              />
+              <StatCard
+                label="今日询盘"
+                value={inquiryStats.todayInquiries}
+                live
+                icon={
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                }
+              />
+            </div>
           )}
         </div>
 
@@ -475,8 +458,6 @@ export default async function AdminDashboard() {
         <div className="px-2 pb-2">
           <RecentInquiriesTable
             rows={inquiryStats.recentInquiries}
-            missing={inquiryStats.inquiriesTableMissing}
-            note={inquiryStats.note}
             error={inquiryStats.error}
           />
         </div>
