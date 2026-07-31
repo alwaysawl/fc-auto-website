@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   ShippingCountryWithPorts,
   ShippingListResult,
@@ -47,6 +47,14 @@ function parseFreight(value: string): number | null {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0) return null;
   return n;
+}
+
+function formatUsdDisplay(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 function countryOptionLabel(c: ShippingCountryWithPorts): string {
@@ -102,6 +110,23 @@ function buildDrafts(list: ShippingCountryWithPorts[]): Record<string, PortDraft
     }
   }
   return drafts;
+}
+
+type SavedFreightRow = {
+  country: ShippingCountryWithPorts;
+  port: ShippingPortRow;
+};
+
+function buildSavedFreightRows(
+  list: ShippingCountryWithPorts[]
+): SavedFreightRow[] {
+  const rows: SavedFreightRow[] = [];
+  for (const country of sortShippingCountries(list)) {
+    for (const port of sortPorts(country.ports)) {
+      rows.push({ country, port });
+    }
+  }
+  return rows;
 }
 
 function normalizeCountriesPayload(data: unknown): ShippingCountryWithPorts[] {
@@ -190,6 +215,14 @@ export default function AdminShippingEditor({ initial }: Props) {
 
   const [showAddPort, setShowAddPort] = useState(false);
   const [newPort, setNewPort] = useState<NewPortForm>(emptyNewPort);
+
+  const [listCountryFilter, setListCountryFilter] = useState("");
+  const [listStatusFilter, setListStatusFilter] = useState<
+    "all" | "enabled" | "disabled"
+  >("all");
+  const [listSearch, setListSearch] = useState("");
+
+  const freightFormRef = useRef<HTMLElement | null>(null);
 
   const showMsg = (text: string, ok: boolean) => {
     setGlobalMessage(text);
@@ -356,6 +389,30 @@ export default function AdminShippingEditor({ initial }: Props) {
     : null;
 
   const readOnly = source !== "database";
+
+  const savedFreightRows = useMemo(
+    () => buildSavedFreightRows(countries),
+    [countries]
+  );
+
+  const filteredFreightRows = useMemo(() => {
+    const q = listSearch.trim().toLowerCase();
+    return savedFreightRows.filter(({ country, port }) => {
+      if (listCountryFilter && country.id !== listCountryFilter) return false;
+      if (listStatusFilter === "enabled" && !port.enabled) return false;
+      if (listStatusFilter === "disabled" && port.enabled) return false;
+      if (!q) return true;
+      const haystack = [
+        country.name_zh ?? "",
+        country.name_en,
+        port.name_zh ?? "",
+        port.name_en,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [savedFreightRows, listCountryFilter, listStatusFilter, listSearch]);
 
   const selectCountry = (countryId: string) => {
     setSelectedCountryId(countryId);
@@ -526,7 +583,7 @@ export default function AdminShippingEditor({ initial }: Props) {
         showMsg(data.error || "保存运费失败", false);
         return;
       }
-      showMsg("运费已保存", true);
+      showMsg("运费保存成功", true);
       await load(selectedCountryId, selectedPort.id);
     } catch {
       showMsg("保存运费失败，请重试", false);
@@ -570,14 +627,38 @@ export default function AdminShippingEditor({ initial }: Props) {
     }
   };
 
-  const handleDeletePort = async () => {
-    if (!selectedPort || busyKey || readOnly) return;
-    const label = portOptionLabel(selectedPort);
-    if (!window.confirm(`确认删除港口「${label}」及其运费记录？`)) return;
-    setBusyKey("port-del");
+  const loadPortIntoForm = (countryId: string, portId: string) => {
+    setSelectedCountryId(countryId);
+    setSelectedPortId(portId);
+    setEditingCountry(false);
+    setEditingPort(false);
+    setShowAddCountry(false);
+    setShowAddPort(false);
+    setGlobalMessage("");
+    requestAnimationFrame(() => {
+      freightFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  const confirmAndDeletePort = async (
+    country: ShippingCountryWithPorts,
+    port: ShippingPortRow
+  ) => {
+    if (busyKey || readOnly) return;
+    const countryLabel = countryOptionLabel(country);
+    const portLabel = portOptionLabel(port);
+    const confirmed = window.confirm(
+      `确定删除该港口的运费设置吗？\n\n国家：${countryLabel}\n港口：${portLabel}`
+    );
+    if (!confirmed) return;
+
+    setBusyKey(`port-del-${port.id}`);
     try {
       const res = await fetch(
-        `/api/admin/shipping/ports?id=${encodeURIComponent(selectedPort.id)}`,
+        `/api/admin/shipping/ports?id=${encodeURIComponent(port.id)}`,
         { method: "DELETE", credentials: "include", cache: "no-store" }
       );
       const data = await res.json();
@@ -587,12 +668,27 @@ export default function AdminShippingEditor({ initial }: Props) {
       }
       setEditingPort(false);
       showMsg("港口已删除", true);
-      await load(selectedCountryId, "");
+
+      const remaining = sortPorts(
+        (country.ports ?? []).filter((p) => p.id !== port.id)
+      );
+      const nextPortId =
+        selectedPortId === port.id
+          ? pickDefaultPortId(remaining, "")
+          : selectedPortId;
+      const keepCountryId =
+        selectedCountryId === country.id ? country.id : selectedCountryId;
+      await load(keepCountryId, nextPortId);
     } catch {
       showMsg("删除港口失败，请重试", false);
     } finally {
       setBusyKey(null);
     }
+  };
+
+  const handleDeletePort = async () => {
+    if (!selectedCountry || !selectedPort) return;
+    await confirmAndDeletePort(selectedCountry, selectedPort);
   };
 
   const handleAddPort = async () => {
@@ -779,7 +875,10 @@ export default function AdminShippingEditor({ initial }: Props) {
       )}
 
       {selectedPort && selectedDraft && (
-        <section className="rounded-sm border border-gray-200 bg-white p-4 space-y-4">
+        <section
+          ref={freightFormRef}
+          className="rounded-sm border border-gray-200 bg-white p-4 space-y-4"
+        >
           <div>
             <p className="text-xs text-slate-500">当前港口</p>
             <p className="text-lg font-semibold text-[#1E293B]">
@@ -845,6 +944,176 @@ export default function AdminShippingEditor({ initial }: Props) {
           </div>
         </section>
       )}
+
+      {/* Saved freight list */}
+      <section className="rounded-sm border border-gray-200 bg-white p-4 space-y-4 overflow-hidden">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-base font-semibold text-[#1E293B]">已设置运费</h2>
+          <p className="text-xs text-slate-500">
+            共 {filteredFreightRows.length} 条
+            {filteredFreightRows.length !== savedFreightRows.length
+              ? `（筛选自 ${savedFreightRows.length}）`
+              : ""}
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="block text-sm min-w-0">
+            <span className="text-gray-600">国家筛选</span>
+            <select
+              value={listCountryFilter}
+              onChange={(e) => setListCountryFilter(e.target.value)}
+              className="mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+            >
+              <option value="">全部国家</option>
+              {sortShippingCountries(countries).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {countryOptionLabel(c)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm min-w-0">
+            <span className="text-gray-600">状态筛选</span>
+            <select
+              value={listStatusFilter}
+              onChange={(e) =>
+                setListStatusFilter(
+                  e.target.value as "all" | "enabled" | "disabled"
+                )
+              }
+              className="mt-1 w-full rounded-sm border border-gray-300 bg-white px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+            >
+              <option value="all">全部</option>
+              <option value="enabled">启用</option>
+              <option value="disabled">停用</option>
+            </select>
+          </label>
+          <label className="block text-sm min-w-0 sm:col-span-1">
+            <span className="text-gray-600">搜索</span>
+            <input
+              value={listSearch}
+              onChange={(e) => setListSearch(e.target.value)}
+              placeholder="国家或港口名称"
+              className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+            />
+          </label>
+        </div>
+
+        {filteredFreightRows.length === 0 ? (
+          <p className="text-sm text-slate-500 py-4">暂无已设置运费</p>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[40rem] text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left text-slate-500">
+                    <th className="py-2 pr-3 font-medium">国家</th>
+                    <th className="py-2 pr-3 font-medium">港口</th>
+                    <th className="py-2 pr-3 font-medium">1 辆运费</th>
+                    <th className="py-2 pr-3 font-medium">2–4 辆整柜运费</th>
+                    <th className="py-2 pr-3 font-medium">状态</th>
+                    <th className="py-2 font-medium text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredFreightRows.map(({ country, port }) => (
+                    <tr
+                      key={port.id}
+                      className="border-b border-gray-100 align-top"
+                    >
+                      <td className="py-3 pr-3 text-[#1E293B]">
+                        {countryOptionLabel(country)}
+                      </td>
+                      <td className="py-3 pr-3 text-[#1E293B]">
+                        {portOptionLabel(port)}
+                      </td>
+                      <td className="py-3 pr-3 whitespace-nowrap">
+                        {formatUsdDisplay(port.single_vehicle_usd)}
+                      </td>
+                      <td className="py-3 pr-3 whitespace-nowrap">
+                        {formatUsdDisplay(port.container_40ft_usd)}
+                      </td>
+                      <td className="py-3 pr-3">
+                        {port.enabled ? "启用" : "停用"}
+                      </td>
+                      <td className="py-3 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => loadPortIntoForm(country.id, port.id)}
+                          className="rounded-sm border border-gray-300 px-2.5 py-1.5 text-sm mr-2 hover:bg-gray-50"
+                        >
+                          修改
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyKey !== null || readOnly}
+                          onClick={() =>
+                            void confirmAndDeletePort(country, port)
+                          }
+                          className="rounded-sm border border-red-200 px-2.5 py-1.5 text-sm text-red-600 disabled:opacity-50 hover:bg-red-50"
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {filteredFreightRows.map(({ country, port }) => (
+                <div
+                  key={port.id}
+                  className="rounded-sm border border-gray-200 p-3 space-y-2 break-words"
+                >
+                  <div>
+                    <p className="text-xs text-slate-500">国家</p>
+                    <p className="font-medium text-[#1E293B]">
+                      {countryOptionLabel(country)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">港口</p>
+                    <p className="font-medium text-[#1E293B]">
+                      {portOptionLabel(port)}
+                    </p>
+                  </div>
+                  <p className="text-sm text-slate-700">
+                    1 辆：{formatUsdDisplay(port.single_vehicle_usd)}
+                  </p>
+                  <p className="text-sm text-slate-700">
+                    2–4 辆：{formatUsdDisplay(port.container_40ft_usd)}
+                  </p>
+                  <p className="text-sm text-slate-700">
+                    状态：{port.enabled ? "启用" : "停用"}
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => loadPortIntoForm(country.id, port.id)}
+                      className="rounded-sm border border-gray-300 px-3 py-1.5 text-sm"
+                    >
+                      修改
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyKey !== null || readOnly}
+                      onClick={() => void confirmAndDeletePort(country, port)}
+                      className="rounded-sm border border-red-200 px-3 py-1.5 text-sm text-red-600 disabled:opacity-50"
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Secondary actions */}
       {selectedCountry && (
