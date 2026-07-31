@@ -42,14 +42,6 @@ function portToDraft(port: ShippingPortRow): PortDraft {
   };
 }
 
-function formatUsdDisplay(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function parseFreight(value: string): number | null {
   if (value.trim() === "") return 0;
   const n = Number(value);
@@ -64,8 +56,20 @@ function countryOptionLabel(c: ShippingCountryWithPorts): string {
   return zh || en || c.id;
 }
 
-function countryTitle(c: ShippingCountryWithPorts): string {
-  return countryOptionLabel(c);
+function portOptionLabel(p: ShippingPortRow): string {
+  const zh = p.name_zh?.trim();
+  const en = p.name_en.trim();
+  if (zh && en) return `${zh} / ${en}`;
+  return zh || en || p.port_id;
+}
+
+function sortPorts(ports: ShippingPortRow[]): ShippingPortRow[] {
+  return [...ports].sort((a, b) => {
+    if (a.display_order !== b.display_order) {
+      return a.display_order - b.display_order;
+    }
+    return a.name_en.localeCompare(b.name_en, "en", { sensitivity: "base" });
+  });
 }
 
 function pickDefaultCountryId(
@@ -77,6 +81,17 @@ function pickDefaultCountryId(
   }
   const firstEnabled = list.find((c) => c.enabled);
   return firstEnabled?.id ?? list[0]?.id ?? "";
+}
+
+function pickDefaultPortId(
+  ports: ShippingPortRow[],
+  preferredId: string
+): string {
+  if (preferredId && ports.some((p) => p.id === preferredId)) {
+    return preferredId;
+  }
+  const firstEnabled = ports.find((p) => p.enabled);
+  return firstEnabled?.id ?? ports[0]?.id ?? "";
 }
 
 function buildDrafts(list: ShippingCountryWithPorts[]): Record<string, PortDraft> {
@@ -96,7 +111,9 @@ function normalizeCountriesPayload(data: unknown): ShippingCountryWithPorts[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter(
     (row): row is ShippingCountryWithPorts =>
-      !!row && typeof row === "object" && typeof (row as { id?: unknown }).id === "string"
+      !!row &&
+      typeof row === "object" &&
+      typeof (row as { id?: unknown }).id === "string"
   );
 }
 
@@ -114,6 +131,12 @@ export default function AdminShippingEditor({ initial }: Props) {
   const [selectedCountryId, setSelectedCountryId] = useState(() =>
     pickDefaultCountryId(initialList, "")
   );
+  const [selectedPortId, setSelectedPortId] = useState(() => {
+    const countryId = pickDefaultCountryId(initialList, "");
+    const country = initialList.find((c) => c.id === countryId);
+    return pickDefaultPortId(sortPorts(country?.ports ?? []), "");
+  });
+
   const [tablesMissing, setTablesMissing] = useState(initial.tablesMissing);
   const [fallbackReason, setFallbackReason] = useState<
     "tables_missing" | "client_unavailable" | null
@@ -158,10 +181,11 @@ export default function AdminShippingEditor({ initial }: Props) {
   const [editCountryEn, setEditCountryEn] = useState("");
   const [editCountryZh, setEditCountryZh] = useState("");
 
+  const [editingPort, setEditingPort] = useState(false);
   const [portDrafts, setPortDrafts] = useState<Record<string, PortDraft>>(() =>
     buildDrafts(initialList)
   );
-  const [savingPortId, setSavingPortId] = useState<string | null>(null);
+  const [savingPort, setSavingPort] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const [showAddPort, setShowAddPort] = useState(false);
@@ -189,7 +213,8 @@ export default function AdminShippingEditor({ initial }: Props) {
         countriesQueryErrorCode?: string | null;
         countriesQueryErrorMessage?: string | null;
       },
-      preferCountryId?: string
+      preferCountryId?: string,
+      preferPortId?: string
     ) => {
       const sorted = sortShippingCountries(list);
       setCountries(sorted);
@@ -209,15 +234,25 @@ export default function AdminShippingEditor({ initial }: Props) {
       setKeyTypeUsed(meta.keyTypeUsed ?? "missing");
       setCountriesQueryErrorCode(meta.countriesQueryErrorCode ?? null);
       setCountriesQueryErrorMessage(meta.countriesQueryErrorMessage ?? null);
-      setSelectedCountryId((prev) =>
-        pickDefaultCountryId(sorted, preferCountryId ?? prev)
+
+      const nextCountryId = pickDefaultCountryId(
+        sorted,
+        preferCountryId ?? selectedCountryId
       );
+      const nextCountry = sorted.find((c) => c.id === nextCountryId);
+      const nextPorts = sortPorts(nextCountry?.ports ?? []);
+      const nextPortId = pickDefaultPortId(
+        nextPorts,
+        preferPortId ?? selectedPortId
+      );
+      setSelectedCountryId(nextCountryId);
+      setSelectedPortId(nextPortId);
     },
-    []
+    [selectedCountryId, selectedPortId]
   );
 
   const load = useCallback(
-    async (preferCountryId?: string) => {
+    async (preferCountryId?: string, preferPortId?: string) => {
       setLoading(true);
       try {
         const res = await fetch("/api/admin/shipping/countries", {
@@ -228,7 +263,6 @@ export default function AdminShippingEditor({ initial }: Props) {
         const data = await res.json();
         if (!res.ok) {
           showMsg(data.error || "加载失败", false);
-          // Keep SSR / previous countries — do not wipe to empty on refresh failure
           return;
         }
         const list = normalizeCountriesPayload(data);
@@ -286,7 +320,8 @@ export default function AdminShippingEditor({ initial }: Props) {
                 ? data.countriesQueryErrorMessage
                 : null,
           },
-          preferCountryId
+          preferCountryId,
+          preferPortId
         );
       } catch {
         showMsg("加载失败，请重试", false);
@@ -297,7 +332,6 @@ export default function AdminShippingEditor({ initial }: Props) {
     [applyList]
   );
 
-  // Soft refresh after mount (no-store) so client picks up latest DB without wiping SSR
   useEffect(() => {
     void load();
   }, [load]);
@@ -307,8 +341,32 @@ export default function AdminShippingEditor({ initial }: Props) {
     [countries, selectedCountryId]
   );
 
-  const selectedPorts = selectedCountry?.ports ?? [];
+  const countryPorts = useMemo(
+    () => sortPorts(selectedCountry?.ports ?? []),
+    [selectedCountry]
+  );
+
+  const selectedPort = useMemo(
+    () => countryPorts.find((p) => p.id === selectedPortId) ?? null,
+    [countryPorts, selectedPortId]
+  );
+
+  const selectedDraft = selectedPort
+    ? portDrafts[selectedPort.id] ?? portToDraft(selectedPort)
+    : null;
+
   const readOnly = source !== "database";
+
+  const selectCountry = (countryId: string) => {
+    setSelectedCountryId(countryId);
+    setEditingCountry(false);
+    setEditingPort(false);
+    setShowAddPort(false);
+    setGlobalMessage("");
+    const country = countries.find((c) => c.id === countryId);
+    const ports = sortPorts(country?.ports ?? []);
+    setSelectedPortId(pickDefaultPortId(ports, ""));
+  };
 
   const handleAddCountry = async () => {
     if (addingCountry || readOnly) return;
@@ -338,7 +396,7 @@ export default function AdminShippingEditor({ initial }: Props) {
       setNewCountryZh("");
       setShowAddCountry(false);
       showMsg("国家已添加", true);
-      await load(newId);
+      await load(newId, "");
     } catch {
       showMsg("添加国家失败，请重试", false);
     } finally {
@@ -372,7 +430,7 @@ export default function AdminShippingEditor({ initial }: Props) {
       }
       setEditingCountry(false);
       showMsg("国家已保存", true);
-      await load(selectedCountry.id);
+      await load(selectedCountry.id, selectedPortId);
     } catch {
       showMsg("保存国家失败，请重试", false);
     } finally {
@@ -400,7 +458,7 @@ export default function AdminShippingEditor({ initial }: Props) {
         return;
       }
       showMsg(selectedCountry.enabled ? "国家已停用" : "国家已启用", true);
-      await load(selectedCountry.id);
+      await load(selectedCountry.id, selectedPortId);
     } catch {
       showMsg("更新状态失败，请重试", false);
     } finally {
@@ -410,11 +468,11 @@ export default function AdminShippingEditor({ initial }: Props) {
 
   const handleDeleteCountry = async () => {
     if (!selectedCountry || busyKey || readOnly) return;
-    const label = countryTitle(selectedCountry);
-    const portCountForCountry = selectedCountry.ports.length;
+    const label = countryOptionLabel(selectedCountry);
+    const n = selectedCountry.ports.length;
     const confirmMsg =
-      portCountForCountry > 0
-        ? `确认删除国家「${label}」？其下 ${portCountForCountry} 个港口及运费也将一并删除，此操作不可恢复。`
+      n > 0
+        ? `确认删除国家「${label}」？其下 ${n} 个港口及运费也将一并删除，此操作不可恢复。`
         : `确认删除国家「${label}」？`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -430,9 +488,10 @@ export default function AdminShippingEditor({ initial }: Props) {
         return;
       }
       setEditingCountry(false);
+      setEditingPort(false);
       setShowAddPort(false);
       showMsg("国家已删除", true);
-      await load("");
+      await load("", "");
     } catch {
       showMsg("删除国家失败，请重试", false);
     } finally {
@@ -440,21 +499,15 @@ export default function AdminShippingEditor({ initial }: Props) {
     }
   };
 
-  const handleSavePort = async (port: ShippingPortRow) => {
-    if (savingPortId || readOnly) return;
-    const draft = portDrafts[port.id];
-    if (!draft) return;
-    if (!draft.name_en.trim() && !draft.name_zh.trim()) {
-      showMsg("港口名称不能为空", false);
-      return;
-    }
-    const single = parseFreight(draft.single_vehicle_usd);
-    const container = parseFreight(draft.container_40ft_usd);
+  const handleSaveFreight = async () => {
+    if (!selectedPort || !selectedDraft || savingPort || readOnly) return;
+    const single = parseFreight(selectedDraft.single_vehicle_usd);
+    const container = parseFreight(selectedDraft.container_40ft_usd);
     if (single == null || container == null) {
       showMsg("运费必须为 0 或正数", false);
       return;
     }
-    setSavingPortId(port.id);
+    setSavingPort(true);
     try {
       const res = await fetch("/api/admin/shipping/ports", {
         method: "PATCH",
@@ -462,36 +515,69 @@ export default function AdminShippingEditor({ initial }: Props) {
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: port.id,
-          name_en: draft.name_en.trim() || draft.name_zh.trim(),
-          name_zh: draft.name_zh.trim() || null,
+          id: selectedPort.id,
           single_vehicle_usd: single,
           container_40ft_usd: container,
-          enabled: draft.enabled,
+          enabled: selectedDraft.enabled,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        showMsg(data.error || "保存失败", false);
+        showMsg(data.error || "保存运费失败", false);
         return;
       }
       showMsg("运费已保存", true);
-      await load(selectedCountryId);
+      await load(selectedCountryId, selectedPort.id);
     } catch {
-      showMsg("保存失败，请重试", false);
+      showMsg("保存运费失败，请重试", false);
     } finally {
-      setSavingPortId(null);
+      setSavingPort(false);
     }
   };
 
-  const handleDeletePort = async (port: ShippingPortRow) => {
-    if (busyKey || readOnly) return;
-    const label = port.name_zh || port.name_en;
+  const handleSavePortMeta = async () => {
+    if (!selectedPort || !selectedDraft || busyKey || readOnly) return;
+    if (!selectedDraft.name_en.trim() && !selectedDraft.name_zh.trim()) {
+      showMsg("港口名称不能为空", false);
+      return;
+    }
+    setBusyKey("port-meta");
+    try {
+      const res = await fetch("/api/admin/shipping/ports", {
+        method: "PATCH",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedPort.id,
+          name_en: selectedDraft.name_en.trim() || selectedDraft.name_zh.trim(),
+          name_zh: selectedDraft.name_zh.trim() || null,
+          enabled: selectedDraft.enabled,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showMsg(data.error || "保存港口失败", false);
+        return;
+      }
+      setEditingPort(false);
+      showMsg("港口已保存", true);
+      await load(selectedCountryId, selectedPort.id);
+    } catch {
+      showMsg("保存港口失败，请重试", false);
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleDeletePort = async () => {
+    if (!selectedPort || busyKey || readOnly) return;
+    const label = portOptionLabel(selectedPort);
     if (!window.confirm(`确认删除港口「${label}」及其运费记录？`)) return;
-    setBusyKey(`port-del-${port.id}`);
+    setBusyKey("port-del");
     try {
       const res = await fetch(
-        `/api/admin/shipping/ports?id=${encodeURIComponent(port.id)}`,
+        `/api/admin/shipping/ports?id=${encodeURIComponent(selectedPort.id)}`,
         { method: "DELETE", credentials: "include", cache: "no-store" }
       );
       const data = await res.json();
@@ -499,8 +585,9 @@ export default function AdminShippingEditor({ initial }: Props) {
         showMsg(data.error || "删除港口失败", false);
         return;
       }
+      setEditingPort(false);
       showMsg("港口已删除", true);
-      await load(selectedCountryId);
+      await load(selectedCountryId, "");
     } catch {
       showMsg("删除港口失败，请重试", false);
     } finally {
@@ -541,10 +628,11 @@ export default function AdminShippingEditor({ initial }: Props) {
         showMsg(data.error || "添加港口失败", false);
         return;
       }
+      const newPortId = data.port?.id as string | undefined;
       setNewPort(emptyNewPort());
       setShowAddPort(false);
       showMsg("港口已添加", true);
-      await load(selectedCountry.id);
+      await load(selectedCountry.id, newPortId);
     } catch {
       showMsg("添加港口失败，请重试", false);
     } finally {
@@ -552,11 +640,23 @@ export default function AdminShippingEditor({ initial }: Props) {
     }
   };
 
+  const updateSelectedDraft = (patch: Partial<PortDraft>) => {
+    if (!selectedPort) return;
+    setPortDrafts((prev) => {
+      const current = prev[selectedPort.id] ?? portToDraft(selectedPort);
+      return {
+        ...prev,
+        [selectedPort.id]: { ...current, ...patch },
+      };
+    });
+  };
+
   return (
     <div className="space-y-6">
       <p className="text-xs text-slate-500 font-mono break-all">
         诊断：国家 {countryCount} · 港口 {portCount} · 来源 {source}
         {selectedCountryId ? ` · 已选 ${selectedCountryId}` : ""}
+        {selectedPortId ? ` · 港口 ${selectedPort?.port_id ?? selectedPortId}` : ""}
         {resolvedProjectRef ? ` · 项目 ${resolvedProjectRef}` : ""}
         {` · 密钥 ${keyTypeUsed}`}
         {countriesQueryErrorCode
@@ -567,6 +667,7 @@ export default function AdminShippingEditor({ initial }: Props) {
           : ""}
         {loading ? " · 刷新中…" : ""}
       </p>
+
       {countriesQueryErrorMessage && (
         <p className="text-xs text-red-600 break-all">
           查询错误：{countriesQueryErrorMessage}
@@ -580,37 +681,19 @@ export default function AdminShippingEditor({ initial }: Props) {
       )}
       {countryCount === 0 && source === "database" && resolvedProjectRef && (
         <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-medium">当前连接的 Supabase 项目中没有运费国家数据</p>
-          <p className="mt-1">
-            网站正在查询项目{" "}
-            <code className="rounded bg-amber-100 px-1">{resolvedProjectRef}</code>
-            （密钥类型：{keyTypeUsed}）。SQL Editor 能看到行、但接口为 0
-            时，通常是 API
-            密钥未绕过 RLS（车辆表有公开读策略仍可显示，运费表仅 service_role
-            可见）。请确认 Vercel 使用有效的{" "}
-            <code className="rounded bg-amber-100 px-1">SUPABASE_SECRET_KEY</code>{" "}
-            （sb_secret…）或可用的 service_role JWT，且不要把 anon/publishable
-            填进密钥变量。
-          </p>
+          当前连接的 Supabase 项目中没有运费国家数据（项目{" "}
+          <code className="rounded bg-amber-100 px-1">{resolvedProjectRef}</code>
+          ）。
         </div>
       )}
-
       {readOnly && fallbackReason === "tables_missing" && (
         <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-medium">运费数据表尚未创建</p>
-          <p className="mt-1">
-            当前显示的是静态示例数据（只读）。请先在 Supabase 执行迁移后再管理运费。来源：
-            {source}
-          </p>
+          运费数据表尚未创建，当前为静态示例数据（只读）。
         </div>
       )}
       {readOnly && fallbackReason === "client_unavailable" && (
         <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-medium">无法连接运费数据库</p>
-          <p className="mt-1">
-            当前显示的是静态示例数据（只读）。请检查服务器数据库配置。来源：
-            {source}
-          </p>
+          无法连接运费数据库，当前为静态示例数据（只读）。
         </div>
       )}
 
@@ -623,426 +706,429 @@ export default function AdminShippingEditor({ initial }: Props) {
         </p>
       )}
 
+      {/* 1. Select country */}
       <section className="rounded-sm border border-gray-200 bg-white p-4 space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <label className="block text-sm min-w-[16rem] flex-1 max-w-md">
-            <span className="font-medium text-[#1E293B]">选择国家</span>
-            <select
-              value={selectedCountryId}
-              onChange={(e) => {
-                setSelectedCountryId(e.target.value);
-                setEditingCountry(false);
-                setShowAddPort(false);
-                setGlobalMessage("");
-              }}
-              className="mt-1.5 w-full rounded-sm border border-gray-300 bg-white px-3 py-2.5 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
-            >
-              {countries.length === 0 && (
-                <option value="">暂无国家，请先添加</option>
-              )}
-              {countries.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {countryOptionLabel(c)}
-                  {c.enabled ? "" : "（已停用）"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={readOnly}
-            onClick={() => {
-              setShowAddCountry((v) => !v);
-              setGlobalMessage("");
-            }}
-            className="rounded-sm border border-gray-300 px-4 py-2.5 text-sm font-medium text-[#1E293B] hover:bg-gray-50 disabled:opacity-50"
+        <label className="block text-sm max-w-md">
+          <span className="font-medium text-[#1E293B]">选择国家</span>
+          <select
+            value={selectedCountryId}
+            onChange={(e) => selectCountry(e.target.value)}
+            className="mt-1.5 w-full rounded-sm border border-gray-300 bg-white px-3 py-2.5 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
           >
-            {showAddCountry ? "取消添加国家" : "添加国家"}
-          </button>
-        </div>
+            {countries.length === 0 && (
+              <option value="">暂无国家，请先添加</option>
+            )}
+            {countries.map((c) => (
+              <option key={c.id} value={c.id}>
+                {countryOptionLabel(c)}
+                {c.enabled ? "" : "（已停用）"}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        {showAddCountry && (
-          <div className="rounded-sm border border-dashed border-gray-300 bg-gray-50 p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-[#1E293B]">添加国家</h3>
-            <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
-              <label className="block text-sm">
-                <span className="text-gray-600">中文名称</span>
-                <input
-                  value={newCountryZh}
-                  onChange={(e) => setNewCountryZh(e.target.value)}
-                  disabled={addingCountry}
-                  className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
-                  placeholder="喀麦隆"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-gray-600">英文名称</span>
-                <input
-                  value={newCountryEn}
-                  onChange={(e) => setNewCountryEn(e.target.value)}
-                  disabled={addingCountry}
-                  className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
-                  placeholder="Cameroon"
-                />
-              </label>
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleAddCountry()}
-              disabled={addingCountry}
-              className="btn-primary disabled:opacity-50"
-            >
-              {addingCountry ? "添加中…" : "保存国家"}
-            </button>
-          </div>
-        )}
-      </section>
-
-      {!selectedCountry ? (
-        <p className="text-sm text-slate-500">
-          {countries.length === 0
-            ? "暂无国家，请先添加"
-            : "请选择国家以查看港口"}
-        </p>
-      ) : (
-        <section className="rounded-sm border border-gray-200 bg-white overflow-hidden">
-          <div className="flex flex-wrap items-start justify-between gap-3 bg-charcoal px-4 py-4 text-white">
+        {/* 2. Current country heading */}
+        {selectedCountry && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
             <div>
-              <p className="text-xs text-white/70">当前国家</p>
-              {editingCountry ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <input
-                    value={editCountryZh}
-                    onChange={(e) => setEditCountryZh(e.target.value)}
-                    className="rounded-sm border border-white/30 bg-white/10 px-2 py-1.5 text-sm text-white placeholder:text-white/50"
-                    placeholder="中文名称"
-                  />
-                  <input
-                    value={editCountryEn}
-                    onChange={(e) => setEditCountryEn(e.target.value)}
-                    className="rounded-sm border border-white/30 bg-white/10 px-2 py-1.5 text-sm text-white placeholder:text-white/50"
-                    placeholder="英文名称"
-                  />
-                </div>
-              ) : (
-                <h2 className="text-xl font-semibold mt-0.5">
-                  {countryTitle(selectedCountry)}
-                </h2>
-              )}
+              <p className="text-xs text-slate-500">当前国家</p>
+              <p className="text-lg font-semibold text-[#1E293B]">
+                {countryOptionLabel(selectedCountry)}
+              </p>
               {!selectedCountry.enabled && (
-                <p className="text-xs text-amber-200 mt-1">
+                <p className="text-xs text-amber-700 mt-0.5">
                   已停用（前台不显示）
                 </p>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {editingCountry ? (
-                <>
-                  <button
-                    type="button"
-                    disabled={busyKey !== null || readOnly}
-                    onClick={() => void handleSaveCountry()}
-                    className="rounded-sm bg-gold px-3 py-1.5 text-sm font-medium text-charcoal disabled:opacity-50"
-                  >
-                    保存
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingCountry(false)}
-                    className="rounded-sm border border-white/40 px-3 py-1.5 text-sm"
-                  >
-                    取消
-                  </button>
-                </>
+          </div>
+        )}
+
+        {/* 3. Select port */}
+        {selectedCountry && (
+          <label className="block text-sm max-w-md">
+            <span className="font-medium text-[#1E293B]">选择港口</span>
+            <select
+              value={selectedPortId}
+              onChange={(e) => {
+                setSelectedPortId(e.target.value);
+                setEditingPort(false);
+                setGlobalMessage("");
+              }}
+              disabled={countryPorts.length === 0}
+              className="mt-1.5 w-full rounded-sm border border-gray-300 bg-white px-3 py-2.5 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
+            >
+              {countryPorts.length === 0 ? (
+                <option value="">该国家暂无港口，请先添加港口。</option>
               ) : (
+                countryPorts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {portOptionLabel(p)}
+                    {p.enabled ? "" : "（已停用）"}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        )}
+      </section>
+
+      {/* 4–7. Selected port freight form */}
+      {selectedCountry && countryPorts.length === 0 && (
+        <p className="text-sm text-slate-500">该国家暂无港口，请先添加港口。</p>
+      )}
+
+      {selectedPort && selectedDraft && (
+        <section className="rounded-sm border border-gray-200 bg-white p-4 space-y-4">
+          <div>
+            <p className="text-xs text-slate-500">当前港口</p>
+            <p className="text-lg font-semibold text-[#1E293B]">
+              {portOptionLabel(selectedPort)}
+            </p>
+            {!selectedDraft.enabled && (
+              <p className="text-xs text-amber-700 mt-0.5">
+                已停用（前台不显示）
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
+            <label className="block text-sm">
+              <span className="text-gray-600">1 辆运费（美元）</span>
+              <input
+                type="number"
+                min={0}
+                value={selectedDraft.single_vehicle_usd}
+                disabled={readOnly || savingPort}
+                onChange={(e) =>
+                  updateSelectedDraft({ single_vehicle_usd: e.target.value })
+                }
+                className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-gray-600">2–4 辆整柜运费（美元）</span>
+              <input
+                type="number"
+                min={0}
+                value={selectedDraft.container_40ft_usd}
+                disabled={readOnly || savingPort}
+                onChange={(e) =>
+                  updateSelectedDraft({ container_40ft_usd: e.target.value })
+                }
+                className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
+              />
+            </label>
+          </div>
+
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={selectedDraft.enabled}
+              disabled={readOnly || savingPort}
+              onChange={(e) =>
+                updateSelectedDraft({ enabled: e.target.checked })
+              }
+            />
+            {selectedDraft.enabled ? "启用" : "停用"}
+          </label>
+
+          <div>
+            <button
+              type="button"
+              disabled={readOnly || savingPort}
+              onClick={() => void handleSaveFreight()}
+              className="btn-primary disabled:opacity-50"
+            >
+              {savingPort ? "保存中…" : "保存运费"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Secondary actions */}
+      {selectedCountry && (
+        <section className="rounded-sm border border-dashed border-gray-300 bg-slate-50 p-4 space-y-4">
+          <h3 className="text-sm font-semibold text-[#1E293B]">管理操作</h3>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={readOnly}
+              onClick={() => {
+                setEditingCountry((v) => !v);
+                setEditCountryEn(selectedCountry.name_en);
+                setEditCountryZh(selectedCountry.name_zh ?? "");
+                setShowAddCountry(false);
+              }}
+              className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
+            >
+              {editingCountry ? "取消编辑国家" : "编辑国家"}
+            </button>
+            <button
+              type="button"
+              disabled={readOnly}
+              onClick={() => {
+                setShowAddCountry((v) => !v);
+                setEditingCountry(false);
+              }}
+              className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
+            >
+              {showAddCountry ? "取消添加国家" : "添加国家"}
+            </button>
+            <button
+              type="button"
+              disabled={busyKey !== null || readOnly}
+              onClick={() => void handleToggleCountry()}
+              className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
+            >
+              {selectedCountry.enabled ? "停用国家" : "启用国家"}
+            </button>
+            <button
+              type="button"
+              disabled={busyKey !== null || readOnly}
+              onClick={() => void handleDeleteCountry()}
+              className="rounded-sm border border-red-200 bg-white px-3 py-2 text-sm text-red-600 disabled:opacity-50"
+            >
+              删除国家
+            </button>
+            {selectedPort && (
+              <>
                 <button
                   type="button"
                   disabled={readOnly}
                   onClick={() => {
-                    setEditingCountry(true);
-                    setEditCountryEn(selectedCountry.name_en);
-                    setEditCountryZh(selectedCountry.name_zh ?? "");
+                    setEditingPort((v) => !v);
+                    setShowAddPort(false);
                   }}
-                  className="rounded-sm border border-white/40 px-3 py-1.5 text-sm disabled:opacity-50"
+                  className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
                 >
-                  编辑国家
+                  {editingPort ? "取消编辑港口" : "编辑港口"}
                 </button>
-              )}
-              <button
-                type="button"
-                disabled={busyKey !== null || readOnly}
-                onClick={() => void handleToggleCountry()}
-                className="rounded-sm border border-white/40 px-3 py-1.5 text-sm disabled:opacity-50"
-              >
-                {selectedCountry.enabled ? "停用" : "启用"}
-              </button>
-              <button
-                type="button"
-                disabled={busyKey !== null || readOnly}
-                onClick={() => void handleDeleteCountry()}
-                className="rounded-sm border border-red-300/60 px-3 py-1.5 text-sm text-red-200 disabled:opacity-50"
-              >
-                删除
-              </button>
-            </div>
+                <button
+                  type="button"
+                  disabled={busyKey !== null || readOnly}
+                  onClick={() => void handleDeletePort()}
+                  className="rounded-sm border border-red-200 bg-white px-3 py-2 text-sm text-red-600 disabled:opacity-50"
+                >
+                  删除港口
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              disabled={readOnly}
+              onClick={() => {
+                setShowAddPort((v) => !v);
+                setNewPort(emptyNewPort());
+                setEditingPort(false);
+              }}
+              className="rounded-sm border border-gray-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
+            >
+              {showAddPort ? "取消添加港口" : "添加港口"}
+            </button>
           </div>
 
-          <div className="p-4 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-base font-semibold text-[#1E293B]">
-                港口列表
-              </h3>
+          {editingCountry && (
+            <div className="rounded-sm border border-gray-200 bg-white p-4 space-y-3 max-w-2xl">
+              <p className="text-sm font-medium text-[#1E293B]">编辑国家</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-gray-600">中文名称</span>
+                  <input
+                    value={editCountryZh}
+                    onChange={(e) => setEditCountryZh(e.target.value)}
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">英文名称</span>
+                  <input
+                    value={editCountryEn}
+                    onChange={(e) => setEditCountryEn(e.target.value)}
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                  />
+                </label>
+              </div>
               <button
                 type="button"
-                disabled={readOnly}
-                onClick={() => {
-                  setShowAddPort((v) => !v);
-                  setNewPort(emptyNewPort());
-                }}
+                disabled={busyKey !== null}
+                onClick={() => void handleSaveCountry()}
                 className="btn-primary disabled:opacity-50"
               >
-                {showAddPort ? "取消添加港口" : "添加港口"}
+                保存国家
               </button>
             </div>
+          )}
 
-            {showAddPort && (
-              <div className="rounded-sm border border-dashed border-gray-300 bg-gray-50 p-4 space-y-3">
-                <p className="text-sm text-slate-600">
-                  将添加到：
-                  <span className="font-medium text-[#1E293B]">
-                    {countryTitle(selectedCountry)}
-                  </span>
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <label className="block text-sm">
-                    <span className="text-gray-600">港口中文名称</span>
-                    <input
-                      value={newPort.name_zh}
-                      onChange={(e) =>
-                        setNewPort((p) => ({ ...p, name_zh: e.target.value }))
-                      }
-                      className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
-                      placeholder="杜阿拉"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="text-gray-600">港口英文名称</span>
-                    <input
-                      value={newPort.name_en}
-                      onChange={(e) =>
-                        setNewPort((p) => ({ ...p, name_en: e.target.value }))
-                      }
-                      className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
-                      placeholder="Douala"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="text-gray-600">1 辆运费（美元）</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={newPort.single_vehicle_usd}
-                      onChange={(e) =>
-                        setNewPort((p) => ({
-                          ...p,
-                          single_vehicle_usd: e.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="text-gray-600">
-                      2–4 辆整柜运费（美元）
-                    </span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={newPort.container_40ft_usd}
-                      onChange={(e) =>
-                        setNewPort((p) => ({
-                          ...p,
-                          container_40ft_usd: e.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
-                    />
-                  </label>
-                </div>
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          {showAddCountry && (
+            <div className="rounded-sm border border-gray-200 bg-white p-4 space-y-3 max-w-2xl">
+              <p className="text-sm font-medium text-[#1E293B]">添加国家</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-gray-600">中文名称</span>
                   <input
-                    type="checkbox"
-                    checked={newPort.enabled}
-                    onChange={(e) =>
-                      setNewPort((p) => ({ ...p, enabled: e.target.checked }))
-                    }
+                    value={newCountryZh}
+                    onChange={(e) => setNewCountryZh(e.target.value)}
+                    disabled={addingCountry}
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                    placeholder="贝宁"
                   />
-                  启用
                 </label>
-                <div>
-                  <button
-                    type="button"
-                    disabled={busyKey !== null}
-                    onClick={() => void handleAddPort()}
-                    className="btn-primary disabled:opacity-50"
-                  >
-                    {busyKey === "port-add" ? "添加中…" : "保存"}
-                  </button>
-                </div>
+                <label className="block text-sm">
+                  <span className="text-gray-600">英文名称</span>
+                  <input
+                    value={newCountryEn}
+                    onChange={(e) => setNewCountryEn(e.target.value)}
+                    disabled={addingCountry}
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                    placeholder="Benin"
+                  />
+                </label>
               </div>
-            )}
+              <button
+                type="button"
+                disabled={addingCountry}
+                onClick={() => void handleAddCountry()}
+                className="btn-primary disabled:opacity-50"
+              >
+                {addingCountry ? "添加中…" : "保存国家"}
+              </button>
+            </div>
+          )}
 
-            {selectedPorts.length === 0 ? (
-              <p className="text-sm text-slate-500 py-4">
-                该国家暂无港口，请添加港口。
+          {editingPort && selectedPort && selectedDraft && (
+            <div className="rounded-sm border border-gray-200 bg-white p-4 space-y-3 max-w-2xl">
+              <p className="text-sm font-medium text-[#1E293B]">编辑港口</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-gray-600">港口中文名称</span>
+                  <input
+                    value={selectedDraft.name_zh}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                      updateSelectedDraft({ name_zh: e.target.value })
+                    }
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">港口英文名称</span>
+                  <input
+                    value={selectedDraft.name_en}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                      updateSelectedDraft({ name_en: e.target.value })
+                    }
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                  />
+                </label>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={selectedDraft.enabled}
+                  disabled={readOnly}
+                  onChange={(e) =>
+                    updateSelectedDraft({ enabled: e.target.checked })
+                  }
+                />
+                {selectedDraft.enabled ? "启用" : "停用"}
+              </label>
+              <button
+                type="button"
+                disabled={busyKey !== null}
+                onClick={() => void handleSavePortMeta()}
+                className="btn-primary disabled:opacity-50"
+              >
+                保存港口
+              </button>
+            </div>
+          )}
+
+          {showAddPort && selectedCountry && (
+            <div className="rounded-sm border border-gray-200 bg-white p-4 space-y-3 max-w-2xl">
+              <p className="text-sm font-medium text-[#1E293B]">添加港口</p>
+              <p className="text-sm text-slate-600">
+                将添加到：
+                <span className="font-medium text-[#1E293B]">
+                  {countryOptionLabel(selectedCountry)}
+                </span>
               </p>
-            ) : (
-              <div className="space-y-4">
-                {selectedPorts.map((port) => {
-                  const draft = portDrafts[port.id] ?? portToDraft(port);
-                  const saving = savingPortId === port.id;
-                  return (
-                    <div
-                      key={port.id}
-                      className={`rounded-sm border p-4 space-y-3 ${
-                        draft.enabled
-                          ? "border-gray-200"
-                          : "border-dashed border-gray-300 bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-[#1E293B]">
-                          {port.name_zh || port.name_en}
-                          {port.name_zh && port.name_en
-                            ? ` / ${port.name_en}`
-                            : ""}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          当前：1 辆 {formatUsdDisplay(port.single_vehicle_usd)}{" "}
-                          · 2–4 辆 {formatUsdDisplay(port.container_40ft_usd)}
-                        </p>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <label className="block text-sm">
-                          <span className="text-gray-600">港口中文名称</span>
-                          <input
-                            value={draft.name_zh}
-                            disabled={readOnly || saving}
-                            onChange={(e) =>
-                              setPortDrafts((prev) => ({
-                                ...prev,
-                                [port.id]: {
-                                  ...draft,
-                                  name_zh: e.target.value,
-                                },
-                              }))
-                            }
-                            className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
-                          />
-                        </label>
-                        <label className="block text-sm">
-                          <span className="text-gray-600">港口英文名称</span>
-                          <input
-                            value={draft.name_en}
-                            disabled={readOnly || saving}
-                            onChange={(e) =>
-                              setPortDrafts((prev) => ({
-                                ...prev,
-                                [port.id]: {
-                                  ...draft,
-                                  name_en: e.target.value,
-                                },
-                              }))
-                            }
-                            className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
-                          />
-                        </label>
-                        <label className="block text-sm">
-                          <span className="text-gray-600">
-                            1 辆运费（美元）
-                          </span>
-                          <input
-                            type="number"
-                            min={0}
-                            value={draft.single_vehicle_usd}
-                            disabled={readOnly || saving}
-                            onChange={(e) =>
-                              setPortDrafts((prev) => ({
-                                ...prev,
-                                [port.id]: {
-                                  ...draft,
-                                  single_vehicle_usd: e.target.value,
-                                },
-                              }))
-                            }
-                            className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
-                          />
-                        </label>
-                        <label className="block text-sm">
-                          <span className="text-gray-600">
-                            2–4 辆整柜运费（美元）
-                          </span>
-                          <input
-                            type="number"
-                            min={0}
-                            value={draft.container_40ft_usd}
-                            disabled={readOnly || saving}
-                            onChange={(e) =>
-                              setPortDrafts((prev) => ({
-                                ...prev,
-                                [port.id]: {
-                                  ...draft,
-                                  container_40ft_usd: e.target.value,
-                                },
-                              }))
-                            }
-                            className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold disabled:bg-gray-50"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-3">
-                        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={draft.enabled}
-                            disabled={readOnly || saving}
-                            onChange={(e) =>
-                              setPortDrafts((prev) => ({
-                                ...prev,
-                                [port.id]: {
-                                  ...draft,
-                                  enabled: e.target.checked,
-                                },
-                              }))
-                            }
-                          />
-                          {draft.enabled ? "启用" : "停用"}
-                        </label>
-                        <button
-                          type="button"
-                          disabled={readOnly || saving}
-                          onClick={() => void handleSavePort(port)}
-                          className="btn-primary disabled:opacity-50"
-                        >
-                          {saving ? "保存中…" : "保存"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busyKey !== null || readOnly}
-                          onClick={() => void handleDeletePort(port)}
-                          className="rounded-sm border border-red-200 px-3 py-2 text-sm text-red-600 disabled:opacity-50"
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-gray-600">港口中文名称</span>
+                  <input
+                    value={newPort.name_zh}
+                    onChange={(e) =>
+                      setNewPort((p) => ({ ...p, name_zh: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                    placeholder="科托努"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">港口英文名称</span>
+                  <input
+                    value={newPort.name_en}
+                    onChange={(e) =>
+                      setNewPort((p) => ({ ...p, name_en: e.target.value }))
+                    }
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                    placeholder="Cotonou"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">1 辆运费（美元）</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newPort.single_vehicle_usd}
+                    onChange={(e) =>
+                      setNewPort((p) => ({
+                        ...p,
+                        single_vehicle_usd: e.target.value,
+                      }))
+                    }
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-gray-600">2–4 辆整柜运费（美元）</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newPort.container_40ft_usd}
+                    onChange={(e) =>
+                      setNewPort((p) => ({
+                        ...p,
+                        container_40ft_usd: e.target.value,
+                      }))
+                    }
+                    className="mt-1 w-full rounded-sm border border-gray-300 px-3 py-2 outline-none focus:border-gold focus:ring-2 focus:ring-gold"
+                  />
+                </label>
               </div>
-            )}
-          </div>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={newPort.enabled}
+                  onChange={(e) =>
+                    setNewPort((p) => ({ ...p, enabled: e.target.checked }))
+                  }
+                />
+                启用
+              </label>
+              <button
+                type="button"
+                disabled={busyKey !== null}
+                onClick={() => void handleAddPort()}
+                className="btn-primary disabled:opacity-50"
+              >
+                {busyKey === "port-add" ? "添加中…" : "保存"}
+              </button>
+            </div>
+          )}
         </section>
       )}
     </div>
