@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { Locale, Vehicle } from "@/lib/types";
 import { getVehicleQuoteCopy } from "@/lib/vehicleQuote/copy";
-import { assignNextQuoteContact } from "@/lib/vehicleQuote/contacts";
+import { assignNextQuoteContact, getQuoteContactByName } from "@/lib/vehicleQuote/contacts";
 import {
   buildQuoteFilename,
   buildQuoteSpecRows,
@@ -214,13 +214,16 @@ async function drawCoverImage(
 
 /**
  * Generate and trigger download of a vehicle quotation PDF in the active locale.
+ * Optional contactName locks Shawn/Miles to match an inquiry without changing RR default.
  */
 export async function downloadVehicleQuotePdf(
   vehicle: Vehicle,
-  locale: Locale
+  locale: Locale,
+  options?: { contactName?: string | null }
 ): Promise<{ contactName: string }> {
   const copy = getVehicleQuoteCopy(locale);
-  const contact = assignNextQuoteContact();
+  const contact =
+    getQuoteContactByName(options?.contactName) ?? assignNextQuoteContact();
   const whatsappDisplay = contact.whatsappDisplay;
   const useBitmap = locale === "zh";
   const doc = new jsPDF({ unit: "pt", format: "a4" });

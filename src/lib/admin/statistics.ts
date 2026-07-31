@@ -874,6 +874,26 @@ export async function getAdminStatistics(options: {
     };
   }
 
+  // CRM inquiries count for selected range (when table is ready)
+  try {
+    const supabase = getSupabaseAdmin();
+    const { count, error } = await supabase
+      .from("inquiries")
+      .select("*", { count: "exact", head: true })
+      .is("archived_at", null)
+      .gte("created_at", range.startIso)
+      .lt("created_at", range.endIso);
+    if (!error) {
+      period.inquiries = {
+        available: true,
+        value: count ?? 0,
+        message: null,
+      };
+    }
+  } catch (err) {
+    logSafe("inquiries.period", err);
+  }
+
   // Remaining business metrics that still lack dedicated tables
   if (!period.inquiries.available) {
     notEnabled.push({

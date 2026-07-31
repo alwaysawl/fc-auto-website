@@ -253,7 +253,7 @@ function RecentInquiriesTable({
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200">
-            {["询盘编号", "时间", "车辆", "来源页面", "分配销售", "状态"].map((h) => (
+            {["询盘编号", "时间", "车辆", "来源", "负责人", "状态"].map((h) => (
               <th
                 key={h}
                 className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap"
@@ -267,7 +267,16 @@ function RecentInquiriesTable({
           {rows.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
-                {row.inquiry_id}
+                {row.status === "已分配" ? (
+                  row.inquiry_id
+                ) : (
+                  <Link
+                    href={`/admin/inquiries/${row.id}`}
+                    className="hover:underline text-[#1E293B] font-semibold"
+                  >
+                    {row.inquiry_id}
+                  </Link>
+                )}
               </td>
               <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                 {new Date(row.created_at).toLocaleDateString("zh-CN", {
@@ -394,7 +403,7 @@ export default async function AdminDashboard() {
           <h2 className="text-base font-semibold text-[#1E293B] mb-3">快捷操作</h2>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "添加车辆", href: "/admin/vehicles/new", icon: "➕" },
+              { label: "新增询盘", href: "/admin/inquiries/new", icon: "➕" },
               { label: "全部车辆", href: "/admin/vehicles", icon: "🚗" },
               { label: "全部询盘", href: "/admin/inquiries", icon: "💬" },
               { label: "销售团队", href: "/admin/sales", icon: "👥" },

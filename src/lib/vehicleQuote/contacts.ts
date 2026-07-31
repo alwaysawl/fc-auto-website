@@ -47,3 +47,13 @@ export function assignNextQuoteContact(): QuoteContact {
   }
   return QUOTE_CONTACTS[nextIndex % QUOTE_CONTACTS.length]!;
 }
+
+/** Resolve Shawn/Miles by display name without advancing the round-robin. */
+export function getQuoteContactByName(name: string | null | undefined): QuoteContact | null {
+  if (!name) return null;
+  const key = name.trim().toLowerCase();
+  return (
+    QUOTE_CONTACTS.find((c) => c.name.toLowerCase() === key || c.id === key) ??
+    null
+  );
+}

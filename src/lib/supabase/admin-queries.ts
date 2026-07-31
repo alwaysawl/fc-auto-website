@@ -134,9 +134,8 @@ export async function getDashboardRecentVehicles(
 }
 
 /**
- * Inquiry / lead stats from existing sales_assignments (WhatsApp round-robin log).
- * Does not query public.inquiries (that table is not present in production).
- * Does not change assignment / round-robin logic.
+ * Prefer CRM `inquiries` when the table is available; otherwise fall back to
+ * sales_assignments (WhatsApp round-robin log). Never invent fake rows.
  */
 export async function getDashboardInquiryStats(): Promise<DashboardInquiryStats> {
   let supabase;
@@ -153,6 +152,58 @@ export async function getDashboardInquiryStats(): Promise<DashboardInquiryStats>
   }
 
   const today = todayIso();
+  const shanghaiTodayStart = `${today}T00:00:00+08:00`;
+  const shanghaiTomorrow = new Date(shanghaiTodayStart);
+  shanghaiTomorrow.setUTCDate(shanghaiTomorrow.getUTCDate() + 1);
+
+  // Try CRM inquiries first
+  try {
+    const { count: totalCount, error: totalError } = await supabase
+      .from("inquiries")
+      .select("*", { count: "exact", head: true })
+      .is("archived_at", null);
+
+    if (!totalError) {
+      const { count: todayCount, error: todayError } = await supabase
+        .from("inquiries")
+        .select("*", { count: "exact", head: true })
+        .is("archived_at", null)
+        .gte("created_at", new Date(shanghaiTodayStart).toISOString())
+        .lt("created_at", shanghaiTomorrow.toISOString());
+
+      if (todayError) throw todayError;
+
+      const { data: recentRows, error: recentError } = await supabase
+        .from("inquiries")
+        .select(
+          "id, inquiry_number, created_at, vehicle_title_snapshot, source, assigned_contact_name, status"
+        )
+        .is("archived_at", null)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (recentError) throw recentError;
+
+      const recentInquiries: InquiryRow[] = (recentRows ?? []).map((row) => ({
+        id: String(row.id),
+        inquiry_id: String(row.inquiry_number ?? row.id),
+        created_at: String(row.created_at),
+        vehicle_title: row.vehicle_title_snapshot ?? null,
+        source_page: row.source ?? null,
+        sales_agent_name: row.assigned_contact_name ?? null,
+        status: row.status ?? "new",
+      }));
+
+      return {
+        totalInquiries: totalCount ?? 0,
+        todayInquiries: todayCount ?? 0,
+        recentInquiries,
+      };
+    }
+  } catch (err) {
+    logSafeDbError("getDashboardInquiryStats.crm", err);
+    // fall through to sales_assignments
+  }
 
   try {
     const { count: totalCount, error: totalError } = await supabase
@@ -193,6 +244,7 @@ export async function getDashboardInquiryStats(): Promise<DashboardInquiryStats>
       totalInquiries: totalCount ?? 0,
       todayInquiries: todayCount ?? 0,
       recentInquiries,
+      note: "当前显示 WhatsApp 分配记录；CRM 询盘表可用后将优先展示。",
     };
   } catch (err) {
     logSafeDbError("getDashboardInquiryStats", err);
@@ -245,7 +297,7 @@ export async function getDashboardSalesTeam(): Promise<DashboardSalesStats> {
       const counts = personMap[agent.name] ?? { total: 0, today: 0 };
       return {
         name: agent.name,
-        role: agent.role || "销售顾问",
+        role: agent.role || "销售联系人",
         isActive: !!agent.is_active,
         total: counts.total,
         today: counts.today,
