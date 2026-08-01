@@ -16,6 +16,8 @@ export const ANALYTICS_EVENT_NAMES = [
   "vehicle_detail_view",
   "cart_clear",
   "language_change",
+  "custom_sourcing_page_view",
+  "custom_sourcing_submit",
 ] as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[number];
@@ -69,6 +71,7 @@ export function mapWhatsAppSource(sourcePage: string): WhatsAppClickSource {
   if (s.includes("cart")) return "cart_checkout";
   if (s.includes("contact")) return "contact_page";
   if (s.includes("inventory")) return "inventory";
+  if (s.includes("car-sourcing") || s.includes("sourcing")) return "other";
   if (s.includes("home") || s.includes("hero")) return "home";
   if (s.includes("footer")) return "footer";
   if (s.includes("shipping")) return "shipping_calculator";

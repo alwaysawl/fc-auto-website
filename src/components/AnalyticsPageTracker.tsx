@@ -42,6 +42,14 @@ export default function AnalyticsPageTracker({ locale }: { locale: Locale }) {
         dedupeKey: `vehicle_detail_view|${vehicleId}`,
       });
     }
+
+    if (rest[0] === "car-sourcing") {
+      trackAnalyticsEvent("custom_sourcing_page_view", {
+        locale: pathLocale,
+        pagePath: pathname,
+        dedupeKey: `custom_sourcing_page_view|${pathname}`,
+      });
+    }
   }, [pathname, locale]);
 
   return null;

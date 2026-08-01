@@ -55,7 +55,8 @@ export default function HeroBanner({ locale, t }: HeroBannerProps) {
               {t.hero.subtitle}
             </p>
 
-            {/* Stack CTAs below md so long translations never collide */}
+            {/* Stack CTAs below md so long translations never collide.
+                Mobile order: Browse Inventory → WhatsApp Now → Custom Car Sourcing */}
             <div className="flex flex-col md:flex-row md:flex-wrap gap-3">
               <Link
                 href={getLocalizedPath("/inventory", locale)}
@@ -75,6 +76,12 @@ export default function HeroBanner({ locale, t }: HeroBannerProps) {
                 </svg>
                 {t.hero.whatsappCta}
               </WhatsAppAssignLink>
+              <Link
+                href={getLocalizedPath("/car-sourcing", locale)}
+                className="inline-flex items-center justify-center gap-2 w-full md:w-auto min-h-11 px-5 py-3 bg-white/10 text-white text-sm font-semibold rounded-md border border-white/35 hover:bg-white/15 transition-colors backdrop-blur-sm"
+              >
+                {t.hero.sourcingCta}
+              </Link>
             </div>
           </div>
         </div>
