@@ -227,6 +227,7 @@ function createAdminFetch(apiKey: string): typeof fetch {
       ...init,
       method,
       headers,
+      cache: "no-store",
       // Avoid reusing a locked Request body stream when we rebuild the call.
       body:
         init?.body !== undefined

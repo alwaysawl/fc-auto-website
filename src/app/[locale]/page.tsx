@@ -13,6 +13,7 @@ import VehicleCard from "@/components/VehicleCard";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
 
 /** Always fetch live featured vehicles — do not serve a build-time snapshot. */
 export const dynamic = "force-dynamic";
@@ -36,6 +37,7 @@ export default async function HomePage({
 }: {
   params: Promise<{ locale: string }>;
 }) {
+  noStore();
   const { locale: localeParam } = await params;
   const locale = localeParam as Locale;
   const t = getTranslations(locale);
