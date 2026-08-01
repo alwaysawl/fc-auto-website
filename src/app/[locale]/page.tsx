@@ -14,6 +14,10 @@ import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import Link from "next/link";
 import type { Metadata } from "next";
 
+/** Always fetch live featured vehicles — do not serve a build-time snapshot. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function generateMetadata({
   params,
 }: {

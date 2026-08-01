@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminApi } from "@/lib/admin/auth";
 import {
   dbGetHomepageFeaturedVehicles,
@@ -7,9 +8,18 @@ import {
   dbSetHomepageFeatured,
 } from "@/lib/supabase/vehicle-queries";
 import { HOMEPAGE_SHOWCASE_LIMIT } from "@/lib/homepage-rank";
+import { locales } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Bust locale homepage caches after featured list changes. */
+function revalidateHomepagePaths() {
+  for (const locale of locales) {
+    revalidatePath(`/${locale}`, "page");
+  }
+  revalidatePath("/", "layout");
+}
 
 /**
  * Admin-only homepage featured list.
@@ -64,6 +74,7 @@ export async function PUT(request: Request) {
         .filter(Boolean);
 
       const vehicles = await dbReorderHomepageFeatured(orderedIds);
+      revalidateHomepagePaths();
       return NextResponse.json({
         vehicles,
         message: "保存成功",
@@ -73,6 +84,7 @@ export async function PUT(request: Request) {
     if (typeof body?.id === "string" && typeof body?.featured === "boolean") {
       const vehicle = await dbSetHomepageFeatured(body.id.trim(), body.featured);
       const vehicles = await dbGetHomepageFeaturedVehicles();
+      revalidateHomepagePaths();
       return NextResponse.json({
         vehicle,
         vehicles,
