@@ -1,8 +1,10 @@
 import { Locale } from "@/lib/types";
 import { getTranslations, getReviewText } from "@/lib/translations";
 import { getReviews } from "@/lib/data";
-import { dbGetPublicVehicles } from "@/lib/supabase/vehicle-queries";
-import { pickHomepageShowcaseVehicles } from "@/lib/homepage-rank";
+import {
+  dbGetHomepageShowcaseVehicles,
+  dbGetPublicVehicles,
+} from "@/lib/supabase/vehicle-queries";
 import { getLocalizedPath } from "@/lib/i18n";
 import HeroBanner from "@/components/HeroBanner";
 import HomeVehicleShowcase from "@/components/HomeVehicleShowcase";
@@ -11,9 +13,6 @@ import VehicleCard from "@/components/VehicleCard";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import Link from "next/link";
 import type { Metadata } from "next";
-
-/** Popular Models section currently shows 4 cards */
-const HOMEPAGE_SHOWCASE_LIMIT = 4;
 
 export async function generateMetadata({
   params,
@@ -39,9 +38,14 @@ export default async function HomePage({
   const reviews = getReviews();
 
   let publicVehicles: Awaited<ReturnType<typeof dbGetPublicVehicles>> = [];
+  let showcaseVehicles: Awaited<
+    ReturnType<typeof dbGetHomepageShowcaseVehicles>
+  > = [];
   try {
     // status = '在售' only — sold/draft/unavailable never included
     publicVehicles = await dbGetPublicVehicles();
+    // featured = true ORDER BY homepage_rank ASC, max 4
+    showcaseVehicles = await dbGetHomepageShowcaseVehicles();
   } catch (err) {
     console.error(
       "[HomePage] Supabase vehicles fetch failed:",
@@ -50,10 +54,6 @@ export default async function HomePage({
   }
 
   const featuredVehicles = publicVehicles.filter((v) => v.featured);
-  const showcaseVehicles = pickHomepageShowcaseVehicles(
-    publicVehicles,
-    HOMEPAGE_SHOWCASE_LIMIT
-  );
 
   return (
     <>

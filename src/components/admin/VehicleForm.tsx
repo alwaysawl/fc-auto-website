@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { Vehicle, VehicleStatus } from "@/lib/types";
 import { DRIVE_TYPE_ADMIN_OPTIONS } from "@/lib/drive-type";
-import { HOMEPAGE_RANK_ADMIN_OPTIONS } from "@/lib/homepage-rank";
 import VehicleImageUploader, { type UploadedImage } from "./VehicleImageUploader";
 import {
   uploadVehicleImageFiles,
@@ -221,12 +221,6 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
       if (form.fobPrice == null || Number.isNaN(Number(form.fobPrice)) || form.fobPrice < 0) {
         throw new Error("FOB 价格必须为大于或等于 0 的数字。");
       }
-      if (form.featured) {
-        const rank = Number(form.homepageRank);
-        if (![1, 2, 3, 4].includes(rank)) {
-          throw new Error("开启首页推荐时请选择首页排序（第1–4位）。");
-        }
-      }
 
       if (targetStatus === "已售") {
         const name = form.titleEn?.trim() || `${form.brand} ${form.model}`;
@@ -276,9 +270,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
         // Empty string (not undefined) so PUT clears drive_type in Supabase.
         driveType: form.driveType?.trim() || "",
         featured: !!form.featured,
-        homepageRank: form.featured
-          ? (form.homepageRank ?? null)
-          : null,
+        homepageRank: undefined,
         mainImageUrl: mainImageUrl || undefined,
         galleryImageUrls,
         photos: imageUrls,
@@ -554,7 +546,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
               {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
           </div>
-          <div className="flex items-center gap-3 pt-7">
+          <div className="flex items-center gap-3 pt-7 sm:col-span-2">
             <input
               type="checkbox"
               id="featured"
@@ -564,7 +556,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
                 setForm((prev) => ({
                   ...prev,
                   featured: checked,
-                  homepageRank: checked ? (prev.homepageRank ?? 1) : null,
+                  homepageRank: checked ? prev.homepageRank : null,
                 }));
                 setIsDirty(true);
               }}
@@ -573,26 +565,12 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
             <label htmlFor="featured" className="text-sm font-medium text-[#1E293B]">
               首页推荐
             </label>
-          </div>
-          <div>
-            <label className={labelCls}>首页排序</label>
-            <select
-              className={fieldCls}
-              value={form.featured ? String(form.homepageRank ?? "") : ""}
-              disabled={!form.featured}
-              onChange={(e) => {
-                const raw = e.target.value;
-                set("homepageRank", raw ? Number(raw) : null);
-              }}
+            <Link
+              href="/admin/homepage-featured"
+              className="text-xs text-slate-500 hover:text-[#1E293B] underline underline-offset-2"
             >
-              {!form.featured && <option value="">不推荐</option>}
-              {HOMEPAGE_RANK_ADMIN_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-slate-400">
-              开启首页推荐后选择第1–4位；若该位置已被占用，将与原车辆自动互换。
-            </p>
+              在「首页推荐」中拖拽排序 →
+            </Link>
           </div>
         </div>
       </div>

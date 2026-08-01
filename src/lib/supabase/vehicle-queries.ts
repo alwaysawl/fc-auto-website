@@ -62,7 +62,7 @@ import "server-only";
 
 import { getSupabaseAdmin } from "./admin";
 import type { Vehicle, ShippingTier } from "@/lib/types";
-import { normalizeHomepageAssignment } from "@/lib/homepage-rank";
+import { HOMEPAGE_SHOWCASE_LIMIT } from "@/lib/homepage-rank";
 
 // ─── Row shape returned by Supabase ──────────────────────────────────────────
 interface VehicleRow {
@@ -317,6 +317,70 @@ export async function dbGetPublicVehicles(): Promise<PublicVehicle[]> {
   return ((data ?? []) as unknown as PublicVehicleRow[]).map(rowToPublicVehicle);
 }
 
+/**
+ * Homepage Popular Models: featured = true, ORDER BY homepage_rank ASC, limit 4.
+ * Sold/draft/unavailable never included (status = 在售 only).
+ */
+export async function dbGetHomepageShowcaseVehicles(
+  limit = HOMEPAGE_SHOWCASE_LIMIT
+): Promise<PublicVehicle[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("vehicles")
+    .select(PUBLIC_VEHICLE_SELECT)
+    .eq("status", "在售")
+    .eq("featured", true)
+    .order("homepage_rank", { ascending: true, nullsFirst: false })
+    .limit(limit);
+
+  if (error) {
+    const code = error.code ? ` [code: ${error.code}]` : "";
+    console.error("[dbGetHomepageShowcaseVehicles]", error.message, error.code ?? "");
+    throw new Error(`${error.message}${code}`);
+  }
+
+  return ((data ?? []) as unknown as PublicVehicleRow[]).map(rowToPublicVehicle);
+}
+
+/** All featured vehicles for admin drag-and-drop manager (any status). */
+export async function dbGetHomepageFeaturedVehicles(): Promise<Vehicle[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("vehicles")
+    .select("*")
+    .eq("featured", true)
+    .order("homepage_rank", { ascending: true, nullsFirst: false })
+    .order("updated_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data as VehicleRow[]).map(rowToVehicle);
+}
+
+export async function dbReorderHomepageFeatured(
+  orderedIds: string[]
+): Promise<Vehicle[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.rpc("reorder_homepage_featured", {
+    p_ordered_ids: orderedIds,
+  });
+  if (error) throwFriendlyHomepageError(error);
+  return ((data ?? []) as VehicleRow[]).map(rowToVehicle);
+}
+
+export async function dbSetHomepageFeatured(
+  id: string,
+  featured: boolean
+): Promise<Vehicle> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.rpc("set_vehicle_homepage_featured", {
+    p_vehicle_id: id,
+    p_featured: featured,
+  });
+  if (error) throwFriendlyHomepageError(error);
+  if (!data) throw new Error("车辆不存在。");
+  return rowToVehicle(data as VehicleRow);
+}
+
 /** Prefer main_image_url for card display; fall back only when empty. */
 export function withPublicPhotos(vehicle: PublicVehicle): PublicVehicle {
   return { ...vehicle, photos: buildVehicleGallery(vehicle) };
@@ -403,25 +467,13 @@ export async function dbGetSimilarPublicVehicles(
 
 export async function dbCreateVehicle(vehicle: Vehicle): Promise<Vehicle> {
   const supabase = getSupabaseAdmin();
-  const homepage = normalizeHomepageAssignment({
-    featured: vehicle.featured,
-    homepageRank: vehicle.homepageRank,
-  });
+  const wantFeatured = !!vehicle.featured;
 
-  if (homepage.homepageRank != null) {
-    const { error: prepError } = await supabase.rpc(
-      "prepare_homepage_rank_slot",
-      { p_homepage_rank: homepage.homepageRank }
-    );
-    if (prepError) {
-      throwFriendlyHomepageError(prepError);
-    }
-  }
-
+  // Insert without homepage rank first; feature via RPC so ranks stay unique.
   const row = vehicleToInsertRow({
     ...vehicle,
-    featured: homepage.featured,
-    homepageRank: homepage.homepageRank,
+    featured: false,
+    homepageRank: null,
   });
   const now = new Date().toISOString();
 
@@ -440,7 +492,10 @@ export async function dbCreateVehicle(vehicle: Vehicle): Promise<Vehicle> {
     }
     throwFriendlyHomepageError(error);
   }
-  return rowToVehicle(data as VehicleRow);
+
+  const created = rowToVehicle(data as VehicleRow);
+  if (!wantFeatured) return created;
+  return dbSetHomepageFeatured(created.id, true);
 }
 
 export async function dbUpdateVehicle(
@@ -449,54 +504,27 @@ export async function dbUpdateVehicle(
 ): Promise<Vehicle | null> {
   const supabase = getSupabaseAdmin();
 
-  const touchesHomepage =
-    updates.featured !== undefined || updates.homepageRank !== undefined;
-
   const nextUpdates = { ...updates };
   let homepageUpdated: Vehicle | null = null;
 
-  if (touchesHomepage) {
+  if (updates.featured !== undefined) {
     const { data: current, error: currentError } = await supabase
       .from("vehicles")
-      .select("featured, homepage_rank")
+      .select("featured")
       .eq("id", id)
       .maybeSingle();
 
-    if (currentError) {
-      throwFriendlyHomepageError(currentError);
-    }
+    if (currentError) throwFriendlyHomepageError(currentError);
     if (!current) return null;
 
-    const homepage = normalizeHomepageAssignment({
-      featured:
-        updates.featured !== undefined
-          ? updates.featured
-          : (current.featured as boolean),
-      homepageRank:
-        updates.homepageRank !== undefined
-          ? updates.homepageRank
-          : (current.homepage_rank as number | null),
-    });
-
-    const { data: assigned, error: assignError } = await supabase.rpc(
-      "assign_vehicle_homepage_rank",
-      {
-        p_vehicle_id: id,
-        p_featured: homepage.featured,
-        p_homepage_rank: homepage.homepageRank,
-      }
-    );
-
-    if (assignError) {
-      throwFriendlyHomepageError(assignError);
+    if (!!updates.featured !== !!current.featured) {
+      homepageUpdated = await dbSetHomepageFeatured(id, !!updates.featured);
     }
 
-    if (assigned) {
-      homepageUpdated = rowToVehicle(assigned as VehicleRow);
-    }
-
-    // Rank/featured already persisted by RPC — do not update them again.
     delete nextUpdates.featured;
+    delete nextUpdates.homepageRank;
+  } else if (updates.homepageRank !== undefined) {
+    // Rank is controlled by the featured manager reorder API only.
     delete nextUpdates.homepageRank;
   }
 

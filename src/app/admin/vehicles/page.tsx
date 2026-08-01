@@ -188,15 +188,23 @@ function PageHeader({ count }: { count: number }) {
           共 {count} 辆车辆 · 管理在售、草稿和历史车辆
         </p>
       </div>
-      <Link
-        href="/admin/vehicles/new"
-        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FACC15] text-[#1E293B] text-sm font-semibold rounded-lg hover:bg-yellow-300 transition-colors shadow-sm"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        添加车辆
-      </Link>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Link
+          href="/admin/homepage-featured"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-[#1E293B] text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+        >
+          ⭐ 首页推荐排序
+        </Link>
+        <Link
+          href="/admin/vehicles/new"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FACC15] text-[#1E293B] text-sm font-semibold rounded-lg hover:bg-yellow-300 transition-colors shadow-sm"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          添加车辆
+        </Link>
+      </div>
     </div>
   );
 }

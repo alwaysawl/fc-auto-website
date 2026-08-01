@@ -5,19 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Vehicle, VehicleStatus } from "@/lib/types";
-import {
-  HOMEPAGE_RANK_ADMIN_OPTIONS,
-  type HomepageRank,
-} from "@/lib/homepage-rank";
 import VehicleStatusBadge from "./VehicleStatusBadge";
 
 interface Props {
   vehicles: Vehicle[];
   locale?: string;
 }
-
-const homepageSelectCls =
-  "min-w-[5.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/40 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 
 function coverSrc(v: Vehicle): string | null {
   return v.mainImageUrl?.trim() || v.photos?.[0] || null;
@@ -54,19 +47,6 @@ export default function VehicleManagementTable({
     setLocalVehicles(vehicles);
   }, [vehicles]);
 
-  const reloadVehicles = async () => {
-    const res = await fetch("/api/vehicles", { credentials: "include" });
-    if (!res.ok) {
-      router.refresh();
-      return;
-    }
-    const data = await res.json().catch(() => ({}));
-    if (Array.isArray(data.vehicles)) {
-      setLocalVehicles(data.vehicles as Vehicle[]);
-    }
-    router.refresh();
-  };
-
   const patchStatus = async (id: string, status: VehicleStatus) => {
     setLoadingId(id);
     setErrorMsg(null);
@@ -94,35 +74,45 @@ export default function VehicleManagementTable({
     }
   };
 
-  const patchHomepage = async (
-    id: string,
-    featured: boolean,
-    homepageRank: HomepageRank | null
-  ) => {
+  const patchHomepageFeatured = async (id: string, featured: boolean) => {
     setLoadingId(id);
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      const res = await fetch("/api/vehicles", {
+      const res = await fetch("/api/admin/homepage-featured", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          id,
-          featured,
-          homepageRank: featured ? homepageRank : null,
-        }),
+        body: JSON.stringify({ id, featured }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "首页推荐保存失败");
+        throw new Error(data.error || "首页推荐更新失败");
       }
-      // Reload full list so automatic rank swaps appear on other rows.
-      await reloadVehicles();
-      setSuccessMsg("Homepage rankings have been updated.");
+      const updated = data.vehicle as Vehicle | undefined;
+      if (updated) {
+        setLocalVehicles((prev) =>
+          prev.map((v) => (v.id === updated.id ? { ...v, ...updated } : v))
+        );
+      } else {
+        setLocalVehicles((prev) =>
+          prev.map((v) =>
+            v.id === id
+              ? {
+                  ...v,
+                  featured,
+                  homepageRank: featured ? v.homepageRank : null,
+                }
+              : v
+          )
+        );
+      }
+      setSuccessMsg(
+        data.message || "Homepage rankings have been updated."
+      );
+      router.refresh();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "操作失败，请重试。");
-      await reloadVehicles().catch(() => undefined);
     } finally {
       setLoadingId(null);
     }
@@ -143,28 +133,6 @@ export default function VehicleManagementTable({
     void patchStatus(v.id, status);
   };
 
-  const onFeaturedToggle = (v: Vehicle, checked: boolean) => {
-    if (checked) {
-      const rank = (v.homepageRank as HomepageRank | null) ?? 1;
-      void patchHomepage(v.id, true, rank);
-      return;
-    }
-    void patchHomepage(v.id, false, null);
-  };
-
-  const onRankChange = (v: Vehicle, raw: string) => {
-    if (!raw) {
-      void patchHomepage(v.id, false, null);
-      return;
-    }
-    const rank = Number(raw) as HomepageRank;
-    void patchHomepage(v.id, true, rank);
-  };
-
-  /**
-   * Permanent delete only (no soft-delete/archive in this project).
-   * Two Chinese confirmations required.
-   */
   const deleteVehicle = async (v: Vehicle) => {
     const name = vehicleTitle(v);
     const first = window.confirm(
@@ -201,35 +169,6 @@ export default function VehicleManagementTable({
     }
   };
 
-  const renderHomepageControls = (v: Vehicle, isLoading: boolean) => (
-    <div className="flex flex-col gap-1.5 min-w-[7rem]">
-      <label className="inline-flex items-center gap-1.5 text-xs text-[#1E293B]">
-        <input
-          type="checkbox"
-          checked={!!v.featured}
-          disabled={isLoading}
-          onChange={(e) => onFeaturedToggle(v, e.target.checked)}
-          className="w-3.5 h-3.5 rounded accent-[#FACC15]"
-        />
-        {v.featured ? "首页推荐" : "不推荐"}
-      </label>
-      <select
-        className={homepageSelectCls}
-        value={v.featured && v.homepageRank ? String(v.homepageRank) : ""}
-        disabled={isLoading || !v.featured}
-        onChange={(e) => onRankChange(v, e.target.value)}
-        aria-label="首页排序"
-      >
-        {!v.featured && <option value="">不推荐</option>}
-        {HOMEPAGE_RANK_ADMIN_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-
   const renderActions = (
     v: Vehicle,
     isLoading: boolean,
@@ -249,6 +188,27 @@ export default function VehicleManagementTable({
       >
         编辑
       </Link>
+      {v.featured ? (
+        <button
+          type="button"
+          onClick={() => void patchHomepageFeatured(v.id, false)}
+          disabled={isLoading}
+          className="px-2 py-1 text-xs rounded-md bg-white text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50 whitespace-nowrap"
+          title="Remove from Homepage"
+        >
+          ✖ Remove from Homepage
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => void patchHomepageFeatured(v.id, true)}
+          disabled={isLoading}
+          className="px-2 py-1 text-xs rounded-md bg-[#FACC15]/25 text-yellow-900 border border-yellow-200 hover:bg-[#FACC15]/40 transition-colors disabled:opacity-50 whitespace-nowrap"
+          title="Feature on Homepage"
+        >
+          ⭐ Feature on Homepage
+        </button>
+      )}
       {currentStatus === "在售" ? (
         <button
           type="button"
@@ -323,7 +283,15 @@ export default function VehicleManagementTable({
         </div>
       )}
 
-      {/* Desktop table */}
+      <div className="mb-3 flex justify-end">
+        <Link
+          href="/admin/homepage-featured"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1E293B] hover:underline"
+        >
+          ⭐ Manage Homepage Featured →
+        </Link>
+      </div>
+
       <div className="hidden lg:block overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
         <table className="min-w-full text-sm">
           <thead>
@@ -332,7 +300,6 @@ export default function VehicleManagementTable({
                 "主图",
                 "标题",
                 "首页推荐",
-                "首页排序",
                 "库存编号",
                 "品牌",
                 "车型",
@@ -390,36 +357,14 @@ export default function VehicleManagementTable({
                     </p>
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">
-                    <label className="inline-flex items-center gap-1.5 text-xs text-[#1E293B]">
-                      <input
-                        type="checkbox"
-                        checked={!!v.featured}
-                        disabled={isLoading}
-                        onChange={(e) => onFeaturedToggle(v, e.target.checked)}
-                        className="w-3.5 h-3.5 rounded accent-[#FACC15]"
-                      />
-                      {v.featured ? "首页推荐" : "不推荐"}
-                    </label>
-                  </td>
-                  <td className="px-3 py-3 whitespace-nowrap">
-                    <select
-                      className={homepageSelectCls}
-                      value={
-                        v.featured && v.homepageRank
-                          ? String(v.homepageRank)
-                          : ""
-                      }
-                      disabled={isLoading || !v.featured}
-                      onChange={(e) => onRankChange(v, e.target.value)}
-                      aria-label="首页排序"
-                    >
-                      {!v.featured && <option value="">不推荐</option>}
-                      {HOMEPAGE_RANK_ADMIN_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                    {v.featured ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded bg-[#FACC15]/30 text-yellow-800">
+                        ⭐
+                        {v.homepageRank ? ` #${v.homepageRank}` : " Featured"}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
                     {v.id}
@@ -456,7 +401,6 @@ export default function VehicleManagementTable({
         </table>
       </div>
 
-      {/* Mobile cards */}
       <div className="lg:hidden space-y-4 p-4">
         {localVehicles.map((v) => {
           const isLoading = loadingId === v.id;
@@ -496,13 +440,16 @@ export default function VehicleManagementTable({
                   </p>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                     <VehicleStatusBadge status={currentStatus} />
+                    {v.featured && (
+                      <span className="inline-flex text-[10px] px-1.5 py-0.5 rounded bg-[#FACC15]/30 text-yellow-800">
+                        ⭐
+                        {v.homepageRank ? ` #${v.homepageRank}` : " Featured"}
+                      </span>
+                    )}
                     <span className="text-xs text-slate-500">
                       ${v.fobPrice.toLocaleString()} ·{" "}
                       {(v.mileage ?? 0).toLocaleString()} km
                     </span>
-                  </div>
-                  <div className="mt-2">
-                    {renderHomepageControls(v, isLoading)}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
                     创建 {formatDate(v.createdAt)}
