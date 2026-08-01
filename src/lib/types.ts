@@ -27,6 +27,8 @@ export interface Vehicle {
   status?: VehicleStatus;
   currency?: string;          // e.g. "USD"
   bodyType?: string;          // e.g. "SUV"
+  /** Drivetrain: FWD | RWD | 2WD | 4WD | AWD */
+  driveType?: string;
   displacement?: string;      // e.g. "2.0L"
   color?: string;
   seats?: number;

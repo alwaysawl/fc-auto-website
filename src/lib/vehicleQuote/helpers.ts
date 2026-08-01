@@ -1,4 +1,5 @@
 import type { Locale, Vehicle } from "@/lib/types";
+import { driveTypeLabel } from "@/lib/drive-type";
 import { getVehicleQuoteCopy } from "@/lib/vehicleQuote/copy";
 
 /** Sanitize for cross-OS filenames */
@@ -103,6 +104,7 @@ export function buildQuoteSpecRows(
     { label: L.mileage, value: formatQuoteMileage(vehicle, locale) },
     { label: L.fuel, value: vehicle.fuel },
     { label: L.transmission, value: vehicle.transmission },
+    { label: L.driveType, value: driveTypeLabel(vehicle.driveType, locale) },
     { label: L.bodyType, value: body },
     { label: L.steering, value: vehicle.steering },
     { label: L.engineCapacity, value: vehicle.displacement },
@@ -139,13 +141,11 @@ export function collectQuoteImageUrls(vehicle: Vehicle): string[] {
 
 /**
  * Fields requested by the product brief that are not present on Vehicle:
- * - drive type
  * - interior color
  * - separate "engine" string beyond displacement
  * VIN is available on the model but intentionally excluded from public quotes.
  */
 export const QUOTE_OMITTED_FIELDS = [
-  "driveType",
   "interiorColor",
   "engine (separate from displacement)",
   "vin (not public)",

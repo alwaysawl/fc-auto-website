@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Vehicle, Locale } from "@/lib/types";
 import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
+import { driveTypeLabel } from "@/lib/drive-type";
 import AddToCartButton from "@/components/AddToCartButton";
 import CheckoutNowButton from "@/components/CheckoutNowButton";
 import DownloadVehicleQuoteButton from "@/components/DownloadVehicleQuoteButton";
@@ -161,6 +162,7 @@ export default function VehicleDetailClient({
     },
     { label: t.inventory.fuel, value: vehicle.fuel },
     { label: t.inventory.transmission, value: vehicle.transmission },
+    { label: t.vehicleDetail.drive, value: driveTypeLabel(vehicle.driveType, locale) },
     { label: t.vehicleDetail.engine, value: vehicle.displacement },
     { label: t.vehicleDetail.bodyType, value: bodyType },
     { label: t.inventory.steering, value: vehicle.steering },
@@ -203,6 +205,7 @@ export default function VehicleDetailClient({
   const engineInfo = nonemptyRows([
     { label: t.inventory.fuel, value: vehicle.fuel },
     { label: t.inventory.transmission, value: vehicle.transmission },
+    { label: t.vehicleDetail.drive, value: driveTypeLabel(vehicle.driveType, locale) },
     { label: t.vehicleDetail.engine, value: vehicle.displacement },
   ]);
 

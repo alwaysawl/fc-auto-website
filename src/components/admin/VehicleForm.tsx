@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Vehicle, VehicleStatus } from "@/lib/types";
+import { DRIVE_TYPE_ADMIN_OPTIONS } from "@/lib/drive-type";
 import VehicleImageUploader, { type UploadedImage } from "./VehicleImageUploader";
 import {
   uploadVehicleImageFiles,
@@ -112,6 +113,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
     transmission: "Automatic",
     steering: "Left Hand Drive",
     bodyType: "SUV",
+    driveType: "",
     displacement: "",
     color: "",
     seats: 5,
@@ -430,6 +432,21 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
             <select className={fieldCls} value={form.transmission ?? "Automatic"}
               onChange={(e) => set("transmission", e.target.value)}>
               {TRANSMISSION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+
+          {/* Drive type */}
+          <div>
+            <label className={labelCls}>驱动方式</label>
+            <select
+              className={fieldCls}
+              value={form.driveType ?? ""}
+              onChange={(e) => set("driveType", e.target.value)}
+            >
+              <option value="">—</option>
+              {DRIVE_TYPE_ADMIN_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </select>
           </div>
 

@@ -29,6 +29,7 @@ create table if not exists public.vehicles (
   status              text not null default '在售',
   currency            text not null default 'USD',
   body_type           text,
+  drive_type          text,
   displacement        text,
   color               text,
   seats               integer,

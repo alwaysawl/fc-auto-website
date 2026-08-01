@@ -21,6 +21,7 @@ import "server-only";
  *   status          text not null default '在售',
  *   currency        text not null default 'USD',
  *   body_type       text,
+ *   drive_type      text,
  *   displacement    text,
  *   color           text,
  *   seats           integer,
@@ -70,6 +71,7 @@ interface VehicleRow {
   status: string;
   currency: string | null;
   body_type: string | null;
+  drive_type: string | null;
   displacement: string | null;
   color: string | null;
   seats: number | null;
@@ -106,6 +108,7 @@ function rowToVehicle(row: VehicleRow): Vehicle {
     status: row.status as Vehicle["status"],
     currency: row.currency ?? undefined,
     bodyType: row.body_type ?? undefined,
+    driveType: row.drive_type ?? undefined,
     displacement: row.displacement ?? undefined,
     color: row.color ?? undefined,
     seats: row.seats ?? undefined,
@@ -140,6 +143,7 @@ function vehicleToInsertRow(v: Vehicle): Omit<VehicleRow, "created_at" | "update
     status: v.status ?? "草稿",
     currency: v.currency ?? "USD",
     body_type: v.bodyType ?? null,
+    drive_type: v.driveType ?? null,
     displacement: v.displacement ?? null,
     color: v.color ?? null,
     seats: v.seats ?? null,
@@ -171,6 +175,7 @@ function vehicleToUpdateRow(updates: Partial<Vehicle>): Partial<VehicleRow> {
   if (updates.status !== undefined)       row.status = updates.status;
   if (updates.currency !== undefined)     row.currency = updates.currency;
   if (updates.bodyType !== undefined)     row.body_type = updates.bodyType;
+  if (updates.driveType !== undefined)    row.drive_type = updates.driveType || null;
   if (updates.displacement !== undefined) row.displacement = updates.displacement;
   if (updates.color !== undefined)        row.color = updates.color;
   if (updates.seats !== undefined)        row.seats = updates.seats;
@@ -207,6 +212,7 @@ export const PUBLIC_VEHICLE_SELECT = [
   "status",
   "currency",
   "body_type",
+  "drive_type",
   "displacement",
   "color",
   "seats",
@@ -243,6 +249,7 @@ function rowToPublicVehicle(row: PublicVehicleRow): PublicVehicle {
     status: row.status as Vehicle["status"],
     currency: row.currency ?? undefined,
     bodyType: row.body_type ?? undefined,
+    driveType: row.drive_type ?? undefined,
     displacement: row.displacement ?? undefined,
     color: row.color ?? undefined,
     seats: row.seats ?? undefined,

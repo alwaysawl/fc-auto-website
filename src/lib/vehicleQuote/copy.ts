@@ -29,6 +29,7 @@ export type VehicleQuoteCopy = {
     mileage: string;
     fuel: string;
     transmission: string;
+    driveType: string;
     bodyType: string;
     steering: string;
     engine: string;
@@ -84,6 +85,7 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
         mileage: "里程",
         fuel: "燃料类型",
         transmission: "变速箱",
+        driveType: "驱动方式",
         bodyType: "车身类型",
         steering: "方向盘位置",
         engine: "发动机",
@@ -135,6 +137,7 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
         mileage: "Kilométrage",
         fuel: "Carburant",
         transmission: "Transmission",
+        driveType: "Type de transmission",
         bodyType: "Type de carrosserie",
         steering: "Position du volant",
         engine: "Moteur",
@@ -185,6 +188,7 @@ export function getVehicleQuoteCopy(locale: Locale): VehicleQuoteCopy {
       mileage: "Mileage",
       fuel: "Fuel type",
       transmission: "Transmission",
+      driveType: "Drive type",
       bodyType: "Body type",
       steering: "Steering position",
       engine: "Engine",

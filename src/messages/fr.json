@@ -223,7 +223,7 @@
     "vehicle": "véhicule",
     "pageTitle": "Détails du Véhicule",
     "engine": "Moteur",
-    "drive": "Transmission",
+    "drive": "Type de transmission",
     "color": "Couleur",
     "stockId": "N° de stock",
     "requestQuote": "Demander un devis",

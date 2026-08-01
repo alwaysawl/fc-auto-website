@@ -223,7 +223,7 @@
     "vehicle": "vehicle",
     "pageTitle": "Vehicle Details",
     "engine": "Engine",
-    "drive": "Drive",
+    "drive": "Drive Type",
     "color": "Color",
     "stockId": "Stock ID",
     "requestQuote": "Request Quote",
