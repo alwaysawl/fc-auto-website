@@ -3,7 +3,7 @@ import { getTranslations } from "@/lib/translations";
 import { dbGetPublicVehicles } from "@/lib/supabase/vehicle-queries";
 import InventoryClient from "@/components/InventoryClient";
 import type { Metadata } from "next";
-
+export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
 }: {
