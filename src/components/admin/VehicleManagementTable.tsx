@@ -119,11 +119,7 @@ export default function VehicleManagementTable({
       }
       // Reload full list so automatic rank swaps appear on other rows.
       await reloadVehicles();
-      setSuccessMsg(
-        featured && homepageRank
-          ? `已更新首页推荐为第${homepageRank}位（如有冲突已自动互换）。`
-          : "已取消首页推荐。"
-      );
+      setSuccessMsg("Homepage rankings have been updated.");
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "操作失败，请重试。");
       await reloadVehicles().catch(() => undefined);

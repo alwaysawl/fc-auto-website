@@ -50,6 +50,7 @@ import "server-only";
  * ── Homepage rank migration (20260801) ───────────────────────────────────────
  * alter table public.vehicles
  *   add column if not exists homepage_rank integer;
+ * -- plus assign_vehicle_homepage_rank / prepare_homepage_rank_slot RPCs
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * alter table public.vehicles enable row level security;
@@ -61,10 +62,7 @@ import "server-only";
 
 import { getSupabaseAdmin } from "./admin";
 import type { Vehicle, ShippingTier } from "@/lib/types";
-import {
-  normalizeHomepageAssignment,
-  type HomepageRank,
-} from "@/lib/homepage-rank";
+import { normalizeHomepageAssignment } from "@/lib/homepage-rank";
 
 // ─── Row shape returned by Supabase ──────────────────────────────────────────
 interface VehicleRow {
@@ -409,7 +407,16 @@ export async function dbCreateVehicle(vehicle: Vehicle): Promise<Vehicle> {
     featured: vehicle.featured,
     homepageRank: vehicle.homepageRank,
   });
-  await releaseOrSwapHomepageRank(supabase, vehicle.id, null, homepage.homepageRank);
+
+  if (homepage.homepageRank != null) {
+    const { error: prepError } = await supabase.rpc(
+      "prepare_homepage_rank_slot",
+      { p_homepage_rank: homepage.homepageRank }
+    );
+    if (prepError) {
+      throwFriendlyHomepageError(prepError);
+    }
+  }
 
   const row = vehicleToInsertRow({
     ...vehicle,
@@ -425,13 +432,13 @@ export async function dbCreateVehicle(vehicle: Vehicle): Promise<Vehicle> {
     .single();
 
   if (error) {
-    // PostgreSQL unique violation
     if (error.code === "23505") {
-      throw new Error(
-        `库存编号 "${vehicle.id}" 已存在，或首页排序位已被占用。请重试。 [code: ${error.code}]`
-      );
+      if (isHomepageRankUniqueViolation(error)) {
+        throw new Error("首页排序更新失败，请刷新后重试。");
+      }
+      throw new Error(`库存编号 "${vehicle.id}" 已存在，请使用其他编号。`);
     }
-    throw new Error(`${error.message} [code: ${error.code ?? "UNKNOWN"}]`);
+    throwFriendlyHomepageError(error);
   }
   return rowToVehicle(data as VehicleRow);
 }
@@ -445,7 +452,8 @@ export async function dbUpdateVehicle(
   const touchesHomepage =
     updates.featured !== undefined || updates.homepageRank !== undefined;
 
-  let nextUpdates = { ...updates };
+  const nextUpdates = { ...updates };
+  let homepageUpdated: Vehicle | null = null;
 
   if (touchesHomepage) {
     const { data: current, error: currentError } = await supabase
@@ -455,9 +463,7 @@ export async function dbUpdateVehicle(
       .maybeSingle();
 
     if (currentError) {
-      throw new Error(
-        `${currentError.message} [code: ${currentError.code ?? "UNKNOWN"}]`
-      );
+      throwFriendlyHomepageError(currentError);
     }
     if (!current) return null;
 
@@ -472,18 +478,35 @@ export async function dbUpdateVehicle(
           : (current.homepage_rank as number | null),
     });
 
-    await releaseOrSwapHomepageRank(
-      supabase,
-      id,
-      (current.homepage_rank as number | null) ?? null,
-      homepage.homepageRank
+    const { data: assigned, error: assignError } = await supabase.rpc(
+      "assign_vehicle_homepage_rank",
+      {
+        p_vehicle_id: id,
+        p_featured: homepage.featured,
+        p_homepage_rank: homepage.homepageRank,
+      }
     );
 
-    nextUpdates = {
-      ...nextUpdates,
-      featured: homepage.featured,
-      homepageRank: homepage.homepageRank,
-    };
+    if (assignError) {
+      throwFriendlyHomepageError(assignError);
+    }
+
+    if (assigned) {
+      homepageUpdated = rowToVehicle(assigned as VehicleRow);
+    }
+
+    // Rank/featured already persisted by RPC — do not update them again.
+    delete nextUpdates.featured;
+    delete nextUpdates.homepageRank;
+  }
+
+  const remainingKeys = Object.keys(nextUpdates).filter(
+    (k) => k !== "id" && k !== "updatedAt" && k !== "createdAt"
+  );
+
+  if (remainingKeys.length === 0) {
+    if (homepageUpdated) return homepageUpdated;
+    return dbGetVehicleById(id);
   }
 
   const row = vehicleToUpdateRow(nextUpdates);
@@ -496,100 +519,56 @@ export async function dbUpdateVehicle(
     .maybeSingle();
 
   if (error) {
-    if (error.code === "23505") {
-      throw new Error(
-        `首页排序位已被占用，请选择其他位置或刷新后重试。 [code: ${error.code}]`
-      );
+    if (isHomepageRankUniqueViolation(error)) {
+      throw new Error("首页排序更新失败，请刷新后重试。");
     }
-    throw new Error(`${error.message} [code: ${error.code ?? "UNKNOWN"}]`);
+    if (error.code === "23505") {
+      throw new Error("保存失败，请刷新后重试。");
+    }
+    throwFriendlyHomepageError(error);
   }
   if (!data) return null;
   return rowToVehicle(data as VehicleRow);
 }
 
-/**
- * Free `desiredRank` for `vehicleId` by swapping with the current occupant.
- * - If this vehicle previously held another slot, give that slot to the occupant.
- * - If it had no prior slot, demote the occupant (clear rank + featured).
- */
-async function releaseOrSwapHomepageRank(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-  vehicleId: string,
-  previousRank: number | null,
-  desiredRank: HomepageRank | null
-): Promise<void> {
-  if (desiredRank == null) return;
-  if (previousRank === desiredRank) return;
+function isHomepageRankUniqueViolation(error: {
+  code?: string;
+  message?: string;
+  details?: string;
+}): boolean {
+  if (error.code !== "23505") return false;
+  const hay = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  return (
+    hay.includes("homepage_rank") ||
+    hay.includes("vehicles_homepage_rank_unique")
+  );
+}
 
-  const { data: occupant, error: occupantError } = await supabase
-    .from("vehicles")
-    .select("id, homepage_rank")
-    .eq("homepage_rank", desiredRank)
-    .neq("id", vehicleId)
-    .maybeSingle();
-
-  if (occupantError) {
-    throw new Error(
-      `${occupantError.message} [code: ${occupantError.code ?? "UNKNOWN"}]`
-    );
+/** Never surface raw unique-constraint / SQL details for homepage ranking. */
+function throwFriendlyHomepageError(error: {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+}): never {
+  const message = error.message ?? "";
+  if (message.includes("INVALID_HOMEPAGE_RANK")) {
+    throw new Error("开启首页推荐时请选择首页排序（第1–4位）。");
   }
-  if (!occupant) return;
-
-  const now = new Date().toISOString();
-
-  // Free this vehicle's old slot first so the occupant can take it.
-  if (previousRank != null) {
-    const { error: freeSelfError } = await supabase
-      .from("vehicles")
-      .update({ homepage_rank: null, updated_at: now })
-      .eq("id", vehicleId);
-    if (freeSelfError) {
-      throw new Error(
-        `${freeSelfError.message} [code: ${freeSelfError.code ?? "UNKNOWN"}]`
-      );
-    }
+  if (message.includes("VEHICLE_NOT_FOUND")) {
+    throw new Error("车辆不存在。");
   }
-
-  // Clear occupant to avoid unique index conflicts on desiredRank.
-  const { error: clearError } = await supabase
-    .from("vehicles")
-    .update({ homepage_rank: null, updated_at: now })
-    .eq("id", occupant.id);
-  if (clearError) {
-    throw new Error(
-      `${clearError.message} [code: ${clearError.code ?? "UNKNOWN"}]`
-    );
+  if (isHomepageRankUniqueViolation(error)) {
+    throw new Error("首页排序更新失败，请刷新后重试。");
   }
-
-  if (previousRank != null) {
-    const { error: swapError } = await supabase
-      .from("vehicles")
-      .update({
-        homepage_rank: previousRank,
-        featured: true,
-        updated_at: now,
-      })
-      .eq("id", occupant.id);
-    if (swapError) {
-      throw new Error(
-        `${swapError.message} [code: ${swapError.code ?? "UNKNOWN"}]`
-      );
-    }
-  } else {
-    const { error: demoteError } = await supabase
-      .from("vehicles")
-      .update({
-        homepage_rank: null,
-        featured: false,
-        updated_at: now,
-      })
-      .eq("id", occupant.id);
-    if (demoteError) {
-      throw new Error(
-        `${demoteError.message} [code: ${demoteError.code ?? "UNKNOWN"}]`
-      );
-    }
+  if (error.code === "23505") {
+    throw new Error("保存失败，请刷新后重试。");
   }
+  throw new Error(
+    message
+      ? message.replace(/\s*\[code:.*?\]\s*$/i, "").trim()
+      : "操作失败，请重试。"
+  );
 }
 
 export async function dbDeleteVehicle(id: string): Promise<boolean> {
