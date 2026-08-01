@@ -54,7 +54,29 @@ function statusLabel(
   if (status === "草稿") return t.vehicleDetail.draft;
   return status?.trim() || t.vehicleDetail.available;
 }
+function colorLabel(color: string | undefined, locale: string): string {
+  if (!color) return "";
 
+  const map: Record<string, { en: string; fr: string; zh: string }> = {
+    "白色": { en: "White", fr: "Blanc", zh: "白色" },
+    "黑色": { en: "Black", fr: "Noir", zh: "黑色" },
+    "银色": { en: "Silver", fr: "Argent", zh: "银色" },
+    "灰色": { en: "Gray", fr: "Gris", zh: "灰色" },
+    "红色": { en: "Red", fr: "Rouge", zh: "红色" },
+    "蓝色": { en: "Blue", fr: "Bleu", zh: "蓝色" },
+    "绿色": { en: "Green", fr: "Vert", zh: "绿色" },
+    "黄色": { en: "Yellow", fr: "Jaune", zh: "黄色" },
+    "棕色": { en: "Brown", fr: "Marron", zh: "棕色" },
+    "金色": { en: "Gold", fr: "Or", zh: "金色" },
+  };
+
+  const item = map[color.trim()];
+  if (!item) return color;
+
+  if (locale === "fr") return item.fr;
+  if (locale === "zh") return item.zh;
+  return item.en;
+}
 function nonemptyRows(
   rows: Array<{ label: string; value?: string | null }>
 ): Array<{ label: string; value: string }> {
@@ -142,7 +164,7 @@ export default function VehicleDetailClient({
     { label: t.vehicleDetail.engine, value: vehicle.displacement },
     { label: t.vehicleDetail.bodyType, value: bodyType },
     { label: t.inventory.steering, value: vehicle.steering },
-    { label: t.vehicleDetail.color, value: vehicle.color },
+    { label: t.vehicleDetail.color, value: colorLabel(vehicle.color, locale) },
     {
       label: t.vehicleDetail.seats,
       value: vehicle.seats != null ? String(vehicle.seats) : "",
@@ -160,9 +182,18 @@ export default function VehicleDetailClient({
       label: t.inventory.mileage,
       value: `${formatMileage(vehicle.mileage)} ${t.inventory.km}`,
     },
-    { label: t.vehicleDetail.bodyType, value: bodyType },
-    { label: t.inventory.steering, value: vehicle.steering },
-    { label: t.vehicleDetail.color, value: vehicle.color },
+    {
+      label: t.vehicleDetail.bodyType,
+      value: bodyType,
+    },
+    {
+      label: t.inventory.steering,
+      value: vehicle.steering,
+    },
+    {
+      label: t.vehicleDetail.color,
+      value: colorLabel(vehicle.color, locale),
+    },
     {
       label: t.vehicleDetail.seats,
       value: vehicle.seats != null ? String(vehicle.seats) : "",
