@@ -5,12 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Vehicle, VehicleStatus } from "@/lib/types";
+import {
+  HOMEPAGE_RANK_ADMIN_OPTIONS,
+  type HomepageRank,
+} from "@/lib/homepage-rank";
 import VehicleStatusBadge from "./VehicleStatusBadge";
 
 interface Props {
   vehicles: Vehicle[];
   locale?: string;
 }
+
+const homepageSelectCls =
+  "min-w-[5.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/40 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 
 function coverSrc(v: Vehicle): string | null {
   return v.mainImageUrl?.trim() || v.photos?.[0] || null;
@@ -41,14 +48,29 @@ export default function VehicleManagementTable({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [localVehicles, setLocalVehicles] = useState<Vehicle[]>(vehicles);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalVehicles(vehicles);
   }, [vehicles]);
 
+  const reloadVehicles = async () => {
+    const res = await fetch("/api/vehicles", { credentials: "include" });
+    if (!res.ok) {
+      router.refresh();
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    if (Array.isArray(data.vehicles)) {
+      setLocalVehicles(data.vehicles as Vehicle[]);
+    }
+    router.refresh();
+  };
+
   const patchStatus = async (id: string, status: VehicleStatus) => {
     setLoadingId(id);
     setErrorMsg(null);
+    setSuccessMsg(null);
     try {
       const res = await fetch("/api/vehicles", {
         method: "PUT",
@@ -72,6 +94,44 @@ export default function VehicleManagementTable({
     }
   };
 
+  const patchHomepage = async (
+    id: string,
+    featured: boolean,
+    homepageRank: HomepageRank | null
+  ) => {
+    setLoadingId(id);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch("/api/vehicles", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          id,
+          featured,
+          homepageRank: featured ? homepageRank : null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "首页推荐保存失败");
+      }
+      // Reload full list so automatic rank swaps appear on other rows.
+      await reloadVehicles();
+      setSuccessMsg(
+        featured && homepageRank
+          ? `已更新首页推荐为第${homepageRank}位（如有冲突已自动互换）。`
+          : "已取消首页推荐。"
+      );
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "操作失败，请重试。");
+      await reloadVehicles().catch(() => undefined);
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
   const requestStatusChange = (v: Vehicle, status: VehicleStatus) => {
     if (status === "在售" && !hasCoverImage(v)) {
       setErrorMsg("上架前请至少添加一张封面图片。");
@@ -85,6 +145,24 @@ export default function VehicleManagementTable({
       if (!ok) return;
     }
     void patchStatus(v.id, status);
+  };
+
+  const onFeaturedToggle = (v: Vehicle, checked: boolean) => {
+    if (checked) {
+      const rank = (v.homepageRank as HomepageRank | null) ?? 1;
+      void patchHomepage(v.id, true, rank);
+      return;
+    }
+    void patchHomepage(v.id, false, null);
+  };
+
+  const onRankChange = (v: Vehicle, raw: string) => {
+    if (!raw) {
+      void patchHomepage(v.id, false, null);
+      return;
+    }
+    const rank = Number(raw) as HomepageRank;
+    void patchHomepage(v.id, true, rank);
   };
 
   /**
@@ -105,6 +183,7 @@ export default function VehicleManagementTable({
 
     setLoadingId(v.id);
     setErrorMsg(null);
+    setSuccessMsg(null);
     try {
       const res = await fetch(`/api/vehicles/${encodeURIComponent(v.id)}`, {
         method: "DELETE",
@@ -126,7 +205,40 @@ export default function VehicleManagementTable({
     }
   };
 
-  const renderActions = (v: Vehicle, isLoading: boolean, currentStatus: VehicleStatus) => (
+  const renderHomepageControls = (v: Vehicle, isLoading: boolean) => (
+    <div className="flex flex-col gap-1.5 min-w-[7rem]">
+      <label className="inline-flex items-center gap-1.5 text-xs text-[#1E293B]">
+        <input
+          type="checkbox"
+          checked={!!v.featured}
+          disabled={isLoading}
+          onChange={(e) => onFeaturedToggle(v, e.target.checked)}
+          className="w-3.5 h-3.5 rounded accent-[#FACC15]"
+        />
+        {v.featured ? "首页推荐" : "不推荐"}
+      </label>
+      <select
+        className={homepageSelectCls}
+        value={v.featured && v.homepageRank ? String(v.homepageRank) : ""}
+        disabled={isLoading || !v.featured}
+        onChange={(e) => onRankChange(v, e.target.value)}
+        aria-label="首页排序"
+      >
+        {!v.featured && <option value="">不推荐</option>}
+        {HOMEPAGE_RANK_ADMIN_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const renderActions = (
+    v: Vehicle,
+    isLoading: boolean,
+    currentStatus: VehicleStatus
+  ) => (
     <div className="flex items-center gap-1.5 flex-wrap">
       <Link
         href={`/${locale}/inventory/${v.id}`}
@@ -172,7 +284,7 @@ export default function VehicleManagementTable({
       )}
       <button
         type="button"
-        onClick={() => deleteVehicle(v)}
+        onClick={() => void deleteVehicle(v)}
         disabled={isLoading}
         className="px-2 py-1 text-xs rounded-md bg-white text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50 whitespace-nowrap"
       >
@@ -183,7 +295,9 @@ export default function VehicleManagementTable({
 
   if (localVehicles.length === 0) {
     return (
-      <div className="text-center py-16 text-slate-500 text-sm">暂无车辆记录。</div>
+      <div className="text-center py-16 text-slate-500 text-sm">
+        暂无车辆记录。
+      </div>
     );
   }
 
@@ -191,16 +305,30 @@ export default function VehicleManagementTable({
     <div>
       {errorMsg && (
         <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-4 h-4 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           {errorMsg}
         </div>
       )}
+      {successMsg && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+          {successMsg}
+        </div>
+      )}
 
       {/* Desktop table */}
-      <div className="hidden lg:block overflow-x-auto">
+      <div className="hidden lg:block overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -258,29 +386,54 @@ export default function VehicleManagementTable({
                     </div>
                   </td>
                   <td className="px-3 py-3 max-w-[12rem]">
-                    <p className="font-medium text-[#1E293B] truncate" title={vehicleTitle(v)}>
+                    <p
+                      className="font-medium text-[#1E293B] truncate"
+                      title={vehicleTitle(v)}
+                    >
                       {vehicleTitle(v)}
                     </p>
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">
-                    {v.featured ? (
-                      <span className="inline-flex text-[11px] px-1.5 py-0.5 rounded bg-[#FACC15]/30 text-yellow-800">
-                        首页推荐
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-400">不推荐</span>
-                    )}
+                    <label className="inline-flex items-center gap-1.5 text-xs text-[#1E293B]">
+                      <input
+                        type="checkbox"
+                        checked={!!v.featured}
+                        disabled={isLoading}
+                        onChange={(e) => onFeaturedToggle(v, e.target.checked)}
+                        className="w-3.5 h-3.5 rounded accent-[#FACC15]"
+                      />
+                      {v.featured ? "首页推荐" : "不推荐"}
+                    </label>
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap text-slate-700">
-                    {v.featured && v.homepageRank
-                      ? `第${v.homepageRank}位`
-                      : "—"}
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    <select
+                      className={homepageSelectCls}
+                      value={
+                        v.featured && v.homepageRank
+                          ? String(v.homepageRank)
+                          : ""
+                      }
+                      disabled={isLoading || !v.featured}
+                      onChange={(e) => onRankChange(v, e.target.value)}
+                      aria-label="首页排序"
+                    >
+                      {!v.featured && <option value="">不推荐</option>}
+                      {HOMEPAGE_RANK_ADMIN_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-3 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
                     {v.id}
                   </td>
-                  <td className="px-3 py-3 text-slate-700 whitespace-nowrap">{v.brand}</td>
-                  <td className="px-3 py-3 text-slate-600 whitespace-nowrap">{v.model}</td>
+                  <td className="px-3 py-3 text-slate-700 whitespace-nowrap">
+                    {v.brand}
+                  </td>
+                  <td className="px-3 py-3 text-slate-600 whitespace-nowrap">
+                    {v.model}
+                  </td>
                   <td className="px-3 py-3 text-slate-700">{v.year}</td>
                   <td className="px-3 py-3 text-slate-700 whitespace-nowrap">
                     ${v.fobPrice.toLocaleString()}
@@ -336,24 +489,24 @@ export default function VehicleManagementTable({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#1E293B] truncate">{vehicleTitle(v)}</p>
-                  <p className="text-xs text-slate-500 font-mono truncate">{v.id}</p>
+                  <p className="font-semibold text-[#1E293B] truncate">
+                    {vehicleTitle(v)}
+                  </p>
+                  <p className="text-xs text-slate-500 font-mono truncate">
+                    {v.id}
+                  </p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {v.brand} · {v.model} · {v.year}
                   </p>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                     <VehicleStatusBadge status={currentStatus} />
-                    {v.featured ? (
-                      <span className="inline-flex text-[10px] px-1.5 py-0.5 rounded bg-[#FACC15]/30 text-yellow-800">
-                        首页推荐
-                        {v.homepageRank ? ` · 第${v.homepageRank}位` : ""}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-400">不推荐</span>
-                    )}
                     <span className="text-xs text-slate-500">
-                      ${v.fobPrice.toLocaleString()} · {(v.mileage ?? 0).toLocaleString()} km
+                      ${v.fobPrice.toLocaleString()} ·{" "}
+                      {(v.mileage ?? 0).toLocaleString()} km
                     </span>
+                  </div>
+                  <div className="mt-2">
+                    {renderHomepageControls(v, isLoading)}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
                     创建 {formatDate(v.createdAt)}
