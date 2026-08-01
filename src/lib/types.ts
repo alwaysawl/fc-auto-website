@@ -22,6 +22,8 @@ export interface Vehicle {
   photos: string[];
   shippingTiers: ShippingTier[];
   featured?: boolean;
+  /** Homepage Popular Models slot (1–4). Null/undefined when not ranked. */
+  homepageRank?: number | null;
 
   // Extended fields added in Phase 2A (all optional for backwards compatibility)
   status?: VehicleStatus;

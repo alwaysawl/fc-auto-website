@@ -207,6 +207,8 @@ export default function VehicleManagementTable({
               {[
                 "主图",
                 "标题",
+                "首页推荐",
+                "首页排序",
                 "库存编号",
                 "品牌",
                 "车型",
@@ -259,11 +261,20 @@ export default function VehicleManagementTable({
                     <p className="font-medium text-[#1E293B] truncate" title={vehicleTitle(v)}>
                       {vehicleTitle(v)}
                     </p>
-                    {v.featured && (
-                      <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-[#FACC15]/30 text-yellow-800">
-                        推荐
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    {v.featured ? (
+                      <span className="inline-flex text-[11px] px-1.5 py-0.5 rounded bg-[#FACC15]/30 text-yellow-800">
+                        首页推荐
                       </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">不推荐</span>
                     )}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap text-slate-700">
+                    {v.featured && v.homepageRank
+                      ? `第${v.homepageRank}位`
+                      : "—"}
                   </td>
                   <td className="px-3 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
                     {v.id}
@@ -332,6 +343,14 @@ export default function VehicleManagementTable({
                   </p>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                     <VehicleStatusBadge status={currentStatus} />
+                    {v.featured ? (
+                      <span className="inline-flex text-[10px] px-1.5 py-0.5 rounded bg-[#FACC15]/30 text-yellow-800">
+                        首页推荐
+                        {v.homepageRank ? ` · 第${v.homepageRank}位` : ""}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">不推荐</span>
+                    )}
                     <span className="text-xs text-slate-500">
                       ${v.fobPrice.toLocaleString()} · {(v.mileage ?? 0).toLocaleString()} km
                     </span>

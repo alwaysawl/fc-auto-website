@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Vehicle, VehicleStatus } from "@/lib/types";
 import { DRIVE_TYPE_ADMIN_OPTIONS } from "@/lib/drive-type";
+import { HOMEPAGE_RANK_ADMIN_OPTIONS } from "@/lib/homepage-rank";
 import VehicleImageUploader, { type UploadedImage } from "./VehicleImageUploader";
 import {
   uploadVehicleImageFiles,
@@ -122,6 +123,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
     vin: "",
     status: "草稿",
     featured: false,
+    homepageRank: null,
     titleEn: "",
     descriptionEn: "",
     features: "",
@@ -219,6 +221,12 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
       if (form.fobPrice == null || Number.isNaN(Number(form.fobPrice)) || form.fobPrice < 0) {
         throw new Error("FOB 价格必须为大于或等于 0 的数字。");
       }
+      if (form.featured) {
+        const rank = Number(form.homepageRank);
+        if (![1, 2, 3, 4].includes(rank)) {
+          throw new Error("开启首页推荐时请选择首页排序（第1–4位）。");
+        }
+      }
 
       if (targetStatus === "已售") {
         const name = form.titleEn?.trim() || `${form.brand} ${form.model}`;
@@ -267,6 +275,10 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
         status: targetStatus,
         // Empty string (not undefined) so PUT clears drive_type in Supabase.
         driveType: form.driveType?.trim() || "",
+        featured: !!form.featured,
+        homepageRank: form.featured
+          ? (form.homepageRank ?? null)
+          : null,
         mainImageUrl: mainImageUrl || undefined,
         galleryImageUrls,
         photos: imageUrls,
@@ -543,12 +555,44 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
             </select>
           </div>
           <div className="flex items-center gap-3 pt-7">
-            <input type="checkbox" id="featured" checked={form.featured ?? false}
-              onChange={(e) => set("featured", e.target.checked)}
-              className="w-4 h-4 rounded accent-[#FACC15]" />
+            <input
+              type="checkbox"
+              id="featured"
+              checked={form.featured ?? false}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setForm((prev) => ({
+                  ...prev,
+                  featured: checked,
+                  homepageRank: checked ? (prev.homepageRank ?? 1) : null,
+                }));
+                setIsDirty(true);
+              }}
+              className="w-4 h-4 rounded accent-[#FACC15]"
+            />
             <label htmlFor="featured" className="text-sm font-medium text-[#1E293B]">
-              设为推荐车辆（显示在首页）
+              首页推荐
             </label>
+          </div>
+          <div>
+            <label className={labelCls}>首页排序</label>
+            <select
+              className={fieldCls}
+              value={form.featured ? String(form.homepageRank ?? "") : ""}
+              disabled={!form.featured}
+              onChange={(e) => {
+                const raw = e.target.value;
+                set("homepageRank", raw ? Number(raw) : null);
+              }}
+            >
+              {!form.featured && <option value="">不推荐</option>}
+              {HOMEPAGE_RANK_ADMIN_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-400">
+              开启首页推荐后选择第1–4位；若该位置已被占用，将与原车辆自动互换。
+            </p>
           </div>
         </div>
       </div>

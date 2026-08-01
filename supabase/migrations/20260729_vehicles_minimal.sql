@@ -25,6 +25,7 @@ create table if not exists public.vehicles (
   photos              text[] not null default '{}',
   shipping_tiers      jsonb not null default '[]',
   featured            boolean not null default false,
+  homepage_rank       integer,
   status              text not null default '在售',
   currency            text not null default 'USD',
   body_type           text,

@@ -2,6 +2,7 @@ import { Locale } from "@/lib/types";
 import { getTranslations, getReviewText } from "@/lib/translations";
 import { getReviews } from "@/lib/data";
 import { dbGetPublicVehicles } from "@/lib/supabase/vehicle-queries";
+import { pickHomepageShowcaseVehicles } from "@/lib/homepage-rank";
 import { getLocalizedPath } from "@/lib/i18n";
 import HeroBanner from "@/components/HeroBanner";
 import HomeVehicleShowcase from "@/components/HomeVehicleShowcase";
@@ -39,7 +40,7 @@ export default async function HomePage({
 
   let publicVehicles: Awaited<ReturnType<typeof dbGetPublicVehicles>> = [];
   try {
-    // status = '在售', ordered featured desc → updated_at desc → created_at desc
+    // status = '在售' only — sold/draft/unavailable never included
     publicVehicles = await dbGetPublicVehicles();
   } catch (err) {
     console.error(
@@ -49,7 +50,10 @@ export default async function HomePage({
   }
 
   const featuredVehicles = publicVehicles.filter((v) => v.featured);
-  const showcaseVehicles = publicVehicles.slice(0, HOMEPAGE_SHOWCASE_LIMIT);
+  const showcaseVehicles = pickHomepageShowcaseVehicles(
+    publicVehicles,
+    HOMEPAGE_SHOWCASE_LIMIT
+  );
 
   return (
     <>
