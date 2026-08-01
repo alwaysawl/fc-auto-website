@@ -265,6 +265,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
       const payload: Vehicle = {
         ...(form as Vehicle),
         status: targetStatus,
+        driveType: form.driveType?.trim() || undefined,
         mainImageUrl: mainImageUrl || undefined,
         galleryImageUrls,
         photos: imageUrls,

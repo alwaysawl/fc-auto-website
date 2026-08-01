@@ -41,6 +41,10 @@ import "server-only";
  * alter table public.vehicles
  *   add column if not exists main_image_url     text,
  *   add column if not exists gallery_image_urls text[] not null default '{}';
+ *
+ * ── Drive type migration (20260801) ──────────────────────────────────────────
+ * alter table public.vehicles
+ *   add column if not exists drive_type text;
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * alter table public.vehicles enable row level security;
@@ -143,7 +147,7 @@ function vehicleToInsertRow(v: Vehicle): Omit<VehicleRow, "created_at" | "update
     status: v.status ?? "草稿",
     currency: v.currency ?? "USD",
     body_type: v.bodyType ?? null,
-    drive_type: v.driveType ?? null,
+    drive_type: v.driveType?.trim() || null,
     displacement: v.displacement ?? null,
     color: v.color ?? null,
     seats: v.seats ?? null,
@@ -175,7 +179,7 @@ function vehicleToUpdateRow(updates: Partial<Vehicle>): Partial<VehicleRow> {
   if (updates.status !== undefined)       row.status = updates.status;
   if (updates.currency !== undefined)     row.currency = updates.currency;
   if (updates.bodyType !== undefined)     row.body_type = updates.bodyType;
-  if (updates.driveType !== undefined)    row.drive_type = updates.driveType || null;
+  if (updates.driveType !== undefined)    row.drive_type = updates.driveType?.trim() || null;
   if (updates.displacement !== undefined) row.displacement = updates.displacement;
   if (updates.color !== undefined)        row.color = updates.color;
   if (updates.seats !== undefined)        row.seats = updates.seats;
