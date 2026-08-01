@@ -193,7 +193,7 @@ function PageHeader({ count }: { count: number }) {
           href="/admin/homepage-featured"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-[#1E293B] text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
         >
-          ⭐ 首页推荐排序
+          首页推荐管理
         </Link>
         <Link
           href="/admin/vehicles/new"

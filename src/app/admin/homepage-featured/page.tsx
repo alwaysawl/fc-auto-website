@@ -36,19 +36,19 @@ export default async function AdminHomepageFeaturedPage() {
 
 function PageHeader({ count }: { count: number }) {
   return (
-    <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+    <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">
-          Homepage Featured Vehicles
+        <h1 className="text-xl sm:text-2xl font-bold text-[#1E293B]">
+          首页推荐管理
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          拖拽排序 · 首页最多展示前 {HOMEPAGE_SHOWCASE_LIMIT} 辆 · 当前推荐{" "}
-          <strong className="text-[#1E293B]">{count}</strong> 辆
+          首页最多展示 {HOMEPAGE_SHOWCASE_LIMIT} 台 · 当前{" "}
+          <strong className="text-[#1E293B]">{count}</strong> 台
         </p>
       </div>
       <Link
         href="/admin/vehicles"
-        className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-[#1E293B] hover:bg-slate-50"
+        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-[#1E293B] hover:bg-slate-50"
       >
         ← 车辆列表
       </Link>

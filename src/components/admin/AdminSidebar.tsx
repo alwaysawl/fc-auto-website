@@ -22,7 +22,7 @@ const navItems = [
     ),
   },
   {
-    label: "首页推荐",
+    label: "首页推荐管理",
     href: "/admin/homepage-featured",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

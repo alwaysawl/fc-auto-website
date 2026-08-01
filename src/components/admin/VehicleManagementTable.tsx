@@ -107,9 +107,7 @@ export default function VehicleManagementTable({
           )
         );
       }
-      setSuccessMsg(
-        data.message || "Homepage rankings have been updated."
-      );
+      setSuccessMsg(data.message || "保存成功");
       router.refresh();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "操作失败，请重试。");
@@ -194,19 +192,23 @@ export default function VehicleManagementTable({
           onClick={() => void patchHomepageFeatured(v.id, false)}
           disabled={isLoading}
           className="px-2 py-1 text-xs rounded-md bg-white text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50 whitespace-nowrap"
-          title="Remove from Homepage"
+          title="从首页移除"
         >
-          ✖ Remove from Homepage
+          从首页移除
         </button>
       ) : (
         <button
           type="button"
           onClick={() => void patchHomepageFeatured(v.id, true)}
-          disabled={isLoading}
+          disabled={isLoading || v.status !== "在售"}
           className="px-2 py-1 text-xs rounded-md bg-[#FACC15]/25 text-yellow-900 border border-yellow-200 hover:bg-[#FACC15]/40 transition-colors disabled:opacity-50 whitespace-nowrap"
-          title="Feature on Homepage"
+          title={
+            v.status !== "在售"
+              ? "只有在售车辆可以推荐到首页"
+              : "推荐到首页"
+          }
         >
-          ⭐ Feature on Homepage
+          推荐到首页
         </button>
       )}
       {currentStatus === "在售" ? (
@@ -288,7 +290,7 @@ export default function VehicleManagementTable({
           href="/admin/homepage-featured"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1E293B] hover:underline"
         >
-          ⭐ Manage Homepage Featured →
+          首页推荐管理 →
         </Link>
       </div>
 

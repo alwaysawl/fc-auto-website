@@ -569,7 +569,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
               href="/admin/homepage-featured"
               className="text-xs text-slate-500 hover:text-[#1E293B] underline underline-offset-2"
             >
-              在「首页推荐」中拖拽排序 →
+              在「首页推荐管理」中拖拽排序 →
             </Link>
           </div>
         </div>

@@ -62,7 +62,10 @@ import "server-only";
 
 import { getSupabaseAdmin } from "./admin";
 import type { Vehicle, ShippingTier } from "@/lib/types";
-import { HOMEPAGE_SHOWCASE_LIMIT } from "@/lib/homepage-rank";
+import {
+  HOMEPAGE_MAX_FEATURED_MESSAGE,
+  HOMEPAGE_SHOWCASE_LIMIT,
+} from "@/lib/homepage-rank";
 
 // ─── Row shape returned by Supabase ──────────────────────────────────────────
 interface VehicleRow {
@@ -342,7 +345,7 @@ export async function dbGetHomepageShowcaseVehicles(
   return ((data ?? []) as unknown as PublicVehicleRow[]).map(rowToPublicVehicle);
 }
 
-/** All featured vehicles for admin drag-and-drop manager (any status). */
+/** Featured vehicles for admin drag-and-drop manager, ordered by homepage_rank. */
 export async function dbGetHomepageFeaturedVehicles(): Promise<Vehicle[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -356,12 +359,61 @@ export async function dbGetHomepageFeaturedVehicles(): Promise<Vehicle[]> {
   return (data as VehicleRow[]).map(rowToVehicle);
 }
 
+/** Count of vehicles currently marked featured (for max-4 enforcement). */
+export async function dbCountHomepageFeatured(): Promise<number> {
+  const supabase = getSupabaseAdmin();
+  const { count, error } = await supabase
+    .from("vehicles")
+    .select("id", { count: "exact", head: true })
+    .eq("featured", true);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/**
+ * Search in-stock (在售) vehicles that are not yet homepage-featured.
+ * Used by the “添加推荐车辆” modal.
+ */
+export async function dbSearchHomepageFeaturedCandidates(
+  query = "",
+  limit = 40
+): Promise<Vehicle[]> {
+  const supabase = getSupabaseAdmin();
+  const q = query.trim();
+
+  let builder = supabase
+    .from("vehicles")
+    .select("*")
+    .eq("status", "在售")
+    .eq("featured", false)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (q) {
+    // PostgREST or-filter across common admin search fields
+    const escaped = q.replace(/[%_,]/g, "");
+    builder = builder.or(
+      `brand.ilike.%${escaped}%,model.ilike.%${escaped}%,id.ilike.%${escaped}%,title_en.ilike.%${escaped}%`
+    );
+  }
+
+  const { data, error } = await builder;
+  if (error) throw new Error(error.message);
+  return (data as VehicleRow[]).map(rowToVehicle);
+}
+
 export async function dbReorderHomepageFeatured(
   orderedIds: string[]
 ): Promise<Vehicle[]> {
   const supabase = getSupabaseAdmin();
+  const capped = orderedIds
+    .map((id) => String(id ?? "").trim())
+    .filter(Boolean)
+    .slice(0, HOMEPAGE_SHOWCASE_LIMIT);
+
   const { data, error } = await supabase.rpc("reorder_homepage_featured", {
-    p_ordered_ids: orderedIds,
+    p_ordered_ids: capped,
   });
   if (error) throwFriendlyHomepageError(error);
   return ((data ?? []) as VehicleRow[]).map(rowToVehicle);
@@ -372,6 +424,38 @@ export async function dbSetHomepageFeatured(
   featured: boolean
 ): Promise<Vehicle> {
   const supabase = getSupabaseAdmin();
+
+  if (featured) {
+    const { data: current, error: currentError } = await supabase
+      .from("vehicles")
+      .select("id, status, featured")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (currentError) throwFriendlyHomepageError(currentError);
+    if (!current) throw new Error("车辆不存在。");
+
+    if (current.featured) {
+      const { data: existing, error: existingError } = await supabase
+        .from("vehicles")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (existingError) throwFriendlyHomepageError(existingError);
+      if (!existing) throw new Error("车辆不存在。");
+      return rowToVehicle(existing as VehicleRow);
+    }
+
+    if (current.status !== "在售") {
+      throw new Error("只有「在售」状态的车辆可以推荐到首页。");
+    }
+
+    const featuredCount = await dbCountHomepageFeatured();
+    if (featuredCount >= HOMEPAGE_SHOWCASE_LIMIT) {
+      throw new Error(HOMEPAGE_MAX_FEATURED_MESSAGE);
+    }
+  }
+
   const { data, error } = await supabase.rpc("set_vehicle_homepage_featured", {
     p_vehicle_id: id,
     p_featured: featured,

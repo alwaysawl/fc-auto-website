@@ -3,20 +3,42 @@ import { requireAdminApi } from "@/lib/admin/auth";
 import {
   dbGetHomepageFeaturedVehicles,
   dbReorderHomepageFeatured,
+  dbSearchHomepageFeaturedCandidates,
   dbSetHomepageFeatured,
 } from "@/lib/supabase/vehicle-queries";
+import { HOMEPAGE_SHOWCASE_LIMIT } from "@/lib/homepage-rank";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Admin-only: featured vehicles ordered by homepage_rank. */
+/**
+ * Admin-only homepage featured list.
+ * GET ?candidates=1&q=... → searchable 在售 vehicles not yet featured
+ * GET (default) → current featured vehicles ordered by homepage_rank
+ */
 export async function GET(request: Request) {
   const denied = await requireAdminApi(request);
   if (denied) return denied;
 
   try {
+    const { searchParams } = new URL(request.url);
+    if (searchParams.get("candidates") === "1") {
+      const q = searchParams.get("q") ?? "";
+      const vehicles = await dbSearchHomepageFeaturedCandidates(q);
+      const featured = await dbGetHomepageFeaturedVehicles();
+      return NextResponse.json({
+        vehicles,
+        featuredCount: featured.length,
+        maxFeatured: HOMEPAGE_SHOWCASE_LIMIT,
+      });
+    }
+
     const vehicles = await dbGetHomepageFeaturedVehicles();
-    return NextResponse.json({ vehicles });
+    return NextResponse.json({
+      vehicles,
+      featuredCount: vehicles.length,
+      maxFeatured: HOMEPAGE_SHOWCASE_LIMIT,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "加载失败";
     console.error("[GET /api/admin/homepage-featured]", message);
@@ -26,7 +48,7 @@ export async function GET(request: Request) {
 
 /**
  * PUT body:
- * - { orderedIds: string[] } → reorder ranks 1..n
+ * - { orderedIds: string[] } → reorder ranks 1..n (capped at 4)
  * - { id: string, featured: boolean } → add/remove from homepage featured
  */
 export async function PUT(request: Request) {
@@ -44,7 +66,7 @@ export async function PUT(request: Request) {
       const vehicles = await dbReorderHomepageFeatured(orderedIds);
       return NextResponse.json({
         vehicles,
-        message: "Homepage rankings have been updated.",
+        message: "保存成功",
       });
     }
 
@@ -54,7 +76,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({
         vehicle,
         vehicles,
-        message: "Homepage rankings have been updated.",
+        message: "保存成功",
       });
     }
 
@@ -65,6 +87,7 @@ export async function PUT(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "保存失败";
     console.error("[PUT /api/admin/homepage-featured]", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("最多展示") ? 409 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
