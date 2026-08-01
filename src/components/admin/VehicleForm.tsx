@@ -265,7 +265,8 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
       const payload: Vehicle = {
         ...(form as Vehicle),
         status: targetStatus,
-        driveType: form.driveType?.trim() || undefined,
+        // Empty string (not undefined) so PUT clears drive_type in Supabase.
+        driveType: form.driveType?.trim() || "",
         mainImageUrl: mainImageUrl || undefined,
         galleryImageUrls,
         photos: imageUrls,
