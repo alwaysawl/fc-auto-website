@@ -15,27 +15,18 @@ import type {
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
 import {
-  BUYER_HEIGHT,
-  BUYER_TOP,
   CHARGES_HEIGHT,
   CHARGES_TOP,
   FOOTER_TOP,
   HEADER_BOTTOM,
   HEADER_HEIGHT,
   HEADER_TOP,
-  INFO_BOTTOM,
-  INVOICE_INFO_HEIGHT,
-  INVOICE_INFO_TOP,
-  INVOICE_LABEL_VALUE_GAP,
-  INVOICE_LABEL_WIDTH,
   PAGE_HEIGHT,
   PAGE_WIDTH,
   PAYMENT_HEIGHT,
   PAYMENT_TOP,
   PI_CONTENT_W,
   PI_MARGIN,
-  SELLER_HEIGHT,
-  SELLER_TOP,
   TERMS_MAX_BOTTOM,
   TERMS_TOP,
   VEHICLE_HEADER_HEIGHT,
@@ -53,10 +44,8 @@ import {
   ensureProformaFonts,
   setProformaFont,
 } from "@/lib/proforma/pdfFonts";
-import {
-  formatSellerAddressDisplayLines,
-  formatSellerCompanyDisplay,
-} from "@/lib/proforma/displayFormat";
+import { drawProformaTopInformation } from "@/lib/proforma/drawProformaTopInformation";
+import { buildProformaTopInformation } from "@/lib/proforma/topInformationModel";
 
 const NAVY: [number, number, number] = [30, 41, 59];
 const GOLD: [number, number, number] = [212, 175, 55];
@@ -71,9 +60,6 @@ const PT_EN = 9;
 const PT_ZH = 8.5;
 const PT_LABEL = 8.5;
 const PT_SECTION = 9.5;
-const PT_META_LABEL = 9;
-const PT_META_VALUE = 9.5;
-const PT_PARTY = 8.5;
 const PT_FOOTER = 7.5;
 const PT_LINE_HEIGHT = 1.18;
 
@@ -310,332 +296,6 @@ function drawFooter(doc: Pdf, source: ProformaPdfSource) {
   doc.setFontSize(PT_FOOTER);
   doc.setTextColor(...NAVY);
   doc.text("Page 1 / 1", PAGE_W - MARGIN, y + 20, { align: "right" });
-}
-
-function labelValue(
-  doc: Pdf,
-  label: string,
-  value: string,
-  x: number,
-  y: number,
-  labelW: number,
-  valueW: number,
-  gap = INVOICE_LABEL_VALUE_GAP
-): number {
-  setProformaFont(doc, "bold");
-  doc.setFontSize(PT_META_LABEL);
-  doc.setTextColor(...SLATE);
-  doc.text(label, x, y);
-  oneLine(doc, value || "—", x + labelW + gap, y, valueW, {
-    fontSize: PT_META_VALUE,
-    bold: false,
-    color: BLACK,
-  });
-  return 11.5;
-}
-
-/** Seller/Buyer field: bold label + regular value; optional no-ellipsis wrap. */
-function partyField(
-  doc: Pdf,
-  label: string,
-  value: string,
-  x: number,
-  y: number,
-  labelW: number,
-  valueW: number,
-  opts?: { maxLines?: number; ellipsis?: boolean; fontSize?: number }
-): number {
-  const fontSize = opts?.fontSize ?? PT_PARTY;
-  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
-  setProformaFont(doc, "bold");
-  doc.setFontSize(PT_LABEL);
-  doc.setTextColor(...SLATE);
-  doc.text(`${label}:`, x, y);
-  const textH = putText(doc, (value || "").trim() || "—", x + labelW, y, {
-    fontSize,
-    bold: false,
-    maxWidth: valueW,
-    lineGap,
-    maxLines: opts?.maxLines ?? 99,
-    ellipsis: opts?.ellipsis !== false,
-  });
-  return Math.max(fontSize * PT_LINE_HEIGHT, textH) + 1.2;
-}
-
-/** Draw multi-line address without ellipsis (pre-broken display lines). */
-function partyAddressField(
-  doc: Pdf,
-  label: string,
-  lines: string[],
-  x: number,
-  y: number,
-  labelW: number,
-  valueW: number,
-  maxLines: number
-): number {
-  const fontSize = PT_PARTY;
-  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
-  const step = fontSize + lineGap;
-  setProformaFont(doc, "bold");
-  doc.setFontSize(PT_LABEL);
-  doc.setTextColor(...SLATE);
-  doc.text(`${label}:`, x, y);
-
-  setProformaFont(doc, "normal");
-  doc.setFontSize(fontSize);
-  doc.setTextColor(...BLACK);
-
-  const drawn: string[] = [];
-  for (const line of lines) {
-    const wrapped = doc.splitTextToSize(line, valueW) as string[];
-    for (const w of wrapped) {
-      if (drawn.length >= maxLines) break;
-      drawn.push(w);
-    }
-    if (drawn.length >= maxLines) break;
-  }
-  if (drawn.length === 0) drawn.push("—");
-
-  let yy = y;
-  for (const w of drawn) {
-    doc.text(w, x + labelW, yy);
-    yy += step;
-  }
-  return drawn.length * step + 1.2;
-}
-
-/**
- * Top information stack (full-width):
- * 1. Seller  2. Buyer  3. Invoice Information
- * Never three side-by-side columns.
- */
-function drawInfo(doc: Pdf, source: ProformaPdfSource) {
-  const half = CONTENT_W / 2;
-  const leftX = MARGIN;
-  const rightX = MARGIN + half + 6;
-  const labelW = 52;
-  const leftValueW = half - labelW - 10;
-  const rightValueW = half - labelW - 16;
-  const partyOpts = { ellipsis: false as const };
-
-  // ——— 1. Seller / 卖方 ———
-  let y = SELLER_TOP + 9;
-  putText(doc, "Seller / 卖方", leftX, y, {
-    fontSize: PT_SECTION,
-    bold: true,
-    color: NAVY,
-    maxWidth: CONTENT_W,
-  });
-  y += 12;
-
-  const companyDisplay = formatSellerCompanyDisplay(
-    source.companySnapshot.companyName
-  );
-  const addressLines = formatSellerAddressDisplayLines(
-    source.companySnapshot.companyAddress
-  );
-  const website = source.companySnapshot.companyWebsite || "fcautoexport.com";
-
-  const sellerLeftTop = y;
-  let ly = y;
-  ly += partyField(
-    doc,
-    "Company / 公司",
-    companyDisplay,
-    leftX,
-    ly,
-    labelW,
-    leftValueW,
-    { ...partyOpts, maxLines: 2 }
-  );
-  ly += partyAddressField(
-    doc,
-    "Address / 地址",
-    addressLines,
-    leftX,
-    ly,
-    labelW,
-    leftValueW,
-    5
-  );
-
-  let ry = sellerLeftTop;
-  ry += partyField(
-    doc,
-    "Sales / 销售",
-    source.salespersonName,
-    rightX,
-    ry,
-    labelW,
-    rightValueW,
-    partyOpts
-  );
-  ry += partyField(
-    doc,
-    "Phone / 电话",
-    source.salespersonPhone,
-    rightX,
-    ry,
-    labelW,
-    rightValueW,
-    partyOpts
-  );
-  ry += partyField(
-    doc,
-    "Email / 邮箱",
-    source.salespersonEmail,
-    rightX,
-    ry,
-    labelW,
-    rightValueW,
-    partyOpts
-  );
-  ry += partyField(
-    doc,
-    "Website / 网站",
-    website,
-    rightX,
-    ry,
-    labelW,
-    rightValueW,
-    partyOpts
-  );
-  void Math.max(ly, ry);
-  void SELLER_HEIGHT;
-
-  // ——— 2. Buyer / 买方 ———
-  y = BUYER_TOP + 9;
-  putText(doc, "Buyer / 买方", leftX, y, {
-    fontSize: PT_SECTION,
-    bold: true,
-    color: NAVY,
-    maxWidth: CONTENT_W,
-  });
-  y += 12;
-
-  const dest = [source.destinationCountry, source.destinationPort]
-    .filter(Boolean)
-    .join(" / ");
-  const buyerLeftTop = y;
-  let byL = y;
-  byL += partyField(
-    doc,
-    "Customer / 客户",
-    source.customerName || "—",
-    leftX,
-    byL,
-    labelW,
-    leftValueW,
-    { ...partyOpts, maxLines: 2 }
-  );
-  byL += partyField(
-    doc,
-    "Company / 公司",
-    source.customerCompany || "—",
-    leftX,
-    byL,
-    labelW,
-    leftValueW,
-    { ...partyOpts, maxLines: 2 }
-  );
-  byL += partyField(
-    doc,
-    "Country / 国家",
-    source.customerCountry || "—",
-    leftX,
-    byL,
-    labelW,
-    leftValueW,
-    partyOpts
-  );
-
-  let byR = buyerLeftTop;
-  byR += partyField(
-    doc,
-    "WhatsApp / 电话",
-    source.customerWhatsapp || "—",
-    rightX,
-    byR,
-    labelW,
-    rightValueW,
-    partyOpts
-  );
-  byR += partyField(
-    doc,
-    "Email / 邮箱",
-    source.customerEmail || "—",
-    rightX,
-    byR,
-    labelW,
-    rightValueW,
-    partyOpts
-  );
-  byR += partyField(
-    doc,
-    "Destination Port / 目的港",
-    dest || "—",
-    rightX,
-    byR,
-    labelW,
-    rightValueW,
-    { ...partyOpts, maxLines: 2 }
-  );
-  void Math.max(byL, byR);
-  void BUYER_HEIGHT;
-
-  // ——— 3. Invoice Information / 发票信息 ———
-  y = INVOICE_INFO_TOP + 9;
-  putText(doc, "Invoice Information / 发票信息", leftX, y, {
-    fontSize: PT_SECTION,
-    bold: true,
-    color: NAVY,
-    maxWidth: CONTENT_W,
-  });
-  y += 12;
-
-  const metaLabelW = INVOICE_LABEL_WIDTH;
-  const metaGap = INVOICE_LABEL_VALUE_GAP;
-  const metaColW = (CONTENT_W - 12) / 2;
-  const metaValueW = metaColW - metaLabelW - metaGap - 4;
-  const metaLeft: Array<[string, string]> = [
-    ["Invoice No. / 发票号", source.invoiceNumber],
-    ["Contract No. / 合同号", source.contractNumber || source.invoiceNumber],
-    ["Offer Date / 报价日期", source.offerDate],
-  ];
-  const metaRight: Array<[string, string]> = [
-    ["Validity / 有效期", source.validityText || "7 Days"],
-    ["Currency / 货币", "USD"],
-  ];
-
-  let myL = y;
-  for (const [label, value] of metaLeft) {
-    myL += labelValue(
-      doc,
-      label,
-      value,
-      leftX,
-      myL,
-      metaLabelW,
-      metaValueW,
-      metaGap
-    );
-  }
-  let myR = y;
-  for (const [label, value] of metaRight) {
-    myR += labelValue(
-      doc,
-      label,
-      value,
-      rightX,
-      myR,
-      metaLabelW,
-      metaValueW,
-      metaGap
-    );
-  }
-  void INVOICE_INFO_HEIGHT;
-
-  drawGoldRule(doc, INFO_BOTTOM - 2);
 }
 
 function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
@@ -1025,7 +685,28 @@ export async function downloadProformaPdf(
   console.info("[proforma-layout]", PROFORMA_LAYOUT_VERSION);
 
   drawHeader(doc, source);
-  drawInfo(doc, source);
+  drawProformaTopInformation(
+    doc,
+    buildProformaTopInformation({
+      invoiceNumber: source.invoiceNumber,
+      contractNumber: source.contractNumber || source.invoiceNumber,
+      offerDate: source.offerDate,
+      validityText: source.validityText || "",
+      customerName: source.customerName,
+      customerCompany: source.customerCompany || "",
+      customerCountry: source.customerCountry || "",
+      customerWhatsapp: source.customerWhatsapp || "",
+      customerEmail: source.customerEmail || "",
+      destinationCountry: source.destinationCountry || "",
+      destinationPort: source.destinationPort || "",
+      salespersonName: source.salespersonName,
+      salespersonPhone: source.salespersonPhone,
+      salespersonEmail: source.salespersonEmail,
+      companyName: source.companySnapshot.companyName,
+      companyAddress: source.companySnapshot.companyAddress,
+      companyWebsite: source.companySnapshot.companyWebsite || "",
+    })
+  );
   drawVehicleTable(doc, source);
   drawChargesAndSummary(doc, source);
   drawPayment(doc, source);

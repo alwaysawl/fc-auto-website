@@ -8,27 +8,18 @@ import type {
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
 import {
-  BUYER_HEIGHT,
-  BUYER_TOP,
   CHARGES_HEIGHT,
   CHARGES_TOP,
   FOOTER_HEIGHT,
   FOOTER_TOP,
   HEADER_HEIGHT,
   HEADER_TOP,
-  INFO_BOTTOM,
-  INVOICE_INFO_HEIGHT,
-  INVOICE_INFO_TOP,
-  INVOICE_LABEL_VALUE_GAP,
-  INVOICE_LABEL_WIDTH,
   PAGE_HEIGHT,
   PAGE_WIDTH,
   PAYMENT_HEIGHT,
   PAYMENT_TOP,
   PI_MARGIN,
   PI_MAX_VEHICLES,
-  SELLER_HEIGHT,
-  SELLER_TOP,
   TERMS_MAX_BOTTOM,
   TERMS_TOP,
   VEHICLE_HEADER_HEIGHT,
@@ -40,10 +31,7 @@ import {
   compactPaymentValue,
   PROFORMA_LAYOUT_VERSION,
 } from "@/lib/proforma/layout";
-import {
-  formatSellerAddressDisplayLines,
-  formatSellerCompanyDisplay,
-} from "@/lib/proforma/displayFormat";
+import ProformaTopInformation from "@/lib/proforma/ProformaTopInformation";
 
 export type PreviewItem = {
   brand: string;
@@ -116,16 +104,8 @@ export default function AdminProformaPreview({
   compact?: boolean;
 }) {
   const overLimit = model.items.length > PI_MAX_VEHICLES;
-  const dest = [model.destinationCountry, model.destinationPort]
-    .filter(Boolean)
-    .join(" / ");
   const website = model.company.companyWebsite || "fcautoexport.com";
   const contentW = PAGE_WIDTH - PI_MARGIN * 2;
-  const sellerCompany = formatSellerCompanyDisplay(model.company.companyName);
-  const sellerAddressLines = formatSellerAddressDisplayLines(
-    model.company.companyAddress
-  );
-  const destDisplay = dest || "—";
 
   return (
     <div className="space-y-3">
@@ -200,128 +180,28 @@ export default function AdminProformaPreview({
             <div className="absolute bottom-0 left-0 right-0 h-px bg-[#D4AF37]" />
           </div>
 
-          {/* INFO stack: Seller → Buyer → Invoice Information */}
-          <div
-            style={{
-              position: "absolute",
-              left: pt(PI_MARGIN),
-              right: pt(PI_MARGIN),
-              top: pt(SELLER_TOP),
-              height: pt(INFO_BOTTOM - SELLER_TOP),
-              overflow: "visible",
-              boxSizing: "border-box",
+          {/* Top information: shared Seller → Buyer → Invoice Information stack */}
+          <ProformaTopInformation
+            input={{
+              invoiceNumber: model.invoiceNumber,
+              contractNumber: model.contractNumber,
+              offerDate: model.offerDate,
+              validityText: model.validityText,
+              customerName: model.customerName,
+              customerCompany: model.customerCompany,
+              customerCountry: model.customerCountry,
+              customerWhatsapp: model.customerWhatsapp,
+              customerEmail: model.customerEmail,
+              destinationCountry: model.destinationCountry,
+              destinationPort: model.destinationPort,
+              salespersonName: model.salespersonName,
+              salespersonPhone: model.salespersonPhone,
+              salespersonEmail: model.salespersonEmail,
+              companyName: model.company.companyName,
+              companyAddress: model.company.companyAddress,
+              companyWebsite: model.company.companyWebsite,
             }}
-          >
-            {/* Seller */}
-            <div style={{ height: pt(SELLER_HEIGHT), lineHeight: 1.18 }}>
-              <p className="mb-[3pt] text-[9.5pt] font-bold text-[#1E293B]">
-                Seller / 卖方
-              </p>
-              <div className="grid grid-cols-2 gap-x-3">
-                <div>
-                  <PartyField label="Company / 公司" value={sellerCompany} />
-                  <AddressLinesField lines={sellerAddressLines} />
-                </div>
-                <div>
-                  <PartyField label="Sales / 销售" value={model.salespersonName} />
-                  <PartyField label="Phone / 电话" value={model.salespersonPhone} />
-                  <PartyField label="Email / 邮箱" value={model.salespersonEmail} />
-                  <PartyField label="Website / 网站" value={website} />
-                </div>
-              </div>
-            </div>
-
-            {/* Buyer */}
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                top: pt(BUYER_TOP - SELLER_TOP),
-                height: pt(BUYER_HEIGHT),
-                lineHeight: 1.18,
-              }}
-            >
-              <p className="mb-[3pt] text-[9.5pt] font-bold text-[#1E293B]">
-                Buyer / 买方
-              </p>
-              <div className="grid grid-cols-2 gap-x-3">
-                <div>
-                  <PartyField
-                    label="Customer / 客户"
-                    value={model.customerName || "—"}
-                    maxLines={2}
-                  />
-                  <PartyField
-                    label="Company / 公司"
-                    value={model.customerCompany || "—"}
-                    maxLines={2}
-                  />
-                  <PartyField
-                    label="Country / 国家"
-                    value={model.customerCountry || "—"}
-                  />
-                </div>
-                <div>
-                  <PartyField
-                    label="WhatsApp / 电话"
-                    value={model.customerWhatsapp || "—"}
-                  />
-                  <PartyField
-                    label="Email / 邮箱"
-                    value={model.customerEmail || "—"}
-                  />
-                  <PartyField
-                    label="Destination Port / 目的港"
-                    value={destDisplay}
-                    maxLines={2}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Invoice Information */}
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                top: pt(INVOICE_INFO_TOP - SELLER_TOP),
-                height: pt(INVOICE_INFO_HEIGHT),
-                lineHeight: 1.18,
-                borderBottom: "1px solid #D4AF37",
-                paddingBottom: pt(4),
-                boxSizing: "border-box",
-              }}
-            >
-              <p className="mb-[3pt] text-[9.5pt] font-bold text-[#1E293B]">
-                Invoice Information / 发票信息
-              </p>
-              <div className="grid grid-cols-2 gap-x-3">
-                <div>
-                  <InvoiceMeta
-                    label="Invoice No. / 发票号"
-                    value={model.invoiceNumber}
-                  />
-                  <InvoiceMeta
-                    label="Contract No. / 合同号"
-                    value={model.contractNumber || model.invoiceNumber}
-                  />
-                  <InvoiceMeta
-                    label="Offer Date / 报价日期"
-                    value={model.offerDate}
-                  />
-                </div>
-                <div>
-                  <InvoiceMeta
-                    label="Validity / 有效期"
-                    value={model.validityText || "7 Days"}
-                  />
-                  <InvoiceMeta label="Currency / 货币" value="USD" />
-                </div>
-              </div>
-            </div>
-          </div>
+          />
 
           {/* VEHICLE TITLE */}
           <div
@@ -595,74 +475,6 @@ function PaymentField({ label, value }: { label: string; value: string }) {
       <span className="text-[8.5pt] font-semibold text-slate-500">{label}: </span>
       <span className="text-[9pt] font-normal text-[#1E293B]">{display}</span>
     </p>
-  );
-}
-
-function InvoiceMeta({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      className="mb-[1.5pt] grid items-baseline"
-      style={{
-        gridTemplateColumns: `${INVOICE_LABEL_WIDTH}pt 1fr`,
-        columnGap: pt(INVOICE_LABEL_VALUE_GAP),
-      }}
-    >
-      <p className="text-[9pt] font-semibold leading-[1.18] text-slate-500">
-        {label}
-      </p>
-      <p className="truncate text-[9.5pt] font-normal leading-[1.18] text-[#1E293B]">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-/** Seller/Buyer field — bold label, regular value; no ellipsis unless maxLines. */
-function PartyField({
-  label,
-  value,
-  maxLines,
-}: {
-  label: string;
-  value: string;
-  maxLines?: number;
-}) {
-  return (
-    <p className="mb-[1.5pt] text-[8.5pt]" style={{ lineHeight: 1.18 }}>
-      <span className="font-bold text-slate-500">{label}: </span>
-      <span
-        className="break-words font-normal text-[#1E293B]"
-        style={
-          maxLines
-            ? {
-                display: "-webkit-box",
-                WebkitLineClamp: maxLines,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }
-            : undefined
-        }
-      >
-        {value || "—"}
-      </span>
-    </p>
-  );
-}
-
-/** Seller address: preferred multi-line display, no “…”. */
-function AddressLinesField({ lines }: { lines: string[] }) {
-  const shown = lines.slice(0, 5);
-  return (
-    <div className="mb-[1.5pt] text-[8.5pt]" style={{ lineHeight: 1.18 }}>
-      <span className="font-bold text-slate-500">Address / 地址: </span>
-      <span className="inline-block align-top font-normal text-[#1E293B]">
-        {shown.map((line, i) => (
-          <span key={i} className="block break-words">
-            {line}
-          </span>
-        ))}
-      </span>
-    </div>
   );
 }
 
