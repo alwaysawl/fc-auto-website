@@ -32,6 +32,10 @@ import {
   VEHICLE_TITLE_TOP,
   compactPaymentValue,
 } from "@/lib/proforma/layout";
+import {
+  formatSellerAddressDisplayLines,
+  formatSellerCompanyDisplay,
+} from "@/lib/proforma/displayFormat";
 
 export type PreviewItem = {
   brand: string;
@@ -109,6 +113,11 @@ export default function AdminProformaPreview({
     .join(" / ");
   const website = model.company.companyWebsite || "fcautoexport.com";
   const contentW = PAGE_WIDTH - PI_MARGIN * 2;
+  const sellerCompany = formatSellerCompanyDisplay(model.company.companyName);
+  const sellerAddressLines = formatSellerAddressDisplayLines(
+    model.company.companyAddress
+  );
+  const destDisplay = dest || "—";
 
   return (
     <div className="space-y-3">
@@ -145,44 +154,61 @@ export default function AdminProformaPreview({
         >
           {/* HEADER */}
           <div style={band(HEADER_TOP, HEADER_HEIGHT)}>
-            <div className="flex h-full items-start justify-between gap-2 pt-1">
-              <div className="flex items-center gap-1.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1E293B]">
-                  <div className="flex h-4 w-4 items-center justify-center rounded bg-[#D4AF37] text-[9px] font-bold text-[#1E293B]">
+            <div className="flex h-full items-center justify-between gap-2 pb-[4pt]">
+              <div className="flex items-center gap-2">
+                <div className="flex h-[26pt] w-[26pt] items-center justify-center rounded-md bg-[#1E293B]">
+                  <div className="flex h-[17pt] w-[17pt] items-center justify-center rounded bg-[#D4AF37] text-[9px] font-bold text-[#1E293B]">
                     FC
                   </div>
                 </div>
                 <div>
-                  <p className="text-[12px] font-bold text-[#1E293B]">
+                  <p className="text-[11pt] font-bold leading-none text-[#1E293B]">
                     FC AUTO EXPORT
                   </p>
-                  <p className="text-[9px] text-slate-500">USED VEHICLE EXPORT</p>
+                  <p className="mt-[4pt] text-[8.5pt] leading-none text-slate-500">
+                    USED VEHICLE EXPORT
+                  </p>
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-[14px] font-bold tracking-wide text-[#1E293B]">
+                <p className="text-[13.5pt] font-bold leading-none tracking-wide text-[#1E293B]">
                   PROFORMA INVOICE
                 </p>
-                <p className="text-[10px] font-medium text-[#D4AF37]">形式发票</p>
+                <p className="mt-[6pt] text-[8.5pt] font-medium leading-none text-[#D4AF37]">
+                  形式发票
+                </p>
               </div>
-              <div className="max-w-[34%] text-right text-[9px] leading-tight text-slate-600">
-                <p>{website}</p>
-                <p className="text-[#1E293B]">{model.salespersonPhone}</p>
-                <p className="text-[#1E293B]">{model.salespersonEmail}</p>
+              <div className="max-w-[32%] pr-[1pt] text-right leading-[1.25] text-slate-600">
+                <p className="text-[8.5pt]">{website}</p>
+                <p className="text-[9pt] text-[#1E293B]">
+                  {model.salespersonPhone}
+                </p>
+                <p className="break-all text-[9pt] text-[#1E293B]">
+                  {model.salespersonEmail}
+                </p>
               </div>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-px bg-[#D4AF37]" />
           </div>
 
-          {/* INFO — never overlaps header */}
+          {/* INFO — Seller/Buyer; no overflow hide that PDF would still show */}
           <div
             style={{
               ...band(INFO_TOP, INFO_HEIGHT),
-              overflow: "hidden",
+              overflow: "visible",
+              paddingBottom: pt(6.5),
+              boxSizing: "border-box",
             }}
           >
-            <div className="grid h-full grid-cols-3 gap-2 border-b border-[#D4AF37] pb-1">
-              <div className="space-y-0.5 overflow-hidden">
+            <div
+              className="grid grid-cols-3 gap-2 border-b border-[#D4AF37]"
+              style={{
+                lineHeight: 1.18,
+                minHeight: "100%",
+                paddingBottom: pt(6.5),
+              }}
+            >
+              <div className="space-y-[1pt]">
                 <Meta label="Invoice No. / 发票号" value={model.invoiceNumber} />
                 <Meta
                   label="Contract No. / 合同号"
@@ -195,35 +221,48 @@ export default function AdminProformaPreview({
                 />
                 <Meta label="Currency / 货币" value="USD" />
               </div>
-              <div className="overflow-hidden">
-                <p className="mb-0.5 text-[11px] font-bold text-[#1E293B]">
+              <div style={{ lineHeight: 1.18 }}>
+                <p className="mb-[4pt] text-[9.5pt] font-bold text-[#1E293B]">
                   Seller / 卖方
                 </p>
-                <Field label="Company" value={model.company.companyName} />
-                <AddressField value={model.company.companyAddress} />
-                <Field label="Sales" value={model.salespersonName} />
-                <Field label="Phone" value={model.salespersonPhone} />
-                <Field label="Email" value={model.salespersonEmail} />
-                <Field label="Website" value={website} />
+                <PartyField label="Company" value={sellerCompany} />
+                <AddressLinesField lines={sellerAddressLines} />
+                <PartyField label="Sales" value={model.salespersonName} />
+                <PartyField label="Phone" value={model.salespersonPhone} />
+                <PartyField label="Email" value={model.salespersonEmail} />
+                <PartyField label="Website" value={website} />
               </div>
-              <div className="overflow-hidden">
-                <p className="mb-0.5 text-[11px] font-bold text-[#1E293B]">
+              <div style={{ lineHeight: 1.18 }}>
+                <p className="mb-[4pt] text-[9.5pt] font-bold text-[#1E293B]">
                   Buyer / 买方
                 </p>
-                <Field label="Customer" value={model.customerName || "—"} />
-                {model.customerCompany ? (
-                  <Field label="Company" value={model.customerCompany} />
-                ) : null}
-                {model.customerCountry ? (
-                  <Field label="Country" value={model.customerCountry} />
-                ) : null}
-                {model.customerWhatsapp ? (
-                  <Field label="WhatsApp" value={model.customerWhatsapp} />
-                ) : null}
-                {model.customerEmail ? (
-                  <Field label="Email" value={model.customerEmail} />
-                ) : null}
-                {dest ? <Field label="Destination Port" value={dest} /> : null}
+                <PartyField
+                  label="Customer / 客户"
+                  value={model.customerName || "—"}
+                  maxLines={2}
+                />
+                <PartyField
+                  label="Company / 公司"
+                  value={model.customerCompany || "—"}
+                  maxLines={2}
+                />
+                <PartyField
+                  label="Country / 国家"
+                  value={model.customerCountry || "—"}
+                />
+                <PartyField
+                  label="WhatsApp / 电话"
+                  value={model.customerWhatsapp || "—"}
+                />
+                <PartyField
+                  label="Email / 邮箱"
+                  value={model.customerEmail || "—"}
+                />
+                <PartyField
+                  label="Destination Port / 目的港"
+                  value={destDisplay}
+                  maxLines={2}
+                />
               </div>
             </div>
           </div>
@@ -238,7 +277,7 @@ export default function AdminProformaPreview({
               height: pt(16),
             }}
           >
-            <h3 className="text-[11px] font-bold text-[#1E293B]">
+            <h3 className="text-[9pt] font-bold text-[#1E293B]">
               Vehicle Items / 车辆明细
             </h3>
           </div>
@@ -267,13 +306,13 @@ export default function AdminProformaPreview({
             <div className="grid h-full grid-cols-2 gap-2">
               <div className="overflow-hidden">
                 <SectionTitle>Other Charges / 其他费用</SectionTitle>
-                <ul className="space-y-0.5 text-[10px]">
+                <ul className="space-y-[2pt] text-[9pt]">
                   {(model.charges.length
                     ? model.charges.slice(0, 5)
                     : [{ nameEn: "—", nameZh: "", amountUsd: 0 }]
                   ).map((c, i) => (
-                    <li key={i} className="flex justify-between gap-2">
-                      <span className="truncate">
+                    <li key={i} className="flex justify-between gap-2 pr-[8pt]">
+                      <span className="min-w-0 flex-1 truncate text-left">
                         {c.nameEn}
                         {c.nameZh ? ` / ${c.nameZh}` : ""}
                       </span>
@@ -282,8 +321,8 @@ export default function AdminProformaPreview({
                       </span>
                     </li>
                   ))}
-                  <li className="flex justify-between gap-2 border-t border-slate-200 pt-0.5 font-bold text-[#1E293B]">
-                    <span className="truncate">
+                  <li className="flex justify-between gap-2 border-t border-slate-200 pt-0.5 pr-[8pt] font-bold text-[#1E293B]">
+                    <span className="min-w-0 flex-1 truncate text-left">
                       Total Other Charges / 其他费用合计
                     </span>
                     <span className="shrink-0 tabular-nums">
@@ -292,7 +331,7 @@ export default function AdminProformaPreview({
                   </li>
                 </ul>
               </div>
-              <div className="overflow-hidden rounded border border-[#D4AF37] bg-slate-50 px-2 py-1 text-[10px]">
+              <div className="overflow-hidden rounded border border-[#D4AF37] bg-slate-50 px-2 py-1 pr-[9pt] text-[9pt]">
                 <SectionTitle>Financial Summary / 金额汇总</SectionTitle>
                 <SummaryRow
                   label="Vehicle Total / 车辆总价"
@@ -302,6 +341,7 @@ export default function AdminProformaPreview({
                   label="Other Charges / 其他费用"
                   value={formatUsd(model.chargesTotalUsd)}
                 />
+                <div className="my-[2pt] border-t border-slate-200" />
                 <SummaryRow
                   label="Grand Total / 总计"
                   value={formatUsd(model.totalUsd)}
@@ -311,6 +351,7 @@ export default function AdminProformaPreview({
                   label="Deposit / 定金"
                   value={formatUsd(model.depositUsd)}
                 />
+                <div className="my-[2pt] border-t border-slate-200" />
                 <SummaryRow
                   label="Balance / 尾款"
                   value={formatUsd(model.balanceUsd)}
@@ -327,9 +368,9 @@ export default function AdminProformaPreview({
               overflow: "hidden",
             }}
           >
-            <div className="h-full rounded border border-slate-200 px-2 py-1">
+            <div className="h-full rounded border border-slate-200 px-[10pt] py-1">
               <SectionTitle>Payment Information / 付款信息</SectionTitle>
-              <div className="grid gap-0.5 sm:grid-cols-2 text-[10px]">
+              <div className="grid gap-[2pt] text-[9pt] sm:grid-cols-2">
                 <PaymentField
                   label="Beneficiary / 收款人"
                   value={model.payment.fullName}
@@ -368,18 +409,18 @@ export default function AdminProformaPreview({
             {(model.terms.some((t) => t.enabled) || model.notes) && (
               <>
                 <SectionTitle>Terms / 条款</SectionTitle>
-                <ol className="list-decimal space-y-1 pl-4 text-[10px] leading-snug">
+                <ol className="list-decimal space-y-[4.5pt] pl-4 text-[9pt] leading-[1.18]">
                   {model.terms
                     .filter((t) => t.enabled)
                     .map((t) => (
                       <li key={t.id}>
                         {t.textEn ? (
-                          <p className="leading-snug text-[#1E293B]">
+                          <p className="leading-[1.18] text-[#1E293B]">
                             {t.textEn}
                           </p>
                         ) : null}
                         {t.textZh ? (
-                          <p className="leading-snug text-slate-500">
+                          <p className="mt-[1.5pt] text-[8.5pt] leading-[1.18] text-slate-500">
                             {t.textZh}
                           </p>
                         ) : null}
@@ -387,7 +428,7 @@ export default function AdminProformaPreview({
                     ))}
                 </ol>
                 {model.notes ? (
-                  <p className="mt-1 text-[10px] leading-snug text-slate-600">
+                  <p className="mt-1 text-[8.5pt] leading-[1.18] text-slate-600">
                     {model.notes}
                   </p>
                 ) : null}
@@ -398,14 +439,15 @@ export default function AdminProformaPreview({
           {/* FOOTER */}
           <div style={band(FOOTER_TOP, FOOTER_HEIGHT)}>
             <div className="mb-1 h-px bg-[#D4AF37]" />
-            <p className="text-center text-[10px] font-bold tracking-wide text-[#1E293B]">
+            <p className="text-center text-[9pt] font-bold tracking-wide text-[#1E293B]">
               FC AUTO EXPORT
             </p>
-            <div className="relative text-[9px] text-slate-500">
-              <p className="text-center">
-                {website} · {model.salespersonPhone} · {model.salespersonEmail}
+            <div className="relative text-[7.5pt] text-slate-500">
+              <p className="px-[28pt] text-center">
+                {website}   ·   {model.salespersonPhone}   ·  {" "}
+                {model.salespersonEmail}
               </p>
-              <p className="absolute right-0 top-0 font-medium text-[#1E293B]">
+              <p className="absolute right-0 top-0 font-bold text-[#1E293B]">
                 Page 1 / 1
               </p>
             </div>
@@ -424,7 +466,7 @@ function VehicleTable({ model }: { model: ProformaPreviewModel }) {
 
   return (
     <table
-      className="w-full table-fixed border-collapse text-[10px]"
+      className="w-full table-fixed border-collapse text-[8.5pt]"
       style={{ height: pt(VEHICLE_TABLE_HEIGHT) }}
     >
       <thead>
@@ -486,57 +528,79 @@ function VehicleTable({ model }: { model: ProformaPreviewModel }) {
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-0.5 text-[11px] font-bold text-[#1E293B]">{children}</h3>
+    <h3 className="mb-[3pt] text-[9.5pt] font-bold text-[#1E293B]">{children}</h3>
   );
 }
 
 function PaymentField({ label, value }: { label: string; value: string }) {
   const display = compactPaymentValue(value);
   return (
-    <p className="truncate leading-snug">
-      <span className="text-[9px] text-slate-500">{label}: </span>
-      <span className="text-[10px] font-semibold text-[#1E293B]">{display}</span>
+    <p className="truncate" style={{ lineHeight: 1.18 }}>
+      <span className="text-[8.5pt] font-semibold text-slate-500">{label}: </span>
+      <span className="text-[9pt] font-normal text-[#1E293B]">{display}</span>
     </p>
   );
 }
 
 function Meta({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-[8px] leading-tight text-slate-500">{label}</p>
-      <p className="truncate text-[10px] font-semibold leading-tight text-[#1E293B]">
+    <div className="mb-[1pt] grid grid-cols-[78pt_1fr] items-baseline gap-x-1">
+      <p className="text-[9pt] font-bold leading-[1.18] text-slate-500">
+        {label}
+      </p>
+      <p className="truncate text-[9.5pt] font-normal leading-[1.18] text-[#1E293B]">
         {value}
       </p>
     </div>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+/** Seller/Buyer field — bold label, regular value; no ellipsis unless maxLines. */
+function PartyField({
+  label,
+  value,
+  maxLines,
+}: {
+  label: string;
+  value: string;
+  maxLines?: number;
+}) {
   return (
-    <p className="mb-0 truncate text-[10px] leading-tight">
-      <span className="text-slate-500">{label}: </span>
-      <span className="text-[#1E293B]">{value}</span>
-    </p>
-  );
-}
-
-/** Address: max 4 lines + ellipsis; does not grow INFO_HEIGHT. */
-function AddressField({ value }: { value: string }) {
-  return (
-    <p className="mb-0 text-[10px] leading-tight">
-      <span className="text-slate-500">Address: </span>
+    <p className="mb-[1.5pt] text-[8.5pt]" style={{ lineHeight: 1.18 }}>
+      <span className="font-bold text-slate-500">{label}: </span>
       <span
-        className="text-[#1E293B]"
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: 4,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
+        className="break-words font-normal text-[#1E293B]"
+        style={
+          maxLines
+            ? {
+                display: "-webkit-box",
+                WebkitLineClamp: maxLines,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }
+            : undefined
+        }
       >
         {value || "—"}
       </span>
     </p>
+  );
+}
+
+/** Seller address: preferred multi-line display, no “…”. */
+function AddressLinesField({ lines }: { lines: string[] }) {
+  const shown = lines.slice(0, 5);
+  return (
+    <div className="mb-[1.5pt] text-[8.5pt]" style={{ lineHeight: 1.18 }}>
+      <span className="font-bold text-slate-500">Address: </span>
+      <span className="inline-block align-top font-normal text-[#1E293B]">
+        {shown.map((line, i) => (
+          <span key={i} className="block break-words">
+            {line}
+          </span>
+        ))}
+      </span>
+    </div>
   );
 }
 
@@ -560,7 +624,7 @@ function Th({
       } ${className ?? ""}`}
     >
       <div className="leading-tight">{en}</div>
-      <div className="text-[8px] font-normal opacity-90">{zh}</div>
+      <div className="mt-[2pt] text-[8px] font-normal opacity-90">{zh}</div>
     </th>
   );
 }

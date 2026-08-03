@@ -19,6 +19,7 @@ import {
   CHARGES_TOP,
   FOOTER_TOP,
   HEADER_BOTTOM,
+  HEADER_HEIGHT,
   HEADER_TOP,
   INFO_HEIGHT,
   INFO_TOP,
@@ -44,6 +45,10 @@ import {
   ensureProformaFonts,
   setProformaFont,
 } from "@/lib/proforma/pdfFonts";
+import {
+  formatSellerAddressDisplayLines,
+  formatSellerCompanyDisplay,
+} from "@/lib/proforma/displayFormat";
 
 const NAVY: [number, number, number] = [30, 41, 59];
 const GOLD: [number, number, number] = [212, 175, 55];
@@ -52,6 +57,18 @@ const LIGHT: [number, number, number] = [248, 250, 252];
 const LINE: [number, number, number] = [226, 232, 240];
 const BLACK: [number, number, number] = [15, 23, 42];
 const WHITE: [number, number, number] = [255, 255, 255];
+
+/** Typography hierarchy (pt). */
+const PT_EN = 9;
+const PT_ZH = 8.5;
+const PT_LABEL = 8.5;
+const PT_SECTION = 9.5;
+const PT_META_LABEL = 9;
+const PT_META_VALUE = 9.5;
+const PT_PARTY = 8.5;
+const PT_FOOTER = 7.5;
+const PT_LINE_HEIGHT = 1.18;
+const INFO_BOTTOM_PAD = 6.5;
 
 const MARGIN = PI_MARGIN;
 const PAGE_W = PAGE_WIDTH;
@@ -117,6 +134,8 @@ function putText(
     maxWidth?: number;
     lineGap?: number;
     maxLines?: number;
+    /** When false, truncate extra lines without adding “…”. */
+    ellipsis?: boolean;
   }
 ): number {
   const fontSize = opts?.fontSize ?? 8.5;
@@ -125,6 +144,7 @@ function putText(
   const align = opts?.align ?? "left";
   const lineGap = opts?.lineGap ?? 2.2;
   const maxLines = opts?.maxLines ?? 99;
+  const useEllipsis = opts?.ellipsis !== false;
   if (!text) return fontSize * 0.2;
 
   setProformaFont(doc, opts?.bold ? "bold" : "normal");
@@ -133,9 +153,11 @@ function putText(
   let lines = doc.splitTextToSize(text, maxWidth) as string[];
   if (lines.length > maxLines) {
     lines = lines.slice(0, maxLines);
-    const last = lines[maxLines - 1] ?? "";
-    lines[maxLines - 1] =
-      last.length > 1 ? `${last.slice(0, Math.max(1, last.length - 1))}…` : "…";
+    if (useEllipsis) {
+      const last = lines[maxLines - 1] ?? "";
+      lines[maxLines - 1] =
+        last.length > 1 ? `${last.slice(0, Math.max(1, last.length - 1))}…` : "…";
+    }
   }
   doc.text(lines, x, y, { align });
   return lines.length * (fontSize + lineGap);
@@ -206,47 +228,54 @@ function drawGoldRule(doc: Pdf, y: number) {
 
 /** Header band only — never draws Invoice/Seller/Buyer. */
 function drawHeader(doc: Pdf, source: ProformaPdfSource) {
-  const y = HEADER_TOP;
-  const logo = 22;
+  const bandTop = HEADER_TOP;
+  const usableH = HEADER_HEIGHT - 4;
+  const logo = 26; // ~8% larger than prior 24pt
+  const logoY = bandTop + (usableH - logo) / 2;
+  const midY = logoY + logo / 2;
 
   doc.setFillColor(...NAVY);
-  doc.roundedRect(MARGIN, y + 4, logo, logo, 2.5, 2.5, "F");
+  doc.roundedRect(MARGIN, logoY, logo, logo, 2.8, 2.8, "F");
   doc.setFillColor(...GOLD);
-  doc.roundedRect(MARGIN + 2.5, y + 6.5, logo - 5, logo - 5, 1.5, 1.5, "F");
+  doc.roundedRect(MARGIN + 2.8, logoY + 2.8, logo - 5.6, logo - 5.6, 1.6, 1.6, "F");
   setProformaFont(doc, "bold");
   doc.setTextColor(...NAVY);
-  doc.setFontSize(8);
-  doc.text("FC", MARGIN + logo / 2, y + 4 + logo * 0.62, { align: "center" });
+  doc.setFontSize(9);
+  doc.text("FC", MARGIN + logo / 2, logoY + logo * 0.62, { align: "center" });
 
+  const brandX = MARGIN + logo + 7;
   setProformaFont(doc, "bold");
   doc.setFontSize(11);
   doc.setTextColor(...NAVY);
-  doc.text("FC AUTO EXPORT", MARGIN + logo + 6, y + 14);
+  doc.text("FC AUTO EXPORT", brandX, midY - 5);
   setProformaFont(doc, "normal");
-  doc.setFontSize(7.5);
+  doc.setFontSize(PT_ZH);
   doc.setTextColor(...SLATE);
-  doc.text("USED VEHICLE EXPORT", MARGIN + logo + 6, y + 24);
+  doc.text("USED VEHICLE EXPORT", brandX, midY + 7);
 
   setProformaFont(doc, "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(13.5);
   doc.setTextColor(...NAVY);
-  doc.text("PROFORMA INVOICE", PAGE_W / 2, y + 16, { align: "center" });
+  doc.text("PROFORMA INVOICE", PAGE_W / 2, midY - 6, { align: "center" });
   setProformaFont(doc, "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(PT_ZH);
   doc.setTextColor(...GOLD);
-  doc.text("形式发票", PAGE_W / 2, y + 28, { align: "center" });
+  doc.text("形式发票", PAGE_W / 2, midY + 10, { align: "center" });
 
   const website = source.companySnapshot.companyWebsite || "fcautoexport.com";
+  // Keep email clear of the page edge (right margin already applied)
+  const contactX = PAGE_W - MARGIN;
   setProformaFont(doc, "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(PT_ZH);
   doc.setTextColor(...SLATE);
-  doc.text(website, PAGE_W - MARGIN, y + 12, { align: "right" });
+  doc.text(website, contactX, midY - 10, { align: "right" });
+  setProformaFont(doc, "normal");
+  doc.setFontSize(PT_EN);
   doc.setTextColor(...BLACK);
-  doc.setFontSize(7.5);
-  doc.text(source.salespersonPhone || "", PAGE_W - MARGIN, y + 22, {
+  doc.text(source.salespersonPhone || "", contactX, midY + 1, {
     align: "right",
   });
-  doc.text(source.salespersonEmail || "", PAGE_W - MARGIN, y + 32, {
+  doc.text(source.salespersonEmail || "", contactX, midY + 12, {
     align: "right",
   });
 
@@ -257,21 +286,23 @@ function drawFooter(doc: Pdf, source: ProformaPdfSource) {
   const y = FOOTER_TOP;
   drawGoldRule(doc, y);
   setProformaFont(doc, "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(PT_EN);
   doc.setTextColor(...NAVY);
-  doc.text("FC AUTO EXPORT", PAGE_W / 2, y + 11, { align: "center" });
-  setProformaFont(doc, "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(...SLATE);
+  doc.text("FC AUTO EXPORT", PAGE_W / 2, y + 10, { align: "center" });
+
   const website = source.companySnapshot.companyWebsite || "fcautoexport.com";
-  doc.text(
-    `${website}  ·  ${source.salespersonPhone}  ·  ${source.salespersonEmail}`,
-    PAGE_W / 2,
-    y + 21,
-    { align: "center" }
-  );
+  const phone = source.salespersonPhone || "";
+  const email = source.salespersonEmail || "";
+  setProformaFont(doc, "normal");
+  doc.setFontSize(PT_FOOTER);
+  doc.setTextColor(...SLATE);
+  // Evenly spaced contact cluster, centered; page number clear on the right
+  const contact = [website, phone, email].filter(Boolean).join("   ·   ");
+  doc.text(contact, PAGE_W / 2, y + 20, { align: "center" });
+  setProformaFont(doc, "bold");
+  doc.setFontSize(PT_FOOTER);
   doc.setTextColor(...NAVY);
-  doc.text("Page 1 / 1", PAGE_W - MARGIN, y + 21, { align: "right" });
+  doc.text("Page 1 / 1", PAGE_W - MARGIN, y + 20, { align: "right" });
 }
 
 function labelValue(
@@ -280,133 +311,233 @@ function labelValue(
   value: string,
   x: number,
   y: number,
-  w: number
+  labelW: number,
+  valueW: number
 ): number {
-  setProformaFont(doc, "normal");
-  doc.setFontSize(6);
+  setProformaFont(doc, "bold");
+  doc.setFontSize(PT_META_LABEL);
   doc.setTextColor(...SLATE);
   doc.text(label, x, y);
-  oneLine(doc, value || "—", x, y + 8, w, { fontSize: 7.5, bold: true });
-  return 15;
+  oneLine(doc, value || "—", x + labelW, y, valueW, {
+    fontSize: PT_META_VALUE,
+    bold: false,
+    color: BLACK,
+  });
+  return 12.5;
 }
 
-function fieldRow(
+/** Seller/Buyer field: bold label + regular value; optional no-ellipsis wrap. */
+function partyField(
   doc: Pdf,
   label: string,
   value: string,
   x: number,
   y: number,
   labelW: number,
-  valueW: number
+  valueW: number,
+  opts?: { maxLines?: number; ellipsis?: boolean; fontSize?: number }
 ): number {
-  setProformaFont(doc, "normal");
-  doc.setFontSize(6.5);
+  const fontSize = opts?.fontSize ?? PT_PARTY;
+  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
+  setProformaFont(doc, "bold");
+  doc.setFontSize(PT_LABEL);
   doc.setTextColor(...SLATE);
   doc.text(`${label}:`, x, y);
-  oneLine(doc, value || "—", x + labelW, y, valueW, { fontSize: 7.5 });
-  return 10;
+  const textH = putText(doc, (value || "").trim() || "—", x + labelW, y, {
+    fontSize,
+    bold: false,
+    maxWidth: valueW,
+    lineGap,
+    maxLines: opts?.maxLines ?? 99,
+    ellipsis: opts?.ellipsis !== false,
+  });
+  return Math.max(fontSize * PT_LINE_HEIGHT, textH) + 1.5;
 }
 
-/** Info band starts at INFO_TOP — never overlaps header title. */
+function measurePartyField(
+  doc: Pdf,
+  value: string,
+  valueW: number,
+  maxLines = 99,
+  fontSize = PT_PARTY
+): number {
+  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
+  setProformaFont(doc, "normal");
+  doc.setFontSize(fontSize);
+  const raw = (value || "").trim() || "—";
+  let lines = doc.splitTextToSize(raw, valueW) as string[];
+  if (lines.length > maxLines) lines = lines.slice(0, maxLines);
+  const textH = Math.max(1, lines.length) * (fontSize + lineGap);
+  return Math.max(fontSize * PT_LINE_HEIGHT, textH) + 1.5;
+}
+
+/** Draw multi-line address without ellipsis (pre-broken display lines). */
+function partyAddressField(
+  doc: Pdf,
+  label: string,
+  lines: string[],
+  x: number,
+  y: number,
+  labelW: number,
+  valueW: number,
+  maxLines: number
+): number {
+  const fontSize = PT_PARTY;
+  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
+  const step = fontSize + lineGap;
+  setProformaFont(doc, "bold");
+  doc.setFontSize(PT_LABEL);
+  doc.setTextColor(...SLATE);
+  doc.text(`${label}:`, x, y);
+
+  setProformaFont(doc, "normal");
+  doc.setFontSize(fontSize);
+  doc.setTextColor(...BLACK);
+
+  const drawn: string[] = [];
+  for (const line of lines) {
+    const wrapped = doc.splitTextToSize(line, valueW) as string[];
+    for (const w of wrapped) {
+      if (drawn.length >= maxLines) break;
+      drawn.push(w);
+    }
+    if (drawn.length >= maxLines) break;
+  }
+  if (drawn.length === 0) drawn.push("—");
+
+  let yy = y;
+  for (const w of drawn) {
+    doc.text(w, x + labelW, yy);
+    yy += step;
+  }
+  return drawn.length * step + 1.5;
+}
+
+/** Info band — metadata + Seller + Buyer; never overlaps vehicle title. */
 function drawInfo(doc: Pdf, source: ProformaPdfSource) {
   const colW = CONTENT_W / 3;
   const col1 = MARGIN;
   const col2 = MARGIN + colW;
   const col3 = MARGIN + colW * 2;
   const infoTop = INFO_TOP;
-  const infoLimit = INFO_TOP + INFO_HEIGHT - 4;
+  const labelW = 48;
+  const valueW = colW - 56;
+  const buyerLabelW = 72;
+  const buyerValueW = colW - 80;
+  const metaLabelW = 78;
+  const metaValueW = colW - metaLabelW - 6;
+  const bottomPad = INFO_BOTTOM_PAD;
+  const infoLimit = INFO_TOP + INFO_HEIGHT - bottomPad;
 
+  // —— Metadata (larger, aligned columns) ——
   let y1 = infoTop;
-  y1 += labelValue(doc, "Invoice No. / 发票号", source.invoiceNumber, col1, y1, colW - 8);
-  if (y1 < infoLimit) {
-    y1 += labelValue(
-      doc,
+  const meta: Array<[string, string]> = [
+    ["Invoice No. / 发票号", source.invoiceNumber],
+    [
       "Contract No. / 合同号",
       source.contractNumber || source.invoiceNumber,
-      col1,
-      y1,
-      colW - 8
-    );
-  }
-  if (y1 < infoLimit) {
-    y1 += labelValue(doc, "Offer Date / 报价日期", source.offerDate, col1, y1, colW - 8);
-  }
-  if (y1 < infoLimit) {
-    y1 += labelValue(
-      doc,
-      "Validity / 有效期",
-      source.validityText || "7 Days",
-      col1,
-      y1,
-      colW - 8
-    );
-  }
-  if (y1 < infoLimit) {
-    labelValue(doc, "Currency / 货币", "USD", col1, y1, colW - 8);
+    ],
+    ["Offer Date / 报价日期", source.offerDate],
+    ["Validity / 有效期", source.validityText || "7 Days"],
+    ["Currency / 货币", "USD"],
+  ];
+  for (const [label, value] of meta) {
+    y1 += labelValue(doc, label, value, col1, y1, metaLabelW, metaValueW);
   }
 
-  let y2 = infoTop;
-  putText(doc, "Seller / 卖方", col2, y2, {
-    fontSize: 8.5,
+  // —— Seller heading (same baseline as Buyer) ——
+  const partyHeadY = infoTop;
+  putText(doc, "Seller / 卖方", col2, partyHeadY, {
+    fontSize: PT_SECTION,
     bold: true,
     color: NAVY,
     maxWidth: colW - 8,
   });
-  y2 += 11;
-  y2 += fieldRow(doc, "Company", source.companySnapshot.companyName, col2, y2, 42, colW - 50);
-  // Address: max 4 compact lines, does not grow INFO_HEIGHT
-  setProformaFont(doc, "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(...SLATE);
-  doc.text("Address:", col2, y2);
-  const addrH = putText(doc, source.companySnapshot.companyAddress || "—", col2 + 42, y2, {
-    fontSize: 7.5,
-    maxWidth: colW - 50,
-    lineGap: 1.2,
-    maxLines: 4,
-  });
-  y2 += Math.max(10, Math.min(addrH, 4 * 8.7));
-  if (y2 < infoLimit) y2 += fieldRow(doc, "Sales", source.salespersonName, col2, y2, 42, colW - 50);
-  if (y2 < infoLimit) y2 += fieldRow(doc, "Phone", source.salespersonPhone, col2, y2, 42, colW - 50);
-  if (y2 < infoLimit) y2 += fieldRow(doc, "Email", source.salespersonEmail, col2, y2, 42, colW - 50);
-  if (y2 < infoLimit) {
-    fieldRow(doc, "Website", source.companySnapshot.companyWebsite, col2, y2, 42, colW - 50);
-  }
-
-  let y3 = infoTop;
-  putText(doc, "Buyer / 买方", col3, y3, {
-    fontSize: 8.5,
+  putText(doc, "Buyer / 买方", col3, partyHeadY, {
+    fontSize: PT_SECTION,
     bold: true,
     color: NAVY,
     maxWidth: colW - 8,
   });
-  y3 += 11;
+
+  let y2 = partyHeadY + 12;
+  const companyDisplay = formatSellerCompanyDisplay(
+    source.companySnapshot.companyName
+  );
+  const addressLines = formatSellerAddressDisplayLines(
+    source.companySnapshot.companyAddress
+  );
+  const website = source.companySnapshot.companyWebsite || "fcautoexport.com";
+
+  const salesH = measurePartyField(doc, source.salespersonName, valueW);
+  const phoneH = measurePartyField(doc, source.salespersonPhone, valueW);
+  const emailH = measurePartyField(doc, source.salespersonEmail, valueW);
+  const websiteH = measurePartyField(doc, website, valueW);
+  const companyH = measurePartyField(doc, companyDisplay, valueW, 3, PT_PARTY);
+
+  const addressBudget = Math.max(
+    PT_PARTY * PT_LINE_HEIGHT + 1.5,
+    infoLimit - (y2 + companyH + salesH + phoneH + emailH + websiteH)
+  );
+  const addrLineH = PT_PARTY * PT_LINE_HEIGHT;
+  const addressMaxLines = Math.max(
+    1,
+    Math.min(5, Math.floor(addressBudget / addrLineH), addressLines.length)
+  );
+
+  y2 += partyField(doc, "Company", companyDisplay, col2, y2, labelW, valueW, {
+    maxLines: 3,
+    ellipsis: false,
+  });
+  y2 += partyAddressField(
+    doc,
+    "Address",
+    addressLines,
+    col2,
+    y2,
+    labelW,
+    valueW,
+    addressMaxLines
+  );
+  y2 += partyField(doc, "Sales", source.salespersonName, col2, y2, labelW, valueW, {
+    ellipsis: false,
+  });
+  y2 += partyField(doc, "Phone", source.salespersonPhone, col2, y2, labelW, valueW, {
+    ellipsis: false,
+  });
+  y2 += partyField(doc, "Email", source.salespersonEmail, col2, y2, labelW, valueW, {
+    ellipsis: false,
+  });
+  y2 += partyField(doc, "Website", website, col2, y2, labelW, valueW, {
+    ellipsis: false,
+  });
+
+  // —— Buyer: always render every label ——
+  let y3 = partyHeadY + 12;
   const dest = [source.destinationCountry, source.destinationPort]
     .filter(Boolean)
     .join(" / ");
-  y3 += fieldRow(doc, "Customer", source.customerName, col3, y3, 52, colW - 60);
-  if (source.customerCompany && y3 < infoLimit) {
-    y3 += fieldRow(doc, "Company", source.customerCompany, col3, y3, 52, colW - 60);
-  }
-  if (source.customerCountry && y3 < infoLimit) {
-    y3 += fieldRow(doc, "Country", source.customerCountry, col3, y3, 52, colW - 60);
-  }
-  if (source.customerWhatsapp && y3 < infoLimit) {
-    y3 += fieldRow(doc, "WhatsApp", source.customerWhatsapp, col3, y3, 52, colW - 60);
-  }
-  if (source.customerEmail && y3 < infoLimit) {
-    y3 += fieldRow(doc, "Email", source.customerEmail, col3, y3, 52, colW - 60);
-  }
-  if (dest && y3 < infoLimit) {
-    fieldRow(doc, "Destination Port", dest, col3, y3, 52, colW - 60);
+  const buyerFields: Array<[string, string, number]> = [
+    ["Customer / 客户", source.customerName || "—", 2],
+    ["Company / 公司", source.customerCompany || "—", 2],
+    ["Country / 国家", source.customerCountry || "—", 1],
+    ["WhatsApp / 电话", source.customerWhatsapp || "—", 1],
+    ["Email / 邮箱", source.customerEmail || "—", 1],
+    ["Destination Port / 目的港", dest || "—", 2],
+  ];
+  for (const [label, value, maxLines] of buyerFields) {
+    y3 += partyField(doc, label, value, col3, y3, buyerLabelW, buyerValueW, {
+      maxLines,
+      ellipsis: false,
+    });
   }
 
   drawGoldRule(doc, INFO_TOP + INFO_HEIGHT - 2);
 }
 
 function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
-  putText(doc, "Vehicle Items / 车辆明细", MARGIN, VEHICLE_TITLE_TOP + 10, {
-    fontSize: 9.5,
+  putText(doc, "Vehicle Items / 车辆明细", MARGIN, VEHICLE_TITLE_TOP + 11, {
+    fontSize: PT_SECTION,
     bold: true,
     color: NAVY,
     maxWidth: CONTENT_W,
@@ -436,19 +567,25 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
   ];
 
   for (const c of cols) {
-    doc.setFontSize(6.5);
+    setProformaFont(doc, "bold");
+    doc.setFontSize(7);
+    const enY = headerY + VEHICLE_HEADER_HEIGHT * 0.38;
+    const zhY = headerY + VEHICLE_HEADER_HEIGHT * 0.72;
     if (c.align === "right") {
-      doc.text(c.en, c.x, headerY + 9, { align: "right" });
-      doc.setFontSize(5.5);
-      doc.text(c.zh, c.x, headerY + 18, { align: "right" });
+      doc.text(c.en, c.x, enY, { align: "right" });
+      setProformaFont(doc, "normal");
+      doc.setFontSize(6.5);
+      doc.text(c.zh, c.x, zhY, { align: "right" });
     } else if (c.align === "center") {
-      doc.text(c.en, c.x, headerY + 9, { align: "center" });
-      doc.setFontSize(5.5);
-      doc.text(c.zh, c.x, headerY + 18, { align: "center" });
+      doc.text(c.en, c.x, enY, { align: "center" });
+      setProformaFont(doc, "normal");
+      doc.setFontSize(6.5);
+      doc.text(c.zh, c.x, zhY, { align: "center" });
     } else {
-      doc.text(c.en, c.x, headerY + 9);
-      doc.setFontSize(5.5);
-      doc.text(c.zh, c.x, headerY + 18);
+      doc.text(c.en, c.x, enY);
+      setProformaFont(doc, "normal");
+      doc.setFontSize(6.5);
+      doc.text(c.zh, c.x, zhY);
     }
   }
 
@@ -462,28 +599,35 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
       doc.rect(MARGIN, rowTop, CONTENT_W, VEHICLE_ROW_HEIGHT, "F");
     }
 
-    // Full row border (top already from previous line / header)
     doc.setDrawColor(...LINE);
-    doc.setLineWidth(0.4);
+    doc.setLineWidth(0.45);
     doc.rect(MARGIN, rowTop, CONTENT_W, VEHICLE_ROW_HEIGHT, "S");
 
     const mid = rowTop + Math.floor(VEHICLE_ROW_HEIGHT * 0.65);
     if (item) {
       setProformaFont(doc, "normal");
-      doc.setFontSize(7.5);
+      doc.setFontSize(PT_ZH);
       doc.setTextColor(...BLACK);
       doc.text(String(index + 1), MARGIN + 8, mid);
       oneLine(doc, item.brand || "—", MARGIN + 24, mid, 60, {
-        fontSize: 7.5,
+        fontSize: PT_ZH,
         bold: true,
       });
-      oneLine(doc, item.model || "—", MARGIN + 88, mid, 74, { fontSize: 7.5 });
-      oneLine(doc, item.year || "—", MARGIN + 168, mid, 28, { fontSize: 7.5 });
-      oneLine(doc, item.colour || "—", MARGIN + 200, mid, 44, { fontSize: 7 });
-      oneLine(doc, (item.vin || "—").slice(0, 22), MARGIN + 248, mid, 130, {
-        fontSize: 6.5,
+      oneLine(doc, item.model || "—", MARGIN + 88, mid, 74, {
+        fontSize: PT_ZH,
+        bold: false,
       });
-      doc.setFontSize(7.5);
+      oneLine(doc, item.year || "—", MARGIN + 168, mid, 28, {
+        fontSize: PT_ZH,
+      });
+      oneLine(doc, item.colour || "—", MARGIN + 200, mid, 44, {
+        fontSize: PT_ZH,
+      });
+      oneLine(doc, (item.vin || "—").slice(0, 22), MARGIN + 248, mid, 130, {
+        fontSize: 7.5,
+      });
+      setProformaFont(doc, "normal");
+      doc.setFontSize(PT_ZH);
       doc.text(String(item.quantity), MARGIN + 390, mid, { align: "center" });
       doc.text(formatUsd(item.unitPriceUsd), MARGIN + 455, mid, {
         align: "right",
@@ -495,7 +639,6 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
     }
   }
 
-  // Guard: shared bottom must match formula
   if (vehicleRowTop(7) + VEHICLE_ROW_HEIGHT !== VEHICLE_TABLE_BOTTOM) {
     throw new Error("VEHICLE_TABLE_BOTTOM mismatch");
   }
@@ -517,19 +660,19 @@ function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
   const bandBottom = y0 + CHARGES_HEIGHT;
 
   putText(doc, "Other Charges / 其他费用", leftX, y0 + 10, {
-    fontSize: 9.5,
+    fontSize: PT_SECTION,
     bold: true,
     color: NAVY,
     maxWidth: half,
   });
   putText(doc, "Financial Summary / 金额汇总", rightX, y0 + 10, {
-    fontSize: 9.5,
+    fontSize: PT_SECTION,
     bold: true,
     color: NAVY,
     maxWidth: half,
   });
 
-  let cy = y0 + 22;
+  let cy = y0 + 24;
   const chargeRows =
     source.charges.length > 0
       ? source.charges.slice(0, 5)
@@ -549,57 +692,70 @@ function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
       `${c.nameEn}${c.nameZh ? ` / ${c.nameZh}` : ""}`,
       leftX,
       cy,
-      half - 72,
-      { fontSize: 7.5 }
+      half - 78,
+      { fontSize: PT_EN, bold: false }
     );
     setProformaFont(doc, "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(PT_EN);
     doc.setTextColor(...BLACK);
-    doc.text(formatUsd(c.amountUsd), leftX + half - 2, cy, { align: "right" });
-    cy += 11;
+    doc.text(formatUsd(c.amountUsd), leftX + half - 8, cy, { align: "right" });
+    cy += 12;
   }
   if (cy <= bandBottom - 12) {
-    oneLine(doc, "Total Other Charges / 其他费用合计", leftX, cy, half - 72, {
-      fontSize: 8,
+    oneLine(doc, "Total Other Charges / 其他费用合计", leftX, cy, half - 78, {
+      fontSize: PT_EN,
       bold: true,
     });
     setProformaFont(doc, "bold");
-    doc.setFontSize(8.5);
+    doc.setFontSize(PT_EN);
     doc.setTextColor(...NAVY);
-    doc.text(formatUsd(source.chargesTotalUsd), leftX + half - 2, cy, {
+    doc.text(formatUsd(source.chargesTotalUsd), leftX + half - 8, cy, {
       align: "right",
     });
   }
 
-  // Summary box top inside the charges band — NOT autoTable startY / finalY.
-  const summaryBoxTop = y0 + 20;
-  const boxH = Math.min(70, CHARGES_HEIGHT - 24);
+  // Summary box — gold border, ~9pt inner right padding, subtle separators
+  const summaryBoxTop = y0 + 22;
+  const boxH = Math.min(70, CHARGES_HEIGHT - 26);
+  const sumPadL = 7;
+  const sumPadR = 9;
   doc.setFillColor(...LIGHT);
   doc.roundedRect(rightX, summaryBoxTop, half, boxH, 3, 3, "F");
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(1);
   doc.roundedRect(rightX, summaryBoxTop, half, boxH, 3, 3, "S");
 
-  const summary: Array<[string, string, boolean]> = [
-    ["Vehicle Total / 车辆总价", formatUsd(source.vehicleSubtotalUsd), false],
-    ["Other Charges / 其他费用", formatUsd(source.chargesTotalUsd), false],
-    ["Grand Total / 总计", formatUsd(source.totalUsd), true],
-    ["Deposit / 定金", formatUsd(source.depositUsd), false],
-    ["Balance / 尾款", formatUsd(source.balanceUsd), true],
+  const summary: Array<[string, string, boolean, boolean]> = [
+    ["Vehicle Total / 车辆总价", formatUsd(source.vehicleSubtotalUsd), false, false],
+    ["Other Charges / 其他费用", formatUsd(source.chargesTotalUsd), false, false],
+    ["Grand Total / 总计", formatUsd(source.totalUsd), true, true],
+    ["Deposit / 定金", formatUsd(source.depositUsd), false, false],
+    ["Balance / 尾款", formatUsd(source.balanceUsd), true, true],
   ];
-  let sy = summaryBoxTop + 10;
-  for (const [label, value, strong] of summary) {
+  let sy = summaryBoxTop + 11;
+  for (const [label, value, strong, ruleBefore] of summary) {
     if (sy > summaryBoxTop + boxH - 6) break;
-    oneLine(doc, label, rightX + 6, sy, half - 88, {
-      fontSize: strong ? 8 : 7.5,
+    if (ruleBefore) {
+      doc.setDrawColor(...LINE);
+      doc.setLineWidth(0.4);
+      doc.line(
+        rightX + sumPadL,
+        sy - 5,
+        rightX + half - sumPadR,
+        sy - 5
+      );
+      sy += 1;
+    }
+    oneLine(doc, label, rightX + sumPadL, sy, half - sumPadL - sumPadR - 62, {
+      fontSize: strong ? PT_EN : PT_ZH,
       bold: strong,
       color: strong ? NAVY : SLATE,
     });
     setProformaFont(doc, strong ? "bold" : "normal");
-    doc.setFontSize(strong ? 9 : 8);
+    doc.setFontSize(strong ? PT_EN : PT_ZH);
     doc.setTextColor(...(strong ? NAVY : BLACK));
-    doc.text(value, rightX + half - 6, sy, { align: "right" });
-    sy += 11;
+    doc.text(value, rightX + half - sumPadR, sy, { align: "right" });
+    sy += 11.5;
   }
 }
 
@@ -613,7 +769,7 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource) {
   }
   const y0 = PAYMENT_TOP_FIXED;
   putText(doc, "Payment Information / 付款信息", MARGIN, y0 + 10, {
-    fontSize: 9.5,
+    fontSize: PT_SECTION,
     bold: true,
     color: NAVY,
     maxWidth: CONTENT_W,
@@ -627,6 +783,7 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource) {
 
   const pay = source.paymentSnapshot;
   const colW = CONTENT_W / 2;
+  const padX = 10;
   const left: Array<[string, string]> = [
     ["Beneficiary / 收款人", compactPaymentValue(pay.fullName)],
     ["Bank / 开户银行", compactPaymentValue(pay.bankName)],
@@ -637,34 +794,34 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource) {
     ["SWIFT / SWIFT代码", compactPaymentValue(pay.swift)],
   ];
 
-  let ly = boxTop + 10;
+  let ly = boxTop + 11;
   for (const [label, value] of left) {
-    setProformaFont(doc, "normal");
-    doc.setFontSize(6.5);
+    setProformaFont(doc, "bold");
+    doc.setFontSize(PT_LABEL);
     doc.setTextColor(...SLATE);
     const labelText = `${label}: `;
-    doc.text(labelText, MARGIN + 6, ly);
+    doc.text(labelText, MARGIN + padX, ly);
     const lw = Math.min(doc.getTextWidth(labelText), colW * 0.55);
-    oneLine(doc, value, MARGIN + 6 + lw, ly, colW - 14 - lw, {
-      fontSize: 7.5,
-      bold: true,
+    oneLine(doc, value, MARGIN + padX + lw, ly, colW - padX * 2 - lw, {
+      fontSize: PT_EN,
+      bold: false,
     });
-    ly += 10;
+    ly += 11;
   }
 
-  let ry = boxTop + 10;
+  let ry = boxTop + 11;
   for (const [label, value] of right) {
-    setProformaFont(doc, "normal");
-    doc.setFontSize(6.5);
+    setProformaFont(doc, "bold");
+    doc.setFontSize(PT_LABEL);
     doc.setTextColor(...SLATE);
     const labelText = `${label}: `;
-    doc.text(labelText, MARGIN + colW + 4, ry);
+    doc.text(labelText, MARGIN + colW + padX, ry);
     const lw = Math.min(doc.getTextWidth(labelText), colW * 0.5);
-    oneLine(doc, value, MARGIN + colW + 4 + lw, ry, colW - 14 - lw, {
-      fontSize: 7.5,
-      bold: true,
+    oneLine(doc, value, MARGIN + colW + padX + lw, ry, colW - padX * 2 - lw, {
+      fontSize: PT_EN,
+      bold: false,
     });
-    ry += 10;
+    ry += 11;
   }
 }
 
@@ -678,24 +835,25 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource) {
   }
   let y = TERMS_TOP_FIXED + 10;
   putText(doc, "Terms / 条款", MARGIN, y, {
-    fontSize: 9.5,
+    fontSize: PT_SECTION,
     bold: true,
     color: NAVY,
     maxWidth: CONTENT_W,
   });
-  y += 12;
+  y += 14;
 
   const enabled = source.termsSnapshot.filter((t) => t.enabled);
+  const termLineGap = PT_EN * 0.18; // ~1.18 line-height
   for (let i = 0; i < enabled.length; i++) {
     const term = enabled[i]!;
     if (y >= TERMS_MAX_BOTTOM) break;
     if (term.textEn) {
       const h = putText(doc, `${i + 1}. ${term.textEn}`, MARGIN, y, {
-        fontSize: 7.5,
+        fontSize: PT_EN,
         maxWidth: CONTENT_W,
-        lineGap: 1.3,
+        lineGap: termLineGap,
       });
-      y += h + 0.5;
+      y += h + 1.5;
     }
     if (term.textZh && y < TERMS_MAX_BOTTOM) {
       const h = putText(
@@ -704,22 +862,22 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource) {
         MARGIN + (term.textEn ? 8 : 0),
         y,
         {
-          fontSize: 7.5,
+          fontSize: PT_ZH,
           color: SLATE,
           maxWidth: CONTENT_W - (term.textEn ? 8 : 0),
-          lineGap: 1.3,
+          lineGap: PT_ZH * 0.18,
         }
       );
-      y += h + 2.5;
+      y += h + 4.5;
     }
   }
 
   if (source.notes && y < TERMS_MAX_BOTTOM) {
     putText(doc, source.notes, MARGIN, y, {
-      fontSize: 7.5,
+      fontSize: PT_ZH,
       color: SLATE,
       maxWidth: CONTENT_W,
-      lineGap: 1.3,
+      lineGap: PT_ZH * (PT_LINE_HEIGHT - 1),
     });
   }
 }

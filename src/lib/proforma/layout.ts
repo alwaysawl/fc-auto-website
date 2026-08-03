@@ -19,20 +19,25 @@ export const HEADER_BOTTOM = HEADER_TOP + HEADER_HEIGHT; // 72
 
 /** —— Invoice / Seller / Buyer —— */
 export const INFO_TOP = 78;
-export const INFO_HEIGHT = 92;
-export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 170
+/** Seller/Buyer band (complete wrap + ~6–7pt pad); must stay above vehicle title. */
+export const INFO_HEIGHT = 100;
+export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 178
 
 /** —— Vehicle title + fixed 8-row table —— */
 export const VEHICLE_TITLE_TOP = 178;
 export const VEHICLE_TITLE_HEIGHT = 16;
 
-export const VEHICLE_TABLE_TOP = 198;
-export const VEHICLE_HEADER_HEIGHT = 25;
+/**
+ * Table top shifted up 3pt so header can grow 3pt while
+ * VEHICLE_TABLE_BOTTOM and body row height stay unchanged.
+ */
+export const VEHICLE_TABLE_TOP = 195;
+export const VEHICLE_HEADER_HEIGHT = 28;
 export const VEHICLE_ROW_HEIGHT = 20;
 export const VEHICLE_ROW_COUNT = 8;
 
 export const VEHICLE_TABLE_HEIGHT =
-  VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT; // 185
+  VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT; // 188
 
 export const VEHICLE_TABLE_BOTTOM =
   VEHICLE_TABLE_TOP + VEHICLE_TABLE_HEIGHT; // 383
@@ -154,22 +159,23 @@ export function estimateTermsHeight(
   terms: Array<{ textEn: string; textZh: string }>,
   notes?: string | null
 ): number {
-  const lineH = 7.5 + 1.3;
-  let h = 10;
+  const enLineH = 9 * 1.25;
+  const zhLineH = 8.5 * 1.25;
+  let h = 13;
   terms.forEach((t, i) => {
     if (t.textEn) {
       h +=
-        estimateWrappedLines(`${i + 1}. ${t.textEn}`, PI_CONTENT_W, 7.5) *
-          lineH +
-        0.5;
+        estimateWrappedLines(`${i + 1}. ${t.textEn}`, PI_CONTENT_W, 9) *
+          enLineH +
+        1;
     }
     if (t.textZh) {
       h +=
-        estimateWrappedLines(t.textZh, PI_CONTENT_W - 8, 7.5) * lineH + 2.5;
+        estimateWrappedLines(t.textZh, PI_CONTENT_W - 8, 8.5) * zhLineH + 3;
     }
   });
   if (notes?.trim()) {
-    h += estimateWrappedLines(notes, PI_CONTENT_W, 7.5) * lineH + 1;
+    h += estimateWrappedLines(notes, PI_CONTENT_W, 8.5) * zhLineH + 1;
   }
   return h;
 }
