@@ -150,11 +150,45 @@ function labelValue(
   return cy - y + 6;
 }
 
-function ensureSpace(doc: Pdf, y: number, need: number): number {
-  if (y + need <= FOOTER_Y - 8) return y;
+/** Returns [y, didPageBreak]. */
+function ensureSpace(
+  doc: Pdf,
+  y: number,
+  need: number
+): { y: number; pageBreak: boolean } {
+  if (y + need <= FOOTER_Y - 8) return { y, pageBreak: false };
   doc.addPage();
   drawPageChrome(doc);
-  return MARGIN + 18;
+  return { y: MARGIN + 16, pageBreak: true };
+}
+
+/** Safe download filename from invoice number, e.g. PI-20260803-0001.pdf */
+export function buildProformaPdfFilename(invoiceNumber: string): string {
+  const safe = (invoiceNumber || "proforma")
+    .trim()
+    .replace(/[^\w\-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${safe || "proforma"}.pdf`;
+}
+
+/** Trigger a real application/pdf file download (not print/HTML). */
+function triggerPdfFileDownload(doc: Pdf, filename: string): void {
+  const blob = doc.output("blob") as Blob;
+  const pdfBlob =
+    blob.type === "application/pdf"
+      ? blob
+      : new Blob([blob], { type: "application/pdf" });
+  const url = URL.createObjectURL(pdfBlob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
 }
 
 function drawPageChrome(doc: Pdf) {
@@ -284,9 +318,18 @@ export function detailToPdfSource(detail: ProformaDetail): ProformaPdfSource {
   };
 }
 
+/**
+ * Build and download a real A4 PDF file via jsPDF.
+ * Filename: `{invoiceNumber}.pdf` (e.g. PI-20260803-0001.pdf).
+ * Uses exact values from `source` (saved invoice snapshot) — no live price recalculation.
+ */
 export async function downloadProformaPdf(
   source: ProformaPdfSource
-): Promise<void> {
+): Promise<{ filename: string }> {
+  if (!source.invoiceNumber?.trim()) {
+    throw new Error("缺少发票编号，无法生成 PDF");
+  }
+
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   drawPageChrome(doc);
 
@@ -420,7 +463,7 @@ export async function downloadProformaPdf(
   y = Math.max(leftY, rightY) + 8;
 
   // Seller block
-  y = ensureSpace(doc, y, 70);
+  ({ y } = ensureSpace(doc, y, 70));
   doc.setFillColor(...LIGHT);
   doc.roundedRect(MARGIN, y, CONTENT_W, 62, 4, 4, "F");
   let sy = y + 12;
@@ -453,8 +496,8 @@ export async function downloadProformaPdf(
   );
   y += 74;
 
-  // Vehicles
-  y = ensureSpace(doc, y, 40);
+  // Vehicles — multi-page A4 with repeated table headers
+  ({ y } = ensureSpace(doc, y, 50));
   putText(doc, "车辆明细 / Vehicle Items", MARGIN, y, {
     fontSize: 10,
     bold: true,
@@ -464,10 +507,19 @@ export async function downloadProformaPdf(
   y += 14;
   y = drawVehicleTableHeader(doc, y);
 
+  const ROW_H = 28;
   source.items.forEach((item, index) => {
-    y = ensureSpace(doc, y, 32);
-    // Re-draw header if we just started a new page near top
-    if (y <= MARGIN + 24) {
+    const space = ensureSpace(doc, y, ROW_H + 4);
+    y = space.y;
+    if (space.pageBreak) {
+      // Continuation pages: chrome + repeated vehicle table header
+      putText(doc, "车辆明细 / Vehicle Items (续)", MARGIN, y, {
+        fontSize: 9,
+        bold: true,
+        color: NAVY,
+        maxWidth: CONTENT_W,
+      });
+      y += 12;
       y = drawVehicleTableHeader(doc, y);
     }
     y = drawVehicleRow(doc, item, index, y, index % 2 === 1);
@@ -477,7 +529,7 @@ export async function downloadProformaPdf(
 
   // Charges
   if (source.charges.some((c) => c.amountUsd > 0) || source.charges.length) {
-    y = ensureSpace(doc, y, 40);
+    ({ y } = ensureSpace(doc, y, 40));
     putText(doc, "其他费用 / Other Charges", MARGIN, y, {
       fontSize: 10,
       bold: true,
@@ -486,7 +538,7 @@ export async function downloadProformaPdf(
     });
     y += 12;
     for (const charge of source.charges) {
-      y = ensureSpace(doc, y, 16);
+      ({ y } = ensureSpace(doc, y, 16));
       putText(
         doc,
         `${charge.nameZh} / ${charge.nameEn}`,
@@ -506,7 +558,7 @@ export async function downloadProformaPdf(
   }
 
   // Financial summary
-  y = ensureSpace(doc, y, 100);
+  ({ y } = ensureSpace(doc, y, 100));
   const boxX = PAGE_W - MARGIN - 220;
   doc.setFillColor(...LIGHT);
   doc.roundedRect(boxX, y, 220, 92, 4, 4, "F");
@@ -538,7 +590,7 @@ export async function downloadProformaPdf(
   y += 104;
 
   // Payment
-  y = ensureSpace(doc, y, 90);
+  ({ y } = ensureSpace(doc, y, 90));
   putText(doc, "付款信息 / Payment Information", MARGIN, y, {
     fontSize: 10,
     bold: true,
@@ -557,7 +609,7 @@ export async function downloadProformaPdf(
   ];
   for (const [label, value] of payLines) {
     if (!value) continue;
-    y = ensureSpace(doc, y, 14);
+    ({ y } = ensureSpace(doc, y, 14));
     putText(doc, `${label}: ${value}`, MARGIN, y, {
       fontSize: 8,
       maxWidth: CONTENT_W,
@@ -569,7 +621,7 @@ export async function downloadProformaPdf(
   // Terms
   const enabledTerms = source.termsSnapshot.filter((t) => t.enabled);
   if (enabledTerms.length || source.notes) {
-    y = ensureSpace(doc, y, 40);
+    ({ y } = ensureSpace(doc, y, 40));
     putText(doc, "条款与说明 / Terms & Notes", MARGIN, y, {
       fontSize: 10,
       bold: true,
@@ -578,7 +630,7 @@ export async function downloadProformaPdf(
     });
     y += 14;
     enabledTerms.forEach((term, i) => {
-      y = ensureSpace(doc, y, 28);
+      ({ y } = ensureSpace(doc, y, 28));
       const zhH = putText(doc, `${i + 1}. ${term.textZh}`, MARGIN, y, {
         fontSize: 8,
         maxWidth: CONTENT_W,
@@ -592,7 +644,7 @@ export async function downloadProformaPdf(
       y += enH + 4;
     });
     if (source.notes) {
-      y = ensureSpace(doc, y, 20);
+      ({ y } = ensureSpace(doc, y, 20));
       putText(doc, source.notes, MARGIN, y, {
         fontSize: 8,
         maxWidth: CONTENT_W,
@@ -606,6 +658,7 @@ export async function downloadProformaPdf(
     drawFooter(doc, i, total);
   }
 
-  const filename = `FC-Auto-Proforma-${source.invoiceNumber}.pdf`;
-  doc.save(filename);
+  const filename = buildProformaPdfFilename(source.invoiceNumber);
+  triggerPdfFileDownload(doc, filename);
+  return { filename };
 }

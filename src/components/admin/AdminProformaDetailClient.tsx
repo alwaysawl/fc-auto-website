@@ -21,14 +21,14 @@ export default function AdminProformaDetailClient({
     setBusy(true);
     setMessage(null);
     try {
-      await downloadProformaPdf(detailToPdfSource(invoice));
+      const { filename } = await downloadProformaPdf(detailToPdfSource(invoice));
       await fetch(`/api/admin/proforma-invoices/${invoice.id}/status`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pdfGenerated: true }),
       });
-      setMessage("PDF 已下载");
+      setMessage(`已下载 PDF：${filename}`);
     } catch {
       setMessage("PDF 下载失败");
     } finally {

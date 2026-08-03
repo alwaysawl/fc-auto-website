@@ -210,14 +210,16 @@ export default function AdminProformaInvoicesClient({
       if (!res.ok || !json.invoice) {
         throw new Error(json.error || "无法加载发票");
       }
-      await downloadProformaPdf(detailToPdfSource(json.invoice));
+      const { filename } = await downloadProformaPdf(
+        detailToPdfSource(json.invoice)
+      );
       await fetch(`/api/admin/proforma-invoices/${row.id}/status`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pdfGenerated: true }),
       });
-      setMessage("PDF 已下载");
+      setMessage(`已下载 PDF：${filename}`);
     });
 
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));

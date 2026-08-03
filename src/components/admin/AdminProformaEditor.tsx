@@ -23,6 +23,7 @@ import type {
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
 import {
+  detailToPdfSource,
   downloadProformaPdf,
   type ProformaPdfSource,
 } from "@/lib/proforma/buildProformaPdf";
@@ -503,6 +504,45 @@ export default function AdminProformaEditor({
     })),
   });
 
+  const downloadSavedPdf = async () => {
+    if (!initial?.id) {
+      setError("请先保存发票后再下载 PDF");
+      return;
+    }
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      // Always reload the saved snapshot so the PDF matches the database.
+      const res = await fetch(`/api/admin/proforma-invoices/${initial.id}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        invoice?: ProformaDetail;
+      };
+      if (!res.ok || !json.invoice) {
+        throw new Error(json.error || "无法加载已保存发票");
+      }
+      const { filename } = await downloadProformaPdf(
+        detailToPdfSource(json.invoice)
+      );
+      await fetch(`/api/admin/proforma-invoices/${initial.id}/status`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfGenerated: true }),
+      });
+      setMessage(`已下载真实 A4 PDF：${filename}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PDF 下载失败");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const save = async (opts: {
     generatePdf?: boolean;
     markIssued?: boolean;
@@ -558,7 +598,21 @@ export default function AdminProformaEditor({
       const savedContract = contractNumber || savedNumber;
 
       if (opts.generatePdf && savedNumber) {
-        await downloadProformaPdf(toPdfSource(savedNumber, savedContract));
+        // Prefer reloading the saved record so the PDF uses exact DB values.
+        let pdfSource = toPdfSource(savedNumber, savedContract);
+        if (savedId) {
+          const reload = await fetch(
+            `/api/admin/proforma-invoices/${savedId}`,
+            { credentials: "include", cache: "no-store" }
+          );
+          const reloadJson = (await reload.json()) as {
+            invoice?: ProformaDetail;
+          };
+          if (reload.ok && reloadJson.invoice) {
+            pdfSource = detailToPdfSource(reloadJson.invoice);
+          }
+        }
+        const { filename } = await downloadProformaPdf(pdfSource);
         if (savedId) {
           await fetch(`/api/admin/proforma-invoices/${savedId}/status`, {
             method: "POST",
@@ -580,13 +634,10 @@ export default function AdminProformaEditor({
             });
           }
         }
+        setMessage(`已保存 ${savedNumber}，并下载 PDF：${filename}`);
+      } else {
+        setMessage(`草稿已保存 ${savedNumber}`);
       }
-
-      setMessage(
-        opts.generatePdf
-          ? `已保存 ${savedNumber}，PDF 已下载`
-          : `草稿已保存 ${savedNumber}`
-      );
 
       if (mode === "create" && savedId) {
         router.push(`/admin/proforma-invoices/${savedId}/edit`);
@@ -661,6 +712,16 @@ export default function AdminProformaEditor({
           >
             保存草稿
           </button>
+          {mode === "edit" && initial?.invoiceNumber ? (
+            <button
+              type="button"
+              className={btnGhost}
+              disabled={saving}
+              onClick={() => void downloadSavedPdf()}
+            >
+              下载 PDF
+            </button>
+          ) : null}
           <button
             type="button"
             className={btnGold}
