@@ -20,11 +20,11 @@ export const PI_ROW_H = PI_BASE_ROW_H;
 
 /** Required gaps between major page-1 sections (pt). */
 export const PI_GAP = {
-  tableToCharges: 10,
+  tableToCharges: 8,
   chargesToPayment: 8,
   paymentToTerms: 8,
   termsToFooter: 12,
-  moreNotice: 14,
+  moreNotice: 12,
 } as const;
 
 export type ProformaLayoutItem = {
@@ -47,6 +47,14 @@ export type ProformaLayoutInput = {
   customerEmail?: string | null;
   destinationCountry?: string | null;
   destinationPort?: string | null;
+  /** Payment snapshot fields — empty values keep the block compact. */
+  payment?: {
+    fullName?: string | null;
+    bankName?: string | null;
+    accountNumber?: string | null;
+    bankAddress?: string | null;
+    swift?: string | null;
+  };
 };
 
 export type ProformaPagination = {
@@ -103,8 +111,8 @@ function sumRowHeights(heights: number[], from: number, count: number): number {
   return total;
 }
 
-/** Extra pt reserved so optimistic text-wrap estimates never cause overlap. */
-const FIT_SAFETY_PT = 68;
+/** Small buffer only — avoid large fixed reserves that force early page breaks. */
+const FIT_SAFETY_PT = 18;
 
 /** Header + gold rule (full first-page header). */
 function estimateHeaderHeight(): number {
@@ -114,13 +122,12 @@ function estimateHeaderHeight(): number {
 
 /** Three-column invoice / seller / buyer block. */
 function estimateMetaHeight(input: ProformaLayoutInput): number {
-  // labelValue ≈ 8 + valueLines*(8+1.8)
-  const idH = 5 * 20;
+  // labelValue ≈ 8 + valueLines*(8+1.8) — short IDs stay ~18pt each
+  const idH = 5 * 18;
   let sellerH = 12; // title
   sellerH += Math.max(
     10,
     estimateWrappedLines(
-      // company name often long — approximate via address column width
       "FC Auto Fengcheng Auto Trade Co., Ltd.",
       PI_CONTENT_W / 3 - 50,
       7.5
@@ -134,31 +141,31 @@ function estimateMetaHeight(input: ProformaLayoutInput): number {
       7.5
     ) * 9.1
   );
-  sellerH += 11 * 4; // sales, phone, email, website
+  sellerH += 10 * 4; // sales, phone, email, website
 
   let buyerH = 12;
   buyerH += 11; // customer
   if (input.customerCompany) {
     buyerH += Math.max(
-      11,
+      10,
       estimateWrappedLines(input.customerCompany, PI_CONTENT_W / 3 - 60, 7.5) *
         9.1
     );
   }
-  if (input.customerCountry) buyerH += 11;
-  if (input.customerWhatsapp) buyerH += 11;
-  if (input.customerEmail) buyerH += 11;
+  if (input.customerCountry) buyerH += 10;
+  if (input.customerWhatsapp) buyerH += 10;
+  if (input.customerEmail) buyerH += 10;
   if (input.destinationCountry || input.destinationPort) {
     const dest = [input.destinationCountry, input.destinationPort]
       .filter(Boolean)
       .join(" / ");
     buyerH += Math.max(
-      11,
+      10,
       estimateWrappedLines(dest, PI_CONTENT_W / 3 - 60, 7.5) * 9.1
     );
   }
 
-  return Math.max(idH, sellerH, buyerH) + 16; // + gold rule + padding
+  return Math.max(idH, sellerH, buyerH) + 14; // + gold rule + padding
 }
 
 function estimateVehicleTitleAndHeader(): number {
@@ -168,49 +175,76 @@ function estimateVehicleTitleAndHeader(): number {
 /** Charges + financial summary (two columns). */
 export function estimateChargesSummaryHeight(chargesCount: number): number {
   const rows = Math.max(1, chargesCount) + 1; // + total other charges
-  // Bilingual charge labels often wrap in the half-width column.
-  const leftH = 12 + rows * 13 + 6;
+  const leftH = 12 + rows * 11 + 2;
   const rightH = 12 + 72; // title + gold box
-  return Math.max(leftH, rightH) + 4;
+  return Math.max(leftH, rightH);
 }
 
-/** Compact payment block. */
-export function estimatePaymentHeight(): number {
-  // Title + bordered box (3 rows) + gap — slightly above draw boxH for wrap.
-  return 10 + 48 + 8;
+/** Normalize payment display value (empty → compact dash). */
+export function compactPaymentValue(value?: string | null): string {
+  const t = (value || "").trim();
+  return t || "—";
 }
 
-/** Bilingual terms block (EN then ZH). */
+/**
+ * Compact payment block height.
+ * Empty/dash fields use a single short row; filled values grow with wrap.
+ */
+export function estimatePaymentHeight(
+  payment?: ProformaLayoutInput["payment"]
+): number {
+  const colW = PI_CONTENT_W / 2 - 14;
+  const left = [
+    compactPaymentValue(payment?.fullName),
+    compactPaymentValue(payment?.bankName),
+    compactPaymentValue(payment?.accountNumber),
+  ];
+  const right = [
+    compactPaymentValue(payment?.bankAddress),
+    compactPaymentValue(payment?.swift),
+  ];
+
+  const rowH = (value: string) => {
+    if (value === "—") return 10; // label + dash on one compact row
+    const lines = estimateWrappedLines(value, colW, 7.5);
+    return Math.max(10, 7 + lines * 8.5);
+  };
+
+  const leftH = left.reduce((sum, v) => sum + rowH(v), 0);
+  const rightH = right.reduce((sum, v) => sum + rowH(v), 0);
+  const boxInner = Math.max(leftH, rightH, 28) + 8; // padding inside border
+  return 10 + boxInner + 6; // title + box + gap to terms
+}
+
+/** Bilingual terms block (EN then ZH) with compact line spacing. */
 export function estimateTermsHeight(
   terms: Array<{ textEn: string; textZh: string }>,
   notes?: string | null
 ): number {
-  const lineH = 7.5 + 1.8; // matches putText in drawTerms
-  let h = 11; // title
+  const lineH = 7.5 + 1.2; // matches compact drawTerms
+  let h = 10; // title
   terms.forEach((t, i) => {
     if (t.textEn) {
       const prefix = `${i + 1}. `;
       h +=
-        estimateWrappedLines(prefix + t.textEn, PI_CONTENT_W, 7.5) * lineH + 1;
+        estimateWrappedLines(prefix + t.textEn, PI_CONTENT_W, 7.5) * lineH + 0.5;
     }
     if (t.textZh) {
       h +=
-        estimateWrappedLines(t.textZh, PI_CONTENT_W - 8, 7.5) * lineH + 4;
-    } else {
-      h += 3;
+        estimateWrappedLines(t.textZh, PI_CONTENT_W - 8, 7.5) * lineH + 2;
     }
   });
   if (notes) {
-    h += estimateWrappedLines(notes, PI_CONTENT_W, 7.5) * lineH + 2;
+    h += estimateWrappedLines(notes, PI_CONTENT_W, 7.5) * lineH + 1;
   }
-  return h + 10;
+  return h + 4;
 }
 
 function estimatePage1BottomHeight(input: ProformaLayoutInput): number {
   return (
     estimateChargesSummaryHeight(input.chargesCount) +
     PI_GAP.chargesToPayment +
-    estimatePaymentHeight() +
+    estimatePaymentHeight(input.payment) +
     PI_GAP.paymentToTerms +
     estimateTermsHeight(input.enabledTerms, input.notes)
   );
@@ -224,6 +258,7 @@ function estimateContinuationTopHeight(): number {
 /**
  * Iterative first-page fit:
  * start at min(8, n), reduce until header+rows+notice+bottom+footer gaps fit.
+ * Continuation notice height is included only when vehicles remain after page 1.
  */
 export function paginateProformaVehicles(
   input: ProformaLayoutInput
@@ -246,6 +281,7 @@ export function paginateProformaVehicles(
 
   while (firstCount >= 1) {
     const hasMore = firstCount < n;
+    // Notice only when continuation page actually exists.
     const afterTableGap = hasMore
       ? PI_GAP.moreNotice + PI_GAP.tableToCharges
       : PI_GAP.tableToCharges;

@@ -8,6 +8,7 @@ import type {
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
 import {
+  compactPaymentValue,
   paginateProformaVehicles,
   type ProformaLayoutInput,
 } from "@/lib/proforma/layout";
@@ -88,6 +89,13 @@ export default function AdminProformaPreview({
       customerEmail: model.customerEmail,
       destinationCountry: model.destinationCountry,
       destinationPort: model.destinationPort,
+      payment: {
+        fullName: model.payment.fullName,
+        bankName: model.payment.bankName,
+        accountNumber: model.payment.accountNumber,
+        bankAddress: model.payment.bankAddress,
+        swift: model.payment.swift,
+      },
     };
     return paginateProformaVehicles(input).pages;
   }, [model]);
@@ -273,48 +281,48 @@ function A4Page({
             </div>
 
             {/* Payment */}
-            <div className="mt-3 rounded border border-slate-200 p-2">
+            <div className="mt-2 rounded border border-slate-200 px-2 py-1.5">
               <SectionTitle>Payment Information / 付款信息</SectionTitle>
-              <div className="grid gap-1 sm:grid-cols-2 text-[10px]">
-                <Meta
+              <div className="grid gap-0.5 sm:grid-cols-2 text-[10px]">
+                <PaymentField
                   label="Beneficiary / 收款人"
-                  value={model.payment.fullName || "—"}
+                  value={model.payment.fullName}
                 />
-                <Meta
+                <PaymentField
                   label="Bank Address / 开户行地址"
-                  value={model.payment.bankAddress || "—"}
+                  value={model.payment.bankAddress}
                 />
-                <Meta
+                <PaymentField
                   label="Bank / 开户银行"
-                  value={model.payment.bankName || "—"}
+                  value={model.payment.bankName}
                 />
-                <Meta
+                <PaymentField
                   label="SWIFT / SWIFT代码"
-                  value={model.payment.swift || "—"}
+                  value={model.payment.swift}
                 />
-                <Meta
+                <PaymentField
                   label="Account Number / 银行账号"
-                  value={model.payment.accountNumber || "—"}
+                  value={model.payment.accountNumber}
                 />
               </div>
             </div>
 
             {/* Terms */}
             {(model.terms.some((t) => t.enabled) || model.notes) && (
-              <div className="mt-3">
+              <div className="mt-2">
                 <SectionTitle>Terms / 条款</SectionTitle>
-                <ol className="list-decimal space-y-1.5 pl-4 text-[10px]">
+                <ol className="list-decimal space-y-0.5 pl-4 text-[10px] leading-snug">
                   {model.terms
                     .filter((t) => t.enabled)
                     .map((t) => (
                       <li key={t.id}>
                         {t.textEn ? (
-                          <p className="leading-relaxed text-[#1E293B]">
+                          <p className="leading-snug text-[#1E293B]">
                             {t.textEn}
                           </p>
                         ) : null}
                         {t.textZh ? (
-                          <p className="mt-0.5 leading-relaxed text-slate-500">
+                          <p className="leading-snug text-slate-500">
                             {t.textZh}
                           </p>
                         ) : null}
@@ -322,7 +330,9 @@ function A4Page({
                     ))}
                 </ol>
                 {model.notes ? (
-                  <p className="mt-1 text-[10px] text-slate-600">{model.notes}</p>
+                  <p className="mt-1 text-[10px] leading-snug text-slate-600">
+                    {model.notes}
+                  </p>
                 ) : null}
               </div>
             )}
@@ -524,9 +534,19 @@ function VehicleTable({
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-1 mt-2 text-[12px] font-bold text-[#1E293B]">
+    <h3 className="mb-0.5 mt-1.5 text-[12px] font-bold text-[#1E293B]">
       {children}
     </h3>
+  );
+}
+
+function PaymentField({ label, value }: { label: string; value: string }) {
+  const display = compactPaymentValue(value);
+  return (
+    <p className="leading-snug">
+      <span className="text-[9px] text-slate-500">{label}: </span>
+      <span className="text-[10px] font-semibold text-[#1E293B]">{display}</span>
+    </p>
   );
 }
 

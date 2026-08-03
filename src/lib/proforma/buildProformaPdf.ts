@@ -22,6 +22,7 @@ import {
   PI_PAGE_H,
   PI_PAGE_W,
   PI_TABLE_HEADER_H,
+  compactPaymentValue,
   estimateVehicleRowHeight,
   paginateProformaVehicles,
   type ProformaLayoutInput,
@@ -111,6 +112,13 @@ function toLayoutInput(source: ProformaPdfSource): ProformaLayoutInput {
     customerEmail: source.customerEmail,
     destinationCountry: source.destinationCountry,
     destinationPort: source.destinationPort,
+    payment: {
+      fullName: source.paymentSnapshot.fullName,
+      bankName: source.paymentSnapshot.bankName,
+      accountNumber: source.paymentSnapshot.accountNumber,
+      bankAddress: source.paymentSnapshot.bankAddress,
+      swift: source.paymentSnapshot.swift,
+    },
   };
 }
 
@@ -518,52 +526,70 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource, y: number): number {
   y += 10;
 
   const pay = source.paymentSnapshot;
-  const boxH = 40;
-  doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.7);
-  doc.roundedRect(MARGIN, y, CONTENT_W, boxH, 3, 3, "S");
-
   const colW = CONTENT_W / 2;
   const left: Array<[string, string]> = [
-    ["Beneficiary / 收款人", pay.fullName || "—"],
-    ["Bank / 开户银行", pay.bankName || "—"],
-    ["Account Number / 银行账号", pay.accountNumber || "—"],
+    ["Beneficiary / 收款人", compactPaymentValue(pay.fullName)],
+    ["Bank / 开户银行", compactPaymentValue(pay.bankName)],
+    ["Account Number / 银行账号", compactPaymentValue(pay.accountNumber)],
   ];
   const right: Array<[string, string]> = [
-    ["Bank Address / 开户行地址", pay.bankAddress || "—"],
-    ["SWIFT / SWIFT代码", pay.swift || "—"],
+    ["Bank Address / 开户行地址", compactPaymentValue(pay.bankAddress)],
+    ["SWIFT / SWIFT代码", compactPaymentValue(pay.swift)],
   ];
 
-  let ly = y + 10;
+  const boxTop = y;
+  let ly = y + 8;
   for (const [label, value] of left) {
     setProformaFont(doc, "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(...SLATE);
-    doc.text(label, MARGIN + 6, ly);
-    putText(doc, value, MARGIN + 6, ly + 8, {
-      fontSize: 7.5,
-      bold: true,
-      maxWidth: colW - 14,
-      lineGap: 1.4,
-    });
-    ly += 12;
+    doc.text(`${label}:`, MARGIN + 6, ly);
+    if (value === "—") {
+      setProformaFont(doc, "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...BLACK);
+      doc.text("—", MARGIN + 6 + Math.min(118, colW * 0.55), ly);
+      ly += 10;
+    } else {
+      const h = putText(doc, value, MARGIN + 6, ly + 8, {
+        fontSize: 7.5,
+        bold: true,
+        maxWidth: colW - 14,
+        lineGap: 1.2,
+      });
+      ly += Math.max(10, 7 + h);
+    }
   }
-  let ry = y + 10;
+
+  let ry = y + 8;
   for (const [label, value] of right) {
     setProformaFont(doc, "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(...SLATE);
-    doc.text(label, MARGIN + colW + 4, ry);
-    putText(doc, value, MARGIN + colW + 4, ry + 8, {
-      fontSize: 7.5,
-      bold: true,
-      maxWidth: colW - 14,
-      lineGap: 1.4,
-    });
-    ry += 12;
+    doc.text(`${label}:`, MARGIN + colW + 4, ry);
+    if (value === "—") {
+      setProformaFont(doc, "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...BLACK);
+      doc.text("—", MARGIN + colW + 4 + Math.min(110, colW * 0.5), ry);
+      ry += 10;
+    } else {
+      const h = putText(doc, value, MARGIN + colW + 4, ry + 8, {
+        fontSize: 7.5,
+        bold: true,
+        maxWidth: colW - 14,
+        lineGap: 1.2,
+      });
+      ry += Math.max(10, 7 + h);
+    }
   }
 
-  return y + boxH + 8;
+  const boxH = Math.max(ly, ry) - boxTop + 4;
+  doc.setDrawColor(...LINE);
+  doc.setLineWidth(0.7);
+  doc.roundedRect(MARGIN, boxTop, CONTENT_W, boxH, 3, 3, "S");
+
+  return boxTop + boxH + 6;
 }
 
 function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
@@ -573,7 +599,7 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
     color: NAVY,
     maxWidth: CONTENT_W,
   });
-  y += 11;
+  y += 10;
 
   const enabled = source.termsSnapshot.filter((t) => t.enabled);
   enabled.forEach((term, i) => {
@@ -581,9 +607,9 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
       const h = putText(doc, `${i + 1}. ${term.textEn}`, MARGIN, y, {
         fontSize: 7.5,
         maxWidth: CONTENT_W,
-        lineGap: 1.8,
+        lineGap: 1.2,
       });
-      y += h + 1;
+      y += h + 0.5;
     }
     if (term.textZh) {
       const h = putText(
@@ -595,12 +621,10 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
           fontSize: 7.5,
           color: SLATE,
           maxWidth: CONTENT_W - (term.textEn ? 8 : 0),
-          lineGap: 1.8,
+          lineGap: 1.2,
         }
       );
-      y += h + 4;
-    } else {
-      y += 3;
+      y += h + 2;
     }
   });
 
@@ -609,7 +633,7 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
       fontSize: 7.5,
       color: SLATE,
       maxWidth: CONTENT_W,
-      lineGap: 1.8,
+      lineGap: 1.2,
     });
   }
   return y;
