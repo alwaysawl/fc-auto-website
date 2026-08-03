@@ -2,24 +2,25 @@
 
 /**
  * Shared top-information renderer for Admin Proforma Preview.
- * Three horizontal columns on one row:
- *   Left:   Seller / 卖方
- *   Middle: Buyer / 买方
- *   Right:  Invoice Information / 发票信息
+ * Three horizontal columns: Seller | Buyer | Invoice Information.
  *
- * Field rows use right-aligned labels + a shared colon column + fixed value X
- * (same geometry as the PDF drawer via layout.ts metrics).
+ * Labels are LEFT aligned. Colon position = longest label in the column.
+ * Values start immediately after ": ".
+ * Geometry matches PDF via alignedLabelValue.ts.
  */
 
 import type { CSSProperties, ReactNode } from "react";
 import {
-  BUYER_FIELD,
+  alignedValueMaxWidth,
+  FIELD_COLON_SUFFIX,
+  layoutAlignedColumn,
+  type AlignedColumnLayout,
+} from "@/lib/proforma/alignedLabelValue";
+import {
+  INFO_COL_W,
   INFO_HEIGHT,
   INFO_TOP,
-  INVOICE_FIELD,
   PI_MARGIN,
-  SELLER_FIELD,
-  type InfoFieldMetrics,
 } from "@/lib/proforma/layout";
 import {
   buildProformaTopInformation,
@@ -34,9 +35,16 @@ function pt(n: number): string {
   return `${n}pt`;
 }
 
+const PARTY_LABEL_SIZE = 8.5;
+const META_LABEL_SIZE = 9;
+
+/**
+ * One field row: left-aligned label (padded to column max) + ": " + value.
+ * Uses the same layoutAlignedColumn metrics as the PDF drawer.
+ */
 function AlignedFieldRow({
   label,
-  metrics,
+  layout,
   labelClassName,
   valueClassName,
   valueStyle,
@@ -44,7 +52,7 @@ function AlignedFieldRow({
   rowClassName,
 }: {
   label: string;
-  metrics: InfoFieldMetrics;
+  layout: AlignedColumnLayout;
   labelClassName: string;
   valueClassName: string;
   valueStyle?: CSSProperties;
@@ -61,10 +69,12 @@ function AlignedFieldRow({
         style={{
           position: "absolute",
           left: 0,
-          width: pt(metrics.labelWidth),
-          textAlign: "right",
+          width: pt(layout.maxLabelWidth),
+          textAlign: "left",
           lineHeight: 1.18,
           margin: 0,
+          overflow: "hidden",
+          whiteSpace: "nowrap",
         }}
       >
         {label}
@@ -74,17 +84,19 @@ function AlignedFieldRow({
         className={labelClassName}
         style={{
           position: "absolute",
-          left: pt(metrics.colonX),
+          left: pt(layout.colonX),
           lineHeight: 1.18,
           margin: 0,
+          whiteSpace: "pre",
         }}
       >
-        :
+        {FIELD_COLON_SUFFIX}
       </p>
       <div
         className={valueClassName}
         style={{
-          marginLeft: pt(metrics.valueX),
+          marginLeft: pt(layout.valueX),
+          maxWidth: pt(alignedValueMaxWidth(layout, INFO_COL_W)),
           lineHeight: 1.18,
           ...valueStyle,
         }}
@@ -95,17 +107,17 @@ function AlignedFieldRow({
   );
 }
 
-function SellerPartyField({
+function PartyOrBuyerField({
   field,
-  metrics,
+  layout,
 }: {
   field: TopInfoPartyField;
-  metrics: InfoFieldMetrics;
+  layout: AlignedColumnLayout;
 }) {
   return (
     <AlignedFieldRow
       label={field.label}
-      metrics={metrics}
+      layout={layout}
       labelClassName="text-[8.5pt] font-bold text-slate-500"
       valueClassName="min-w-0 break-words text-[8.5pt] font-normal text-[#1E293B]"
       valueStyle={
@@ -124,18 +136,18 @@ function SellerPartyField({
   );
 }
 
-function SellerAddressField({
+function AddressField({
   field,
-  metrics,
+  layout,
 }: {
   field: TopInfoAddressField;
-  metrics: InfoFieldMetrics;
+  layout: AlignedColumnLayout;
 }) {
   const shown = field.lines.slice(0, 5);
   return (
     <AlignedFieldRow
       label={field.label}
-      metrics={metrics}
+      layout={layout}
       labelClassName="text-[8.5pt] font-bold text-slate-500"
       valueClassName="min-w-0 text-[8.5pt] font-normal text-[#1E293B]"
     >
@@ -148,46 +160,17 @@ function SellerAddressField({
   );
 }
 
-function BuyerField({
-  field,
-  metrics,
-}: {
-  field: TopInfoPartyField;
-  metrics: InfoFieldMetrics;
-}) {
-  return (
-    <AlignedFieldRow
-      label={field.label}
-      metrics={metrics}
-      labelClassName="text-[8.5pt] font-bold text-slate-500"
-      valueClassName="min-w-0 break-words text-[8.5pt] font-normal text-[#1E293B]"
-      valueStyle={
-        field.maxLines
-          ? {
-              display: "-webkit-box",
-              WebkitLineClamp: field.maxLines,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }
-          : undefined
-      }
-    >
-      {field.value || "—"}
-    </AlignedFieldRow>
-  );
-}
-
 function InvoiceMetaField({
   field,
-  metrics,
+  layout,
 }: {
   field: TopInfoMetaField;
-  metrics: InfoFieldMetrics;
+  layout: AlignedColumnLayout;
 }) {
   return (
     <AlignedFieldRow
       label={field.label}
-      metrics={metrics}
+      layout={layout}
       rowClassName="relative mb-[1pt]"
       labelClassName="text-[9pt] font-semibold text-slate-500"
       valueClassName="min-w-0 truncate text-[9.5pt] font-normal text-[#1E293B]"
@@ -203,12 +186,31 @@ function ColumnTitle({ children }: { children: ReactNode }) {
   );
 }
 
+function sellerLabels(data: ProformaTopInformationData): string[] {
+  return data.seller.fields.map((f) => f.label);
+}
+
+function buyerLabels(data: ProformaTopInformationData): string[] {
+  return data.buyer.fields.map((f) => f.label);
+}
+
+function invoiceLabels(data: ProformaTopInformationData): string[] {
+  return data.invoice.fields.map((f) => f.label);
+}
+
 /** Renders from pre-built shared data (preferred). */
 export function ProformaTopInformationView({
   data,
 }: {
   data: ProformaTopInformationData;
 }) {
+  const sellerLayout = layoutAlignedColumn(sellerLabels(data), PARTY_LABEL_SIZE);
+  const buyerLayout = layoutAlignedColumn(buyerLabels(data), PARTY_LABEL_SIZE);
+  const invoiceLayout = layoutAlignedColumn(
+    invoiceLabels(data),
+    META_LABEL_SIZE
+  );
+
   return (
     <div
       data-proforma-top-info="seller-buyer-invoice-cols"
@@ -231,31 +233,28 @@ export function ProformaTopInformationView({
           boxSizing: "border-box",
         }}
       >
-        {/* Left — Seller */}
         <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
           <ColumnTitle>{data.seller.title}</ColumnTitle>
           {data.seller.fields.map((f, i) =>
             f.kind === "address" ? (
-              <SellerAddressField key={i} field={f} metrics={SELLER_FIELD} />
+              <AddressField key={i} field={f} layout={sellerLayout} />
             ) : (
-              <SellerPartyField key={i} field={f} metrics={SELLER_FIELD} />
+              <PartyOrBuyerField key={i} field={f} layout={sellerLayout} />
             )
           )}
         </div>
 
-        {/* Middle — Buyer */}
         <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
           <ColumnTitle>{data.buyer.title}</ColumnTitle>
           {data.buyer.fields.map((f, i) => (
-            <BuyerField key={i} field={f} metrics={BUYER_FIELD} />
+            <PartyOrBuyerField key={i} field={f} layout={buyerLayout} />
           ))}
         </div>
 
-        {/* Right — Invoice Information */}
         <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
           <ColumnTitle>{data.invoice.title}</ColumnTitle>
           {data.invoice.fields.map((f, i) => (
-            <InvoiceMetaField key={i} field={f} metrics={INVOICE_FIELD} />
+            <InvoiceMetaField key={i} field={f} layout={invoiceLayout} />
           ))}
         </div>
       </div>

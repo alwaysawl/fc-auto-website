@@ -2,22 +2,24 @@
  * PDF drawer for the shared Proforma top-information band.
  * Three horizontal columns: Seller | Buyer | Invoice Information.
  *
- * Field rows: right-aligned label → shared colon X → fixed value X
- * (same metrics as Preview via layout.ts).
+ * Labels LEFT aligned. Colon X = longest label width in the column.
+ * Values start immediately after ": ".
+ * Same layoutAlignedColumn metrics as Preview.
  */
 
 import type { jsPDF } from "jspdf";
 import {
-  BUYER_FIELD,
+  alignedValueMaxWidth,
+  FIELD_COLON_SUFFIX,
+  layoutAlignedColumn,
+  type AlignedColumnLayout,
+} from "@/lib/proforma/alignedLabelValue";
+import {
   INFO_BOTTOM,
   INFO_COL_W,
   INFO_HEIGHT,
   INFO_TOP,
-  INVOICE_FIELD,
-  SELLER_FIELD,
   infoColLeft,
-  infoFieldValueMaxWidth,
-  type InfoFieldMetrics,
   PI_CONTENT_W,
   PI_MARGIN,
 } from "@/lib/proforma/layout";
@@ -25,7 +27,6 @@ import { setProformaFont } from "@/lib/proforma/pdfFonts";
 import type {
   ProformaTopInformationData,
   TopInfoAddressField,
-  TopInfoMetaField,
   TopInfoPartyField,
 } from "@/lib/proforma/topInformationModel";
 
@@ -107,8 +108,7 @@ function measureValueHeight(
 }
 
 /**
- * Right-aligned label + fixed colon + fixed value start.
- * Colon is NOT part of the label string.
+ * Left-aligned label + colon at longest-label edge + value after ": ".
  */
 function drawAlignedField(
   doc: Pdf,
@@ -116,7 +116,7 @@ function drawAlignedField(
   value: string,
   colLeft: number,
   y: number,
-  metrics: InfoFieldMetrics,
+  layout: AlignedColumnLayout,
   opts?: {
     labelSize?: number;
     valueSize?: number;
@@ -128,16 +128,16 @@ function drawAlignedField(
   const labelSize = opts?.labelSize ?? PT_LABEL;
   const valueSize = opts?.valueSize ?? PT_PARTY;
   const lineGap = valueSize * (PT_LINE_HEIGHT - 1);
-  const labelRightX = colLeft + metrics.labelRightX;
-  const colonX = colLeft + metrics.colonX;
-  const valueX = colLeft + metrics.valueX;
-  const valueW = infoFieldValueMaxWidth(metrics);
+  const colonX = colLeft + layout.colonX;
+  const valueX = colLeft + layout.valueX;
+  const valueW = alignedValueMaxWidth(layout, INFO_COL_W);
 
   setProformaFont(doc, "bold");
   doc.setFontSize(labelSize);
   doc.setTextColor(...SLATE);
-  doc.text(label, labelRightX, y, { align: "right" });
-  doc.text(":", colonX, y);
+  // LEFT aligned — no right-align, no colon inside the label string.
+  doc.text(label, colLeft, y);
+  doc.text(FIELD_COLON_SUFFIX, colonX, y);
 
   const textH = putText(doc, value || "—", valueX, y, {
     fontSize: valueSize,
@@ -157,22 +157,21 @@ function drawAlignedAddress(
   field: TopInfoAddressField,
   colLeft: number,
   y: number,
-  metrics: InfoFieldMetrics,
+  layout: AlignedColumnLayout,
   maxLines: number
 ): number {
   const fontSize = PT_PARTY;
   const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
   const step = fontSize + lineGap;
-  const labelRightX = colLeft + metrics.labelRightX;
-  const colonX = colLeft + metrics.colonX;
-  const valueX = colLeft + metrics.valueX;
-  const valueW = infoFieldValueMaxWidth(metrics);
+  const colonX = colLeft + layout.colonX;
+  const valueX = colLeft + layout.valueX;
+  const valueW = alignedValueMaxWidth(layout, INFO_COL_W);
 
   setProformaFont(doc, "bold");
   doc.setFontSize(PT_LABEL);
   doc.setTextColor(...SLATE);
-  doc.text(field.label, labelRightX, y, { align: "right" });
-  doc.text(":", colonX, y);
+  doc.text(field.label, colLeft, y);
+  doc.text(FIELD_COLON_SUFFIX, colonX, y);
 
   setProformaFont(doc, "normal");
   doc.setFontSize(fontSize);
@@ -225,9 +224,21 @@ export function drawProformaTopInformation(
   const infoTop = INFO_TOP;
   const infoLimit = INFO_TOP + INFO_HEIGHT - INFO_BOTTOM_PAD;
 
-  const sellerValueW = infoFieldValueMaxWidth(SELLER_FIELD);
+  const sellerLayout = layoutAlignedColumn(
+    data.seller.fields.map((f) => f.label),
+    PT_LABEL
+  );
+  const buyerLayout = layoutAlignedColumn(
+    data.buyer.fields.map((f) => f.label),
+    PT_LABEL
+  );
+  const invoiceLayout = layoutAlignedColumn(
+    data.invoice.fields.map((f) => f.label),
+    PT_META_LABEL
+  );
 
-  // Column titles on the same baseline
+  const sellerValueW = alignedValueMaxWidth(sellerLayout, INFO_COL_W);
+
   drawSectionTitle(doc, data.seller.title, col1, infoTop, INFO_COL_W - 8);
   drawSectionTitle(doc, data.buyer.title, col2, infoTop, INFO_COL_W - 8);
   drawSectionTitle(doc, data.invoice.title, col3, infoTop, INFO_COL_W - 8);
@@ -284,7 +295,7 @@ export function drawProformaTopInformation(
         field,
         col1,
         y1,
-        SELLER_FIELD,
+        sellerLayout,
         addressMaxLines
       );
     } else {
@@ -294,7 +305,7 @@ export function drawProformaTopInformation(
         field.value,
         col1,
         y1,
-        SELLER_FIELD,
+        sellerLayout,
         {
           maxLines: field.maxLines ?? 99,
           ellipsis: false,
@@ -313,7 +324,7 @@ export function drawProformaTopInformation(
       field.value,
       col2,
       y2,
-      BUYER_FIELD,
+      buyerLayout,
       {
         maxLines: field.maxLines ?? 99,
         ellipsis: true,
@@ -331,7 +342,7 @@ export function drawProformaTopInformation(
       field.value,
       col3,
       y3,
-      INVOICE_FIELD,
+      invoiceLayout,
       {
         labelSize: PT_META_LABEL,
         valueSize: PT_META_VALUE,
