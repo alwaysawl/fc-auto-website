@@ -54,6 +54,7 @@ export type ProformaPreviewModel = {
   notes: string;
 };
 
+/** Compact A4 portrait preview aligned with PDF V2. Exact saved terms — no rewrite. */
 export default function AdminProformaPreview({
   model,
   compact,
@@ -61,6 +62,11 @@ export default function AdminProformaPreview({
   model: ProformaPreviewModel;
   compact?: boolean;
 }) {
+  const terms = model.terms;
+  const dest = [model.destinationCountry, model.destinationPort]
+    .filter(Boolean)
+    .join(" / ");
+
   return (
     <div
       className={`mx-auto bg-white text-[#0f172a] shadow-lg ${
@@ -68,90 +74,109 @@ export default function AdminProformaPreview({
       }`}
       style={{
         minHeight: compact ? undefined : "297mm",
-        aspectRatio: compact ? undefined : "210 / 297",
+        aspectRatio: compact ? "210 / 297" : "210 / 297",
       }}
     >
-      <div className="h-1 bg-[#D4AF37]" />
-      <div className="space-y-5 p-6 sm:p-8">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded bg-[#1E293B]">
-              <span className="rounded bg-[#D4AF37] px-1.5 py-0.5 text-xs font-bold text-[#1E293B]">
+      <div className="h-0.5 bg-[#D4AF37]" />
+      <div className="space-y-3 p-4 sm:p-5 text-[11px] leading-snug">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-[#1E293B]">
+              <span className="rounded bg-[#D4AF37] px-1 py-0.5 text-[10px] font-bold text-[#1E293B]">
                 FC
               </span>
             </div>
             <div>
-              <p className="text-lg font-bold text-[#1E293B]">FC Auto Export</p>
-              <p className="text-xs text-slate-500">
-                {model.company.companyWebsite}
-              </p>
+              <p className="text-sm font-bold text-[#1E293B]">FC Auto Export</p>
+              <p className="text-[10px] text-slate-500">Used Vehicle Export</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xl font-bold tracking-wide text-[#1E293B]">
+            <p className="text-base font-bold tracking-wide text-[#1E293B]">
               PROFORMA INVOICE
             </p>
-            <p className="text-sm font-semibold text-[#D4AF37]">形式发票</p>
+            <p className="text-[10px] font-medium text-[#D4AF37]">
+              {model.company.companyWebsite || "fcautoexport.com"}
+            </p>
           </div>
         </div>
 
-        <div className="grid gap-4 border-t border-[#D4AF37] pt-4 sm:grid-cols-2">
-          <div className="space-y-2 text-sm">
-            <Meta label="发票编号 / Invoice No." value={model.invoiceNumber} />
-            <Meta label="合同号 / Contract No." value={model.contractNumber} />
-            <Meta label="报价日期 / Offer Date" value={model.offerDate} />
-            <Meta label="有效期 / Validity" value={model.validityText || "—"} />
+        <div className="border-t border-[#D4AF37] pt-2" />
+
+        {/* Identifiers */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Meta label="Invoice No. / 发票编号" value={model.invoiceNumber} />
+          <Meta
+            label="Contract No. / 合同号"
+            value={model.contractNumber || model.invoiceNumber}
+          />
+          <Meta label="Offer Date / 报价日期" value={model.offerDate} />
+          <Meta
+            label="Validity / 有效期"
+            value={model.validityText || "7 Days"}
+          />
+        </div>
+
+        {/* Seller | Buyer */}
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded bg-slate-50 p-2">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#1E293B]">
+              Seller / 卖方
+            </p>
+            <p className="font-semibold">{model.company.companyName}</p>
+            <p className="mt-0.5 text-[10px] text-slate-600">
+              {model.company.companyAddress}
+            </p>
+            <p className="mt-1">
+              {model.salespersonName || "—"} · {model.salespersonPhone}
+            </p>
+            <p className="text-[10px] text-slate-600">
+              {model.salespersonEmail} · {model.company.companyWebsite}
+            </p>
           </div>
-          <div className="space-y-2 text-sm">
-            <Meta label="收货方 / To" value={model.customerName || "—"} />
+          <div className="rounded bg-slate-50 p-2">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#1E293B]">
+              Buyer / 买方
+            </p>
+            <p className="font-semibold">{model.customerName || "—"}</p>
             {model.customerCompany ? (
-              <Meta label="客户公司 / Company" value={model.customerCompany} />
+              <p>{model.customerCompany}</p>
             ) : null}
-            <Meta
-              label="国家 / Country"
-              value={model.customerCountry || "—"}
-            />
-            <Meta
-              label="目的地 / Destination"
-              value={
-                [model.destinationCountry, model.destinationPort]
-                  .filter(Boolean)
-                  .join(" / ") || "—"
-              }
-            />
+            <p className="text-[10px] text-slate-600">
+              {[
+                model.customerCountry,
+                model.customerWhatsapp
+                  ? `WA: ${model.customerWhatsapp}`
+                  : null,
+                model.customerEmail,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "—"}
+            </p>
+            {dest ? (
+              <p className="mt-0.5">Destination: {dest}</p>
+            ) : null}
           </div>
         </div>
 
-        <div className="rounded-lg bg-slate-50 p-3 text-sm">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            卖方 / Seller
-          </p>
-          <p className="font-semibold">{model.company.companyName}</p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-600">
-            {model.company.companyAddress}
-          </p>
-          <p className="mt-2 text-xs">
-            Sales: {model.salespersonName || "—"} · {model.salespersonPhone} ·{" "}
-            {model.salespersonEmail}
-          </p>
-        </div>
-
+        {/* Vehicles */}
         <div>
-          <h3 className="mb-2 text-sm font-bold text-[#1E293B]">
-            车辆明细 / Vehicle Items
+          <h3 className="mb-1 text-[11px] font-bold text-[#1E293B]">
+            Vehicle Items / 车辆明细
           </h3>
           <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-xs">
+            <table className="min-w-full border-collapse text-[10px]">
               <thead>
                 <tr className="bg-[#1E293B] text-white">
-                  <th className="px-2 py-2 text-left">No.</th>
-                  <th className="px-2 py-2 text-left">Brand / Model</th>
-                  <th className="px-2 py-2 text-left">Year</th>
-                  <th className="px-2 py-2 text-left">Colour</th>
-                  <th className="px-2 py-2 text-left">VIN</th>
-                  <th className="px-2 py-2 text-right">Unit</th>
-                  <th className="px-2 py-2 text-right">Qty</th>
-                  <th className="px-2 py-2 text-right">Total</th>
+                  <th className="px-1.5 py-1.5 text-left">No.</th>
+                  <th className="px-1.5 py-1.5 text-left">Brand / Model</th>
+                  <th className="px-1.5 py-1.5 text-left">Year</th>
+                  <th className="px-1.5 py-1.5 text-left">Colour</th>
+                  <th className="px-1.5 py-1.5 text-left">VIN</th>
+                  <th className="px-1.5 py-1.5 text-right">Qty</th>
+                  <th className="px-1.5 py-1.5 text-right">Unit Price</th>
+                  <th className="px-1.5 py-1.5 text-right">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,7 +184,7 @@ export default function AdminProformaPreview({
                   <tr>
                     <td
                       colSpan={8}
-                      className="border border-slate-200 px-2 py-4 text-center text-slate-400"
+                      className="border border-slate-200 px-2 py-3 text-center text-slate-400"
                     >
                       暂无车辆
                     </td>
@@ -170,28 +195,28 @@ export default function AdminProformaPreview({
                       key={i}
                       className={i % 2 ? "bg-slate-50" : "bg-white"}
                     >
-                      <td className="border border-slate-200 px-2 py-2">
+                      <td className="border border-slate-200 px-1.5 py-1">
                         {i + 1}
                       </td>
-                      <td className="border border-slate-200 px-2 py-2 font-medium">
+                      <td className="border border-slate-200 px-1.5 py-1 font-medium">
                         {item.brand} {item.model}
                       </td>
-                      <td className="border border-slate-200 px-2 py-2">
+                      <td className="border border-slate-200 px-1.5 py-1">
                         {item.year || "—"}
                       </td>
-                      <td className="border border-slate-200 px-2 py-2">
+                      <td className="border border-slate-200 px-1.5 py-1">
                         {item.colour || "—"}
                       </td>
-                      <td className="border border-slate-200 px-2 py-2 font-mono text-[10px]">
+                      <td className="border border-slate-200 px-1.5 py-1 font-mono text-[9px]">
                         {item.vin || "—"}
                       </td>
-                      <td className="border border-slate-200 px-2 py-2 text-right">
-                        {formatUsd(item.unitPriceUsd)}
-                      </td>
-                      <td className="border border-slate-200 px-2 py-2 text-right">
+                      <td className="border border-slate-200 px-1.5 py-1 text-right">
                         {item.quantity}
                       </td>
-                      <td className="border border-slate-200 px-2 py-2 text-right font-semibold">
+                      <td className="border border-slate-200 px-1.5 py-1 text-right">
+                        {formatUsd(item.unitPriceUsd)}
+                      </td>
+                      <td className="border border-slate-200 px-1.5 py-1 text-right font-semibold">
                         {formatUsd(item.totalUsd)}
                       </td>
                     </tr>
@@ -202,100 +227,105 @@ export default function AdminProformaPreview({
           </div>
         </div>
 
-        {model.charges.length > 0 && (
+        {/* Charges + Summary */}
+        <div className="grid gap-2 sm:grid-cols-2">
           <div>
-            <h3 className="mb-2 text-sm font-bold text-[#1E293B]">
-              其他费用 / Other Charges
+            <h3 className="mb-1 text-[11px] font-bold text-[#1E293B]">
+              Other Charges / 其他费用
             </h3>
-            <ul className="space-y-1 text-xs">
-              {model.charges.map((c, i) => (
-                <li key={i} className="flex justify-between gap-4">
-                  <span>
-                    {c.nameZh} / {c.nameEn}
-                  </span>
-                  <span className="font-medium">{formatUsd(c.amountUsd)}</span>
-                </li>
-              ))}
+            <ul className="space-y-0.5 text-[10px]">
+              {model.charges.length === 0 ? (
+                <li className="text-slate-400">—</li>
+              ) : (
+                model.charges.map((c, i) => (
+                  <li key={i} className="flex justify-between gap-2">
+                    <span>
+                      {c.nameEn}
+                      {c.nameZh ? ` / ${c.nameZh}` : ""}
+                    </span>
+                    <span className="font-medium">
+                      {formatUsd(c.amountUsd)}
+                    </span>
+                  </li>
+                ))
+              )}
             </ul>
           </div>
-        )}
-
-        <div className="ml-auto w-full max-w-xs rounded-lg border border-[#D4AF37] bg-slate-50 p-3 text-xs">
-          <SummaryRow
-            label="车辆小计 / Vehicle Subtotal"
-            value={formatUsd(model.vehicleSubtotalUsd)}
-          />
-          <SummaryRow
-            label="其他费用 / Other Charges"
-            value={formatUsd(model.chargesTotalUsd)}
-          />
-          <SummaryRow
-            label="总计 / TOTAL"
-            value={formatUsd(model.totalUsd)}
-            strong
-          />
-          <SummaryRow
-            label="定金 / Deposit"
-            value={formatUsd(model.depositUsd)}
-          />
-          <SummaryRow
-            label="尾款 / Balance"
-            value={formatUsd(model.balanceUsd)}
-            strong
-          />
-        </div>
-
-        <div className="text-xs">
-          <h3 className="mb-2 text-sm font-bold text-[#1E293B]">
-            付款信息 / Payment Information
-          </h3>
-          <div className="space-y-1 text-slate-700">
-            {model.payment.fullName && (
-              <p>收款人 / Full Name: {model.payment.fullName}</p>
-            )}
-            {model.payment.bankName && (
-              <p>银行 / Bank: {model.payment.bankName}</p>
-            )}
-            {model.payment.accountNumber && (
-              <p>账号 / Account: {model.payment.accountNumber}</p>
-            )}
-            {model.payment.swift && <p>SWIFT: {model.payment.swift}</p>}
-            {model.payment.bankAddress && (
-              <p>银行地址: {model.payment.bankAddress}</p>
-            )}
-            {model.payment.paymentNote && (
-              <p>备注: {model.payment.paymentNote}</p>
-            )}
-            {!model.payment.fullName &&
-              !model.payment.accountNumber &&
-              !model.payment.bankName && (
-                <p className="text-slate-400">尚未填写收款信息</p>
-              )}
+          <div className="rounded border border-[#D4AF37] bg-slate-50 p-2 text-[10px]">
+            <SummaryRow
+              label="Vehicle Total / 车辆合计"
+              value={formatUsd(model.vehicleSubtotalUsd)}
+            />
+            <SummaryRow
+              label="Other Charges / 其他费用"
+              value={formatUsd(model.chargesTotalUsd)}
+            />
+            <SummaryRow
+              label="Grand Total / 总计"
+              value={formatUsd(model.totalUsd)}
+              strong
+            />
+            <SummaryRow
+              label="Deposit / 定金"
+              value={formatUsd(model.depositUsd)}
+            />
+            <SummaryRow
+              label="Balance / 尾款"
+              value={formatUsd(model.balanceUsd)}
+              strong
+            />
           </div>
         </div>
 
-        {(model.terms.some((t) => t.enabled) || model.notes) && (
-          <div className="text-xs">
-            <h3 className="mb-2 text-sm font-bold text-[#1E293B]">
-              条款与说明 / Terms & Notes
+        {/* Payment */}
+        <div>
+          <h3 className="mb-1 text-[11px] font-bold text-[#1E293B]">
+            Payment Information / 付款信息
+          </h3>
+          <div className="grid grid-cols-2 gap-1 text-[10px] sm:grid-cols-4">
+            <Meta
+              label="Beneficiary / 收款人"
+              value={model.payment.fullName || "—"}
+            />
+            <Meta label="Bank / 银行" value={model.payment.bankName || "—"} />
+            <Meta
+              label="Account / 账号"
+              value={model.payment.accountNumber || "—"}
+            />
+            <Meta label="SWIFT" value={model.payment.swift || "—"} />
+          </div>
+          {model.payment.bankAddress ? (
+            <p className="mt-1 text-[10px] text-slate-600">
+              Bank Address: {model.payment.bankAddress}
+            </p>
+          ) : null}
+        </div>
+
+        {/* Terms — exact snapshot */}
+        {(terms.some((t) => t.enabled) || model.notes) && (
+          <div>
+            <h3 className="mb-1 text-[11px] font-bold text-[#1E293B]">
+              Terms / 条款
             </h3>
-            <ol className="list-decimal space-y-2 pl-4 text-slate-700">
-              {model.terms
+            <ol className="list-decimal space-y-1 pl-4 text-[10px] text-slate-700">
+              {terms
                 .filter((t) => t.enabled)
                 .map((t) => (
                   <li key={t.id}>
-                    <p>{t.textZh}</p>
-                    <p className="text-slate-500">{t.textEn}</p>
+                    {t.textEn}
+                    {t.textZh ? (
+                      <span className="text-slate-500"> ｜ {t.textZh}</span>
+                    ) : null}
                   </li>
                 ))}
             </ol>
             {model.notes ? (
-              <p className="mt-2 text-slate-700">{model.notes}</p>
+              <p className="mt-1 text-[10px] text-slate-600">{model.notes}</p>
             ) : null}
           </div>
         )}
 
-        <div className="border-t border-slate-200 pt-3 text-center text-[11px] text-slate-500">
+        <div className="border-t border-slate-200 pt-2 text-center text-[9px] text-slate-500">
           FC Auto Export · fcautoexport.com
         </div>
       </div>
@@ -306,7 +336,7 @@ export default function AdminProformaPreview({
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[11px] text-slate-500">{label}</p>
+      <p className="text-[9px] text-slate-500">{label}</p>
       <p className="font-semibold text-[#1E293B]">{value}</p>
     </div>
   );
@@ -322,8 +352,10 @@ function SummaryRow({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-0.5">
-      <span className={strong ? "font-semibold text-[#1E293B]" : "text-slate-600"}>
+    <div className="flex items-center justify-between gap-2 py-0.5">
+      <span
+        className={strong ? "font-semibold text-[#1E293B]" : "text-slate-600"}
+      >
         {label}
       </span>
       <span className={strong ? "font-bold text-[#1E293B]" : "font-medium"}>

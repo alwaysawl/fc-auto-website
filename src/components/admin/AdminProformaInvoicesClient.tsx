@@ -59,7 +59,17 @@ function formatShanghai(iso: string | null): string {
   }).format(new Date(iso));
 }
 
-function statusBadge(status: ProformaStatus) {
+function statusBadge(
+  status: ProformaStatus,
+  archivedAt: string | null
+) {
+  if (archivedAt) {
+    return (
+      <span className="inline-flex rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+        已归档
+      </span>
+    );
+  }
   const label = PROFORMA_STATUS_LABELS[status];
   const tone =
     status === "completed"
@@ -425,7 +435,9 @@ export default function AdminProformaInvoicesClient({
                       {formatUsd(row.totalUsd)}
                     </td>
                     <td className="px-3 py-3">{row.salespersonName}</td>
-                    <td className="px-3 py-3">{statusBadge(row.status)}</td>
+                    <td className="px-3 py-3">
+                      {statusBadge(row.status, row.archivedAt)}
+                    </td>
                     <td className="px-3 py-3 whitespace-nowrap">
                       {row.offerDate}
                     </td>
@@ -444,7 +456,7 @@ export default function AdminProformaInvoicesClient({
                           href={`/admin/proforma-invoices/${row.id}/edit`}
                           className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-white"
                         >
-                          编辑
+                          {row.status === "draft" ? "编辑草稿" : "编辑"}
                         </Link>
                         <button
                           type="button"
@@ -460,7 +472,15 @@ export default function AdminProformaInvoicesClient({
                           onClick={() => void duplicate(row.id)}
                           className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-white disabled:opacity-50"
                         >
-                          复制发票
+                          复制为新发票
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === row.id}
+                          onClick={() => void setStatus(row.id, "issued")}
+                          className="rounded border border-sky-200 px-2 py-1 text-xs font-medium text-sky-800 hover:bg-sky-50 disabled:opacity-50"
+                        >
+                          标记已开具
                         </button>
                         <button
                           type="button"

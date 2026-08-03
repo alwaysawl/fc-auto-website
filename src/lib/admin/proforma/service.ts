@@ -5,6 +5,7 @@ import {
   DEFAULT_COMPANY_SNAPSHOT,
   DEFAULT_PAYMENT_ACCOUNT,
   DEFAULT_TERMS,
+  contractNumberFromInvoice,
 } from "@/lib/admin/proforma/constants";
 import {
   isProformaStatus,
@@ -771,7 +772,8 @@ export async function createProformaInvoice(
     }
 
     const invoiceNumber = await allocateInvoiceNumber();
-    const contractNumber = data.contract_number || invoiceNumber;
+    const contractNumber =
+      data.contract_number || contractNumberFromInvoice(invoiceNumber);
 
     const extras: Record<string, unknown> = {
       invoice_number: invoiceNumber,

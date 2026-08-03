@@ -8,6 +8,8 @@ import {
   DEFAULT_TERMS,
   DEFAULT_VALIDITY_TEXT,
   PROFORMA_SALESPERSON_CONTACTS,
+  termsContainLegacy3DayBalance,
+  upgradeDraftLegacyTerms,
 } from "@/lib/admin/proforma/constants";
 import {
   calcLineTotal,
@@ -231,13 +233,23 @@ export default function AdminProformaEditor({
   const [depositUsd, setDepositUsd] = useState(
     String(initial?.depositUsd ?? 0)
   );
-  const [terms, setTerms] = useState<TermSnapshot[]>(
-    initial?.termsSnapshot?.length
-      ? initial.termsSnapshot
-      : settings.defaultTerms.length
-        ? settings.defaultTerms
-        : DEFAULT_TERMS.map((t) => ({ ...t }))
-  );
+  const [terms, setTerms] = useState<TermSnapshot[]>(() => {
+    if (initial?.termsSnapshot?.length) {
+      // Draft-only explicit upgrade of legacy 3-day default wording.
+      // Issued / completed / paid invoices keep exact saved terms.
+      if (
+        initial.status === "draft" &&
+        termsContainLegacy3DayBalance(initial.termsSnapshot)
+      ) {
+        return upgradeDraftLegacyTerms(initial.termsSnapshot);
+      }
+      return initial.termsSnapshot.map((t) => ({ ...t }));
+    }
+    if (settings.defaultTerms.length) {
+      return settings.defaultTerms.map((t) => ({ ...t }));
+    }
+    return DEFAULT_TERMS.map((t) => ({ ...t }));
+  });
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [internalNotes, setInternalNotes] = useState(
     initial?.internalNotes ?? ""
@@ -767,7 +779,7 @@ export default function AdminProformaEditor({
                 <input
                   className={fieldCls}
                   value={contractNumber}
-                  placeholder="默认等于发票编号"
+                  placeholder="保存后自动生成 CT-YYYYMMDD-0001，可手动修改"
                   onChange={(e) => setContractNumber(e.target.value)}
                 />
               </label>
@@ -1404,7 +1416,26 @@ export default function AdminProformaEditor({
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-bold text-[#1E293B]">条款</h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-[#1E293B]">条款</h2>
+              <button
+                type="button"
+                className={btnGhost}
+                onClick={() =>
+                  setTerms((prev) => [
+                    ...prev,
+                    {
+                      id: `custom_${Date.now()}`,
+                      enabled: true,
+                      textZh: "",
+                      textEn: "",
+                    },
+                  ])
+                }
+              >
+                添加自定义条款
+              </button>
+            </div>
             <div className="space-y-3">
               {terms.map((term) => (
                 <div
@@ -1522,7 +1553,7 @@ export default function AdminProformaEditor({
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
               预览形式发票
             </p>
-            <div className="origin-top scale-[0.55] sm:scale-[0.62]">
+            <div className="origin-top scale-[0.48] sm:scale-[0.52]">
               <AdminProformaPreview model={previewModel} compact />
             </div>
           </div>

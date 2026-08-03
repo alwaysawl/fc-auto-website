@@ -1,6 +1,7 @@
 /**
- * Client-side Proforma Invoice PDF (jsPDF A4).
- * Regenerates from saved invoice snapshots — does not recalculate live prices.
+ * Compact A4 Proforma Invoice PDF V2 (jsPDF).
+ * Uses exact saved invoice snapshots — does not recalculate live prices.
+ * Does not rewrite historical terms.
  */
 
 import { jsPDF } from "jspdf";
@@ -22,11 +23,13 @@ const LIGHT: [number, number, number] = [248, 250, 252];
 const LINE: [number, number, number] = [226, 232, 240];
 const BLACK: [number, number, number] = [15, 23, 42];
 
-const MARGIN = 36;
+/** Compact A4 margins for single-page fit when content allows. */
+const MARGIN = 28;
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-const FOOTER_Y = PAGE_H - 28;
+const FOOTER_Y = PAGE_H - 22;
+const BODY = 8.5;
 
 type Pdf = jsPDF;
 
@@ -91,23 +94,24 @@ function putText(
     maxWidth?: number;
   }
 ): number {
-  const fontSize = opts?.fontSize ?? 9;
+  const fontSize = opts?.fontSize ?? BODY;
   const color = opts?.color ?? BLACK;
   const maxWidth = opts?.maxWidth ?? CONTENT_W;
   const align = opts?.align ?? "left";
+  if (!text) return fontSize * 0.2;
 
   if (hasCjk(text)) {
     const bmp = renderTextBitmap(text, {
-      fontSize: fontSize * 1.35,
+      fontSize: fontSize * 1.3,
       color: `rgb(${color[0]},${color[1]},${color[2]})`,
       fontWeight: opts?.bold ? "700" : "400",
-      maxWidth: maxWidth * 1.35,
+      maxWidth: maxWidth * 1.3,
       align,
       locale: "zh",
     });
-    if (!bmp.dataUrl) return fontSize + 2;
-    const drawW = Math.min(maxWidth, bmp.width * 0.75);
-    const drawH = bmp.height * 0.75;
+    if (!bmp.dataUrl) return fontSize + 1;
+    const drawW = Math.min(maxWidth, bmp.width * 0.72);
+    const drawH = bmp.height * 0.72;
     const drawX =
       align === "right"
         ? x - drawW
@@ -115,7 +119,7 @@ function putText(
           ? x - drawW / 2
           : x;
     doc.addImage(bmp.dataUrl, "PNG", drawX, y - fontSize + 1, drawW, drawH);
-    return drawH + 2;
+    return Math.max(fontSize + 1, drawH + 1);
   }
 
   doc.setTextColor(...color);
@@ -123,46 +127,20 @@ function putText(
   doc.setFontSize(fontSize);
   const lines = doc.splitTextToSize(text, maxWidth) as string[];
   doc.text(lines, x, y, { align });
-  return lines.length * (fontSize + 2);
+  return lines.length * (fontSize + 1.5);
 }
 
-function labelValue(
-  doc: Pdf,
-  labelZh: string,
-  labelEn: string,
-  value: string,
-  x: number,
-  y: number,
-  width: number
-): number {
-  let cy = y;
-  cy += putText(doc, `${labelZh} / ${labelEn}`, x, cy, {
-    fontSize: 7.5,
-    color: SLATE,
-    maxWidth: width,
-  });
-  cy += 2;
-  cy += putText(doc, value || "—", x, cy, {
-    fontSize: 9,
-    bold: true,
-    maxWidth: width,
-  });
-  return cy - y + 6;
-}
-
-/** Returns [y, didPageBreak]. */
 function ensureSpace(
   doc: Pdf,
   y: number,
   need: number
 ): { y: number; pageBreak: boolean } {
-  if (y + need <= FOOTER_Y - 8) return { y, pageBreak: false };
+  if (y + need <= FOOTER_Y - 6) return { y, pageBreak: false };
   doc.addPage();
-  drawPageChrome(doc);
-  return { y: MARGIN + 16, pageBreak: true };
+  drawChrome(doc);
+  return { y: MARGIN + 10, pageBreak: true };
 }
 
-/** Safe download filename from invoice number, e.g. PI-20260803-0001.pdf */
 export function buildProformaPdfFilename(invoiceNumber: string): string {
   const safe = (invoiceNumber || "proforma")
     .trim()
@@ -172,7 +150,6 @@ export function buildProformaPdfFilename(invoiceNumber: string): string {
   return `${safe || "proforma"}.pdf`;
 }
 
-/** Trigger a real application/pdf file download (not print/HTML). */
 function triggerPdfFileDownload(doc: Pdf, filename: string): void {
   const blob = doc.output("blob") as Blob;
   const pdfBlob =
@@ -191,45 +168,68 @@ function triggerPdfFileDownload(doc: Pdf, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
 }
 
-function drawPageChrome(doc: Pdf) {
-  // top gold accent line
+function drawChrome(doc: Pdf) {
   doc.setFillColor(...GOLD);
-  doc.rect(0, 0, PAGE_W, 3, "F");
+  doc.rect(0, 0, PAGE_W, 2.5, "F");
 }
 
 function drawFooter(doc: Pdf, page: number, total: number) {
   doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.6);
-  doc.line(MARGIN, FOOTER_Y - 8, PAGE_W - MARGIN, FOOTER_Y - 8);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, FOOTER_Y - 6, PAGE_W - MARGIN, FOOTER_Y - 6);
   doc.setTextColor(...SLATE);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.text("FC Auto Export  ·  fcautoexport.com", MARGIN, FOOTER_Y);
-  doc.text(`Page ${page} of ${total}`, PAGE_W - MARGIN, FOOTER_Y, {
-    align: "right",
-  });
+  if (total > 1) {
+    doc.text(`Page ${page} / ${total}`, PAGE_W - MARGIN, FOOTER_Y, {
+      align: "right",
+    });
+  }
 }
 
-function drawVehicleTableHeader(doc: Pdf, y: number): number {
+function kv(
+  doc: Pdf,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  w: number
+): number {
+  let cy = y;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...SLATE);
+  doc.text(label, x, cy);
+  cy += 9;
+  cy += putText(doc, value || "—", x, cy, {
+    fontSize: 8,
+    bold: true,
+    maxWidth: w,
+  });
+  return cy - y + 2;
+}
+
+function drawVehicleHeader(doc: Pdf, y: number): number {
   doc.setFillColor(...NAVY);
-  doc.rect(MARGIN, y, CONTENT_W, 18, "F");
+  doc.rect(MARGIN, y, CONTENT_W, 14, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  const cols = [
+  doc.setFontSize(6.5);
+  const cols: Array<{ t: string; x: number; align?: "right" }> = [
     { t: "No.", x: MARGIN + 4 },
-    { t: "Brand / Model", x: MARGIN + 28 },
-    { t: "Year", x: MARGIN + 200 },
-    { t: "Colour", x: MARGIN + 235 },
-    { t: "VIN", x: MARGIN + 290 },
-    { t: "Unit", x: MARGIN + 400 },
-    { t: "Qty", x: MARGIN + 470 },
-    { t: "Total", x: MARGIN + 500 },
+    { t: "Brand / Model", x: MARGIN + 22 },
+    { t: "Year", x: MARGIN + 178 },
+    { t: "Colour", x: MARGIN + 208 },
+    { t: "VIN / Chassis No.", x: MARGIN + 255 },
+    { t: "Qty", x: MARGIN + 390, align: "right" },
+    { t: "Unit Price", x: MARGIN + 455, align: "right" },
+    { t: "Amount", x: MARGIN + CONTENT_W - 4, align: "right" },
   ];
   for (const c of cols) {
-    doc.text(c.t, c.x, y + 12);
+    doc.text(c.t, c.x, y + 9.5, c.align ? { align: c.align } : undefined);
   }
-  return y + 18;
+  return y + 14;
 }
 
 function drawVehicleRow(
@@ -239,50 +239,47 @@ function drawVehicleRow(
   y: number,
   zebra: boolean
 ): number {
-  const rowH = 28;
+  const rowH = 20;
   if (zebra) {
     doc.setFillColor(...LIGHT);
     doc.rect(MARGIN, y, CONTENT_W, rowH, "F");
   }
   doc.setDrawColor(...LINE);
-  doc.setLineWidth(0.4);
+  doc.setLineWidth(0.35);
   doc.line(MARGIN, y + rowH, PAGE_W - MARGIN, y + rowH);
 
   doc.setTextColor(...BLACK);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.text(String(index + 1), MARGIN + 6, y + 12);
 
-  const title = `${item.brand} ${item.model}`.trim();
-  putText(doc, title, MARGIN + 28, y + 11, {
-    fontSize: 8,
+  putText(doc, `${item.brand} ${item.model}`.trim(), MARGIN + 22, y + 11, {
+    fontSize: 7.5,
     bold: true,
-    maxWidth: 165,
+    maxWidth: 150,
   });
-  if (item.note) {
-    putText(doc, item.note, MARGIN + 28, y + 21, {
-      fontSize: 6.5,
-      color: SLATE,
-      maxWidth: 165,
-    });
-  }
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(...BLACK);
-  doc.text(item.year || "—", MARGIN + 200, y + 12);
-  putText(doc, item.colour || "—", MARGIN + 235, y + 11, {
-    fontSize: 7.5,
-    maxWidth: 50,
+  doc.text(item.year || "—", MARGIN + 178, y + 12);
+  putText(doc, item.colour || "—", MARGIN + 208, y + 11, {
+    fontSize: 7,
+    maxWidth: 44,
   });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
-  doc.text((item.vin || "—").slice(0, 20), MARGIN + 290, y + 12);
+  doc.text((item.vin || "—").slice(0, 18), MARGIN + 255, y + 12);
+
   doc.setFontSize(7.5);
-  doc.text(formatUsd(item.unitPriceUsd), MARGIN + 400, y + 12);
-  doc.text(String(item.quantity), MARGIN + 476, y + 12);
+  doc.text(String(item.quantity), MARGIN + 390, y + 12, { align: "right" });
+  doc.text(formatUsd(item.unitPriceUsd), MARGIN + 455, y + 12, {
+    align: "right",
+  });
   doc.setFont("helvetica", "bold");
-  doc.text(formatUsd(item.totalUsd), MARGIN + 500, y + 12);
+  doc.text(formatUsd(item.totalUsd), MARGIN + CONTENT_W - 4, y + 12, {
+    align: "right",
+  });
 
   return y + rowH;
 }
@@ -311,6 +308,7 @@ export function detailToPdfSource(detail: ProformaDetail): ProformaPdfSource {
     totalUsd: detail.totalUsd,
     depositUsd: detail.depositUsd,
     balanceUsd: detail.balanceUsd,
+    // Preserve exact saved historical terms (no silent rewrite).
     termsSnapshot: detail.termsSnapshot,
     notes: detail.notes,
     items: detail.items,
@@ -319,9 +317,8 @@ export function detailToPdfSource(detail: ProformaDetail): ProformaPdfSource {
 }
 
 /**
- * Build and download a real A4 PDF file via jsPDF.
- * Filename: `{invoiceNumber}.pdf` (e.g. PI-20260803-0001.pdf).
- * Uses exact values from `source` (saved invoice snapshot) — no live price recalculation.
+ * Build and download a real compact A4 PDF file.
+ * Filename: `{invoiceNumber}.pdf`
  */
 export async function downloadProformaPdf(
   source: ProformaPdfSource
@@ -331,322 +328,313 @@ export async function downloadProformaPdf(
   }
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  drawPageChrome(doc);
-
+  drawChrome(doc);
   let y = MARGIN;
 
-  // Header
+  // —— A. Header ——
   doc.setFillColor(...NAVY);
-  doc.roundedRect(MARGIN, y, 28, 28, 3, 3, "F");
+  doc.roundedRect(MARGIN, y, 22, 22, 2, 2, "F");
   doc.setFillColor(...GOLD);
-  doc.roundedRect(MARGIN + 3, y + 3, 22, 22, 2, 2, "F");
+  doc.roundedRect(MARGIN + 2.5, y + 2.5, 17, 17, 1.5, 1.5, "F");
   doc.setTextColor(...NAVY);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("FC", MARGIN + 14, y + 18, { align: "center" });
-
-  doc.setTextColor(...NAVY);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("FC Auto Export", MARGIN + 38, y + 14);
-  doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
+  doc.text("FC", MARGIN + 11, y + 14, { align: "center" });
+
+  doc.setFontSize(12);
+  doc.text("FC Auto Export", MARGIN + 28, y + 10);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
   doc.setTextColor(...SLATE);
-  doc.text(source.companySnapshot.companyWebsite || "fcautoexport.com", MARGIN + 38, y + 26);
+  doc.text("Used Vehicle Export", MARGIN + 28, y + 20);
 
   doc.setTextColor(...NAVY);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text("PROFORMA INVOICE", PAGE_W - MARGIN, y + 14, { align: "right" });
-  putText(doc, "形式发票", PAGE_W - MARGIN, y + 28, {
-    fontSize: 9,
-    color: GOLD,
-    align: "right",
-    maxWidth: 160,
-  });
-
-  y += 42;
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(1.2);
-  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-  y += 16;
-
-  // Invoice + customer meta (two columns)
-  const colW = (CONTENT_W - 16) / 2;
-  const leftX = MARGIN;
-  const rightX = MARGIN + colW + 16;
-  let leftY = y;
-  let rightY = y;
-
-  leftY += labelValue(
-    doc,
-    "发票编号",
-    "Invoice No.",
-    source.invoiceNumber,
-    leftX,
-    leftY,
-    colW
-  );
-  leftY += labelValue(
-    doc,
-    "合同号",
-    "Contract No.",
-    source.contractNumber || source.invoiceNumber,
-    leftX,
-    leftY,
-    colW
-  );
-  leftY += labelValue(
-    doc,
-    "报价日期",
-    "Offer Date",
-    source.offerDate,
-    leftX,
-    leftY,
-    colW
-  );
-  leftY += labelValue(
-    doc,
-    "有效期",
-    "Validity",
-    source.validityText || "—",
-    leftX,
-    leftY,
-    colW
-  );
-
-  rightY += labelValue(
-    doc,
-    "收货方",
-    "To",
-    source.customerName,
-    rightX,
-    rightY,
-    colW
-  );
-  if (source.customerCompany) {
-    rightY += labelValue(
-      doc,
-      "客户公司",
-      "Company",
-      source.customerCompany,
-      rightX,
-      rightY,
-      colW
-    );
-  }
-  if (source.customerCountry || source.customerAddress) {
-    rightY += labelValue(
-      doc,
-      "地址",
-      "Address",
-      [source.customerCountry, source.customerAddress].filter(Boolean).join(" · "),
-      rightX,
-      rightY,
-      colW
-    );
-  }
-  if (source.destinationCountry || source.destinationPort) {
-    rightY += labelValue(
-      doc,
-      "目的地",
-      "Destination",
-      [source.destinationCountry, source.destinationPort]
-        .filter(Boolean)
-        .join(" / "),
-      rightX,
-      rightY,
-      colW
-    );
-  }
-
-  y = Math.max(leftY, rightY) + 8;
-
-  // Seller block
-  ({ y } = ensureSpace(doc, y, 70));
-  doc.setFillColor(...LIGHT);
-  doc.roundedRect(MARGIN, y, CONTENT_W, 62, 4, 4, "F");
-  let sy = y + 12;
-  putText(doc, "卖方 / Seller", MARGIN + 10, sy, {
-    fontSize: 8,
-    color: SLATE,
-    bold: true,
-    maxWidth: CONTENT_W - 20,
-  });
-  sy += 12;
-  putText(doc, source.companySnapshot.companyName, MARGIN + 10, sy, {
-    fontSize: 9,
-    bold: true,
-    maxWidth: CONTENT_W - 20,
-  });
-  sy += 12;
-  putText(doc, source.companySnapshot.companyAddress, MARGIN + 10, sy, {
-    fontSize: 7.5,
-    color: SLATE,
-    maxWidth: CONTENT_W - 20,
-  });
-  sy += 14;
+  doc.setFontSize(13);
+  doc.text("PROFORMA INVOICE", PAGE_W - MARGIN, y + 10, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...BLACK);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GOLD);
   doc.text(
-    `Sales: ${source.salespersonName}  ·  ${source.salespersonPhone}  ·  ${source.salespersonEmail}`,
-    MARGIN + 10,
-    sy
+    source.companySnapshot.companyWebsite || "fcautoexport.com",
+    PAGE_W - MARGIN,
+    y + 20,
+    { align: "right" }
   );
-  y += 74;
 
-  // Vehicles — multi-page A4 with repeated table headers
-  ({ y } = ensureSpace(doc, y, 50));
-  putText(doc, "车辆明细 / Vehicle Items", MARGIN, y, {
-    fontSize: 10,
+  y += 28;
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(1);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 10;
+
+  // —— B. Invoice identifiers ——
+  const idW = CONTENT_W / 4;
+  const ids: Array<[string, string]> = [
+    ["Invoice No. / 发票编号", source.invoiceNumber],
+    [
+      "Contract No. / 合同号",
+      source.contractNumber || source.invoiceNumber,
+    ],
+    ["Offer Date / 报价日期", source.offerDate],
+    ["Validity / 有效期", source.validityText || "7 Days"],
+  ];
+  let maxIdH = 0;
+  ids.forEach(([label, value], i) => {
+    const h = kv(doc, label, value, MARGIN + i * idW, y, idW - 8);
+    maxIdH = Math.max(maxIdH, h);
+  });
+  y += maxIdH + 4;
+
+  // —— C. Seller | Buyer ——
+  ({ y } = ensureSpace(doc, y, 78));
+  const colW = (CONTENT_W - 10) / 2;
+  const leftX = MARGIN;
+  const rightX = MARGIN + colW + 10;
+
+  doc.setFillColor(...LIGHT);
+  doc.roundedRect(leftX, y, colW, 72, 3, 3, "F");
+  doc.roundedRect(rightX, y, colW, 72, 3, 3, "F");
+
+  let sy = y + 9;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...NAVY);
+  doc.text("Seller / 卖方", leftX + 6, sy);
+  sy += 10;
+  sy += putText(doc, source.companySnapshot.companyName, leftX + 6, sy, {
+    fontSize: 7.5,
+    bold: true,
+    maxWidth: colW - 12,
+  });
+  sy += putText(doc, source.companySnapshot.companyAddress, leftX + 6, sy, {
+    fontSize: 6.5,
+    color: SLATE,
+    maxWidth: colW - 12,
+  });
+  sy += 2;
+  putText(
+    doc,
+    `${source.salespersonName}  ·  ${source.salespersonPhone}`,
+    leftX + 6,
+    sy,
+    { fontSize: 7, maxWidth: colW - 12 }
+  );
+  sy += 9;
+  putText(
+    doc,
+    `${source.salespersonEmail}  ·  ${source.companySnapshot.companyWebsite}`,
+    leftX + 6,
+    sy,
+    { fontSize: 6.5, color: SLATE, maxWidth: colW - 12 }
+  );
+
+  let by = y + 9;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...NAVY);
+  doc.text("Buyer / 买方", rightX + 6, by);
+  by += 10;
+  by += putText(doc, source.customerName || "—", rightX + 6, by, {
+    fontSize: 7.5,
+    bold: true,
+    maxWidth: colW - 12,
+  });
+  if (source.customerCompany) {
+    by += putText(doc, source.customerCompany, rightX + 6, by, {
+      fontSize: 7,
+      maxWidth: colW - 12,
+    });
+  }
+  const buyerBits = [
+    source.customerCountry,
+    source.customerWhatsapp ? `WA: ${source.customerWhatsapp}` : null,
+    source.customerEmail,
+  ].filter(Boolean);
+  if (buyerBits.length) {
+    by += putText(doc, buyerBits.join("  ·  "), rightX + 6, by, {
+      fontSize: 6.5,
+      color: SLATE,
+      maxWidth: colW - 12,
+    });
+  }
+  const dest = [source.destinationCountry, source.destinationPort]
+    .filter(Boolean)
+    .join(" / ");
+  if (dest) {
+    by += putText(doc, `Destination: ${dest}`, rightX + 6, by, {
+      fontSize: 7,
+      maxWidth: colW - 12,
+    });
+  }
+
+  y += 78;
+
+  // —— D. Vehicle table ——
+  ({ y } = ensureSpace(doc, y, 36));
+  putText(doc, "Vehicle Items / 车辆明细", MARGIN, y, {
+    fontSize: 8.5,
     bold: true,
     color: NAVY,
     maxWidth: CONTENT_W,
   });
-  y += 14;
-  y = drawVehicleTableHeader(doc, y);
+  y += 11;
+  y = drawVehicleHeader(doc, y);
 
-  const ROW_H = 28;
+  const ROW_H = 20;
   source.items.forEach((item, index) => {
-    const space = ensureSpace(doc, y, ROW_H + 4);
+    const space = ensureSpace(doc, y, ROW_H + 2);
     y = space.y;
     if (space.pageBreak) {
-      // Continuation pages: chrome + repeated vehicle table header
-      putText(doc, "车辆明细 / Vehicle Items (续)", MARGIN, y, {
-        fontSize: 9,
+      putText(doc, "Vehicle Items / 车辆明细 (cont.)", MARGIN, y, {
+        fontSize: 8,
         bold: true,
         color: NAVY,
         maxWidth: CONTENT_W,
       });
-      y += 12;
-      y = drawVehicleTableHeader(doc, y);
+      y += 10;
+      y = drawVehicleHeader(doc, y);
     }
     y = drawVehicleRow(doc, item, index, y, index % 2 === 1);
   });
+  y += 8;
 
-  y += 12;
+  // —— E. Charges + Summary two columns ——
+  ({ y } = ensureSpace(doc, y, 88));
+  const half = (CONTENT_W - 10) / 2;
+  const chargeX = MARGIN;
+  const sumX = MARGIN + half + 10;
 
-  // Charges
-  if (source.charges.some((c) => c.amountUsd > 0) || source.charges.length) {
-    ({ y } = ensureSpace(doc, y, 40));
-    putText(doc, "其他费用 / Other Charges", MARGIN, y, {
-      fontSize: 10,
-      bold: true,
-      color: NAVY,
-      maxWidth: CONTENT_W,
+  putText(doc, "Other Charges / 其他费用", chargeX, y, {
+    fontSize: 8,
+    bold: true,
+    color: NAVY,
+    maxWidth: half,
+  });
+  putText(doc, "Financial Summary / 金额汇总", sumX, y, {
+    fontSize: 8,
+    bold: true,
+    color: NAVY,
+    maxWidth: half,
+  });
+  y += 11;
+
+  const chargeStart = y;
+  let cy = y;
+  const chargeRows =
+    source.charges.length > 0
+      ? source.charges
+      : [{ nameZh: "—", nameEn: "—", amountUsd: 0, note: null }];
+  for (const c of chargeRows) {
+    putText(doc, `${c.nameEn}${c.nameZh ? ` / ${c.nameZh}` : ""}`, chargeX, cy, {
+      fontSize: 7,
+      maxWidth: half - 70,
     });
-    y += 12;
-    for (const charge of source.charges) {
-      ({ y } = ensureSpace(doc, y, 16));
-      putText(
-        doc,
-        `${charge.nameZh} / ${charge.nameEn}`,
-        MARGIN,
-        y,
-        { fontSize: 8, maxWidth: CONTENT_W - 120 }
-      );
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...BLACK);
-      doc.text(formatUsd(charge.amountUsd), PAGE_W - MARGIN, y, {
-        align: "right",
-      });
-      y += 14;
-    }
-    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...BLACK);
+    doc.text(formatUsd(c.amountUsd), chargeX + half - 2, cy, {
+      align: "right",
+    });
+    cy += 11;
   }
 
-  // Financial summary
-  ({ y } = ensureSpace(doc, y, 100));
-  const boxX = PAGE_W - MARGIN - 220;
+  let sy2 = chargeStart;
   doc.setFillColor(...LIGHT);
-  doc.roundedRect(boxX, y, 220, 92, 4, 4, "F");
+  doc.roundedRect(sumX, sy2 - 2, half, 70, 3, 3, "F");
   doc.setDrawColor(...GOLD);
-  doc.setLineWidth(1);
-  doc.roundedRect(boxX, y, 220, 92, 4, 4, "S");
+  doc.setLineWidth(0.8);
+  doc.roundedRect(sumX, sy2 - 2, half, 70, 3, 3, "S");
 
-  const rows: Array<[string, string, boolean]> = [
-    ["车辆小计 / Vehicle Subtotal", formatUsd(source.vehicleSubtotalUsd), false],
-    ["其他费用 / Other Charges", formatUsd(source.chargesTotalUsd), false],
-    ["总计 / TOTAL", formatUsd(source.totalUsd), true],
-    ["定金 / Deposit", formatUsd(source.depositUsd), false],
-    ["尾款 / Balance", formatUsd(source.balanceUsd), true],
+  const summary: Array<[string, string, boolean]> = [
+    ["Vehicle Total / 车辆合计", formatUsd(source.vehicleSubtotalUsd), false],
+    ["Other Charges / 其他费用", formatUsd(source.chargesTotalUsd), false],
+    ["Grand Total / 总计", formatUsd(source.totalUsd), true],
+    ["Deposit / 定金", formatUsd(source.depositUsd), false],
+    ["Balance / 尾款", formatUsd(source.balanceUsd), true],
   ];
-  let fy = y + 14;
-  for (const [label, value, bold] of rows) {
-    putText(doc, label, boxX + 10, fy, {
-      fontSize: 7.5,
-      color: bold ? NAVY : SLATE,
-      bold,
-      maxWidth: 120,
+  for (const [label, value, strong] of summary) {
+    putText(doc, label, sumX + 6, sy2 + 8, {
+      fontSize: 6.5,
+      color: strong ? NAVY : SLATE,
+      bold: strong,
+      maxWidth: half - 80,
     });
-    doc.setFont("helvetica", bold ? "bold" : "normal");
-    doc.setFontSize(bold ? 9 : 8);
-    doc.setTextColor(...(bold ? NAVY : BLACK));
-    doc.text(value, boxX + 210, fy, { align: "right" });
-    fy += 15;
+    doc.setFont("helvetica", strong ? "bold" : "normal");
+    doc.setFontSize(strong ? 8 : 7.5);
+    doc.setTextColor(...(strong ? NAVY : BLACK));
+    doc.text(value, sumX + half - 6, sy2 + 8, { align: "right" });
+    sy2 += 12;
   }
-  y += 104;
 
-  // Payment
-  ({ y } = ensureSpace(doc, y, 90));
-  putText(doc, "付款信息 / Payment Information", MARGIN, y, {
-    fontSize: 10,
+  y = Math.max(cy, chargeStart + 72) + 8;
+
+  // —— F. Payment ——
+  ({ y } = ensureSpace(doc, y, 52));
+  putText(doc, "Payment Information / 付款信息", MARGIN, y, {
+    fontSize: 8,
     bold: true,
     color: NAVY,
     maxWidth: CONTENT_W,
   });
-  y += 14;
+  y += 10;
   const pay = source.paymentSnapshot;
-  const payLines = [
-    ["收款人 / Full Name", pay.fullName],
-    ["银行 / Bank", pay.bankName],
-    ["账号 / Account", pay.accountNumber],
-    ["SWIFT", pay.swift],
-    ["银行地址 / Bank Address", pay.bankAddress],
-    ["备注 / Note", pay.paymentNote],
+  const payCols: Array<[string, string]> = [
+    ["Beneficiary / 收款人", pay.fullName || "—"],
+    ["Bank / 银行", pay.bankName || "—"],
+    ["Account / 账号", pay.accountNumber || "—"],
+    ["SWIFT", pay.swift || "—"],
   ];
-  for (const [label, value] of payLines) {
-    if (!value) continue;
-    ({ y } = ensureSpace(doc, y, 14));
-    putText(doc, `${label}: ${value}`, MARGIN, y, {
-      fontSize: 8,
+  const pw = CONTENT_W / 4;
+  payCols.forEach(([label, value], i) => {
+    kv(doc, label, value, MARGIN + i * pw, y, pw - 6);
+  });
+  y += 24;
+  if (pay.bankAddress) {
+    putText(doc, `Bank Address / 银行地址: ${pay.bankAddress}`, MARGIN, y, {
+      fontSize: 7,
+      color: SLATE,
       maxWidth: CONTENT_W,
     });
-    y += 12;
+    y += 10;
   }
-  y += 8;
+  if (pay.paymentNote) {
+    putText(doc, pay.paymentNote, MARGIN, y, {
+      fontSize: 7,
+      color: SLATE,
+      maxWidth: CONTENT_W,
+    });
+    y += 10;
+  }
+  y += 2;
 
-  // Terms
+  // —— G. Compact terms (exact saved snapshot) ——
   const enabledTerms = source.termsSnapshot.filter((t) => t.enabled);
   if (enabledTerms.length || source.notes) {
-    ({ y } = ensureSpace(doc, y, 40));
-    putText(doc, "条款与说明 / Terms & Notes", MARGIN, y, {
-      fontSize: 10,
+    ({ y } = ensureSpace(doc, y, 36));
+    putText(doc, "Terms / 条款", MARGIN, y, {
+      fontSize: 8,
       bold: true,
       color: NAVY,
       maxWidth: CONTENT_W,
     });
-    y += 14;
+    y += 10;
     enabledTerms.forEach((term, i) => {
-      ({ y } = ensureSpace(doc, y, 28));
-      const zhH = putText(doc, `${i + 1}. ${term.textZh}`, MARGIN, y, {
-        fontSize: 8,
+      ({ y } = ensureSpace(doc, y, 18));
+      const line = term.textEn
+        ? `${i + 1}. ${term.textEn}${term.textZh ? ` ｜ ${term.textZh}` : ""}`
+        : `${i + 1}. ${term.textZh}`;
+      const h = putText(doc, line, MARGIN, y, {
+        fontSize: 7,
         maxWidth: CONTENT_W,
       });
-      y += zhH;
-      const enH = putText(doc, term.textEn, MARGIN + 10, y, {
-        fontSize: 7.5,
-        color: SLATE,
-        maxWidth: CONTENT_W - 10,
-      });
-      y += enH + 4;
+      y += h + 1;
     });
     if (source.notes) {
-      ({ y } = ensureSpace(doc, y, 20));
+      ({ y } = ensureSpace(doc, y, 14));
       putText(doc, source.notes, MARGIN, y, {
-        fontSize: 8,
+        fontSize: 7,
+        color: SLATE,
         maxWidth: CONTENT_W,
       });
     }
