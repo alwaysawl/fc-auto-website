@@ -8,22 +8,27 @@ export const PI_PAGE_W = 595.28;
 export const PI_PAGE_H = 841.89;
 export const PI_MARGIN = 28;
 export const PI_CONTENT_W = PI_PAGE_W - PI_MARGIN * 2;
-/** Footer block + breathing room — content must stay above this Y. */
-export const PI_FOOTER_RESERVE = 46;
+/** Footer block — content must stay above this Y. */
+export const PI_FOOTER_RESERVE = 42;
 export const PI_CONTENT_BOTTOM = PI_PAGE_H - PI_FOOTER_RESERVE;
 
-export const PI_TABLE_HEADER_H = 22;
+export const PI_TABLE_HEADER_H = 20;
 export const PI_PAGE1_TARGET_ROWS = 8;
-export const PI_BASE_ROW_H = 18;
+/** Slightly tighter single-line vehicle rows (still readable). */
+export const PI_BASE_ROW_H = 16;
 /** Alias for callers that still import PI_ROW_H. */
 export const PI_ROW_H = PI_BASE_ROW_H;
 
-/** Required gaps between major page-1 sections (pt). */
+/**
+ * Required gaps between major page-1 sections (pt).
+ * nextTop = previousBottom + gap
+ */
 export const PI_GAP = {
-  tableToCharges: 8,
-  chargesToPayment: 8,
-  paymentToTerms: 8,
-  termsToFooter: 12,
+  tableToCharges: 10,
+  chargesToPayment: 10,
+  paymentToTerms: 10,
+  /** Target breathing room above footer safe area. */
+  termsToFooter: 20,
   moreNotice: 12,
 } as const;
 
@@ -47,7 +52,6 @@ export type ProformaLayoutInput = {
   customerEmail?: string | null;
   destinationCountry?: string | null;
   destinationPort?: string | null;
-  /** Payment snapshot fields — empty values keep the block compact. */
   payment?: {
     fullName?: string | null;
     bankName?: string | null;
@@ -58,15 +62,12 @@ export type ProformaLayoutInput = {
 };
 
 export type ProformaPagination = {
-  /** Item index arrays per page (0-based). */
   pages: number[][];
   page1Count: number;
   totalPages: number;
-  /** Measured row heights for every vehicle (same order as items). */
   rowHeights: number[];
 };
 
-/** Approximate wrapped line count for PDF/preview width budgets. */
 export function estimateWrappedLines(
   text: string,
   maxWidth: number,
@@ -89,18 +90,13 @@ export function estimateWrappedLines(
   return Math.max(1, lines);
 }
 
-/**
- * Dynamic vehicle row height from Brand / Model / Colour wrapping.
- * VIN is truncated in the table, so it does not grow height unboundedly.
- */
 export function estimateVehicleRowHeight(item: ProformaLayoutItem): number {
   const brandLines = estimateWrappedLines(item.brand || "—", 60, 7.5);
   const modelLines = estimateWrappedLines(item.model || "—", 74, 7.5);
   const colourLines = estimateWrappedLines(item.colour || "—", 44, 7);
   const lines = Math.max(brandLines, modelLines, colourLines, 1);
-  // Single-line rows match the historical 18pt band; extra lines grow the row.
-  const contentH = lines * (7.5 + 1.2);
-  return Math.max(PI_BASE_ROW_H, contentH + 6);
+  if (lines <= 1) return PI_BASE_ROW_H;
+  return Math.max(PI_BASE_ROW_H, 8 + lines * (7.5 + 1.1));
 }
 
 function sumRowHeights(heights: number[], from: number, count: number): number {
@@ -111,89 +107,85 @@ function sumRowHeights(heights: number[], from: number, count: number): number {
   return total;
 }
 
-/** Small buffer only — avoid large fixed reserves that force early page breaks. */
-const FIT_SAFETY_PT = 18;
+/** Minimal safety only — do not force page-1 down to 7 for normal content. */
+const FIT_SAFETY_PT = 10;
 
-/** Header + gold rule (full first-page header). */
+/** Compact header (~20–35pt tighter than prior layout). */
 function estimateHeaderHeight(): number {
-  // Matches drawDocHeader: MARGIN + logo(22) + gap(8) + rule padding(8)
-  return PI_MARGIN + 22 + 8 + 8;
+  return PI_MARGIN + 20 + 5 + 4;
 }
 
-/** Three-column invoice / seller / buyer block. */
 function estimateMetaHeight(input: ProformaLayoutInput): number {
-  // labelValue ≈ 8 + valueLines*(8+1.8) — short IDs stay ~18pt each
-  const idH = 5 * 18;
-  let sellerH = 12; // title
+  const idH = 5 * 15;
+  let sellerH = 10;
   sellerH += Math.max(
-    10,
+    9,
     estimateWrappedLines(
       "FC Auto Fengcheng Auto Trade Co., Ltd.",
       PI_CONTENT_W / 3 - 50,
       7.5
-    ) * 9.1
+    ) * 8.5
   );
   sellerH += Math.max(
-    10,
+    9,
     estimateWrappedLines(
       input.companyAddress || "",
       PI_CONTENT_W / 3 - 50,
       7.5
-    ) * 9.1
+    ) * 8.5
   );
-  sellerH += 10 * 4; // sales, phone, email, website
+  sellerH += 9 * 4;
 
-  let buyerH = 12;
-  buyerH += 11; // customer
+  let buyerH = 10;
+  buyerH += 9;
   if (input.customerCompany) {
     buyerH += Math.max(
-      10,
+      9,
       estimateWrappedLines(input.customerCompany, PI_CONTENT_W / 3 - 60, 7.5) *
-        9.1
+        8.5
     );
   }
-  if (input.customerCountry) buyerH += 10;
-  if (input.customerWhatsapp) buyerH += 10;
-  if (input.customerEmail) buyerH += 10;
+  if (input.customerCountry) buyerH += 9;
+  if (input.customerWhatsapp) buyerH += 9;
+  if (input.customerEmail) buyerH += 9;
   if (input.destinationCountry || input.destinationPort) {
     const dest = [input.destinationCountry, input.destinationPort]
       .filter(Boolean)
       .join(" / ");
     buyerH += Math.max(
-      10,
-      estimateWrappedLines(dest, PI_CONTENT_W / 3 - 60, 7.5) * 9.1
+      9,
+      estimateWrappedLines(dest, PI_CONTENT_W / 3 - 60, 7.5) * 8.5
     );
   }
 
-  return Math.max(idH, sellerH, buyerH) + 14; // + gold rule + padding
+  return Math.max(idH, sellerH, buyerH) + 10;
 }
 
 function estimateVehicleTitleAndHeader(): number {
-  return 11 + PI_TABLE_HEADER_H;
+  return 9 + PI_TABLE_HEADER_H;
 }
 
-/** Charges + financial summary (two columns). */
 export function estimateChargesSummaryHeight(chargesCount: number): number {
-  const rows = Math.max(1, chargesCount) + 1; // + total other charges
-  const leftH = 12 + rows * 11 + 2;
-  const rightH = 12 + 72; // title + gold box
+  const rows = Math.max(1, chargesCount) + 1;
+  const leftH = 10 + rows * 10 + 2;
+  // 5 summary lines × 11 + inner padding (no oversized empty box)
+  const rightH = 10 + 8 + 5 * 11;
   return Math.max(leftH, rightH);
 }
 
-/** Normalize payment display value (empty → compact dash). */
 export function compactPaymentValue(value?: string | null): string {
   const t = (value || "").trim();
   return t || "—";
 }
 
 /**
- * Compact payment block height.
- * Empty/dash fields use a single short row; filled values grow with wrap.
+ * Compact payment block (~55–75pt for short/empty values).
+ * Height excludes the following section gap.
  */
 export function estimatePaymentHeight(
   payment?: ProformaLayoutInput["payment"]
 ): number {
-  const colW = PI_CONTENT_W / 2 - 14;
+  const colW = PI_CONTENT_W / 2 - 20;
   const left = [
     compactPaymentValue(payment?.fullName),
     compactPaymentValue(payment?.bankName),
@@ -205,39 +197,41 @@ export function estimatePaymentHeight(
   ];
 
   const rowH = (value: string) => {
-    if (value === "—") return 10; // label + dash on one compact row
+    // Inline "Label: value" — empty dash stays one line.
+    if (value === "—") return 11;
     const lines = estimateWrappedLines(value, colW, 7.5);
-    return Math.max(10, 7 + lines * 8.5);
+    return Math.max(11, lines * 9);
   };
 
   const leftH = left.reduce((sum, v) => sum + rowH(v), 0);
   const rightH = right.reduce((sum, v) => sum + rowH(v), 0);
-  const boxInner = Math.max(leftH, rightH, 28) + 8; // padding inside border
-  return 10 + boxInner + 6; // title + box + gap to terms
+  const boxInner = Math.max(leftH, rightH) + 10;
+  return 9 + boxInner; // title + bordered box
 }
 
-/** Bilingual terms block (EN then ZH) with compact line spacing. */
+/** Readable bilingual terms (uses lower-page space; not over-compressed). */
 export function estimateTermsHeight(
   terms: Array<{ textEn: string; textZh: string }>,
   notes?: string | null
 ): number {
-  const lineH = 7.5 + 1.2; // matches compact drawTerms
-  let h = 10; // title
+  const lineH = 7.5 + 1.5;
+  let h = 10;
   terms.forEach((t, i) => {
     if (t.textEn) {
-      const prefix = `${i + 1}. `;
       h +=
-        estimateWrappedLines(prefix + t.textEn, PI_CONTENT_W, 7.5) * lineH + 0.5;
+        estimateWrappedLines(`${i + 1}. ${t.textEn}`, PI_CONTENT_W, 7.5) *
+          lineH +
+        1;
     }
     if (t.textZh) {
       h +=
-        estimateWrappedLines(t.textZh, PI_CONTENT_W - 8, 7.5) * lineH + 2;
+        estimateWrappedLines(t.textZh, PI_CONTENT_W - 8, 7.5) * lineH + 3;
     }
   });
   if (notes) {
-    h += estimateWrappedLines(notes, PI_CONTENT_W, 7.5) * lineH + 1;
+    h += estimateWrappedLines(notes, PI_CONTENT_W, 7.5) * lineH + 2;
   }
-  return h + 4;
+  return h;
 }
 
 function estimatePage1BottomHeight(input: ProformaLayoutInput): number {
@@ -251,14 +245,12 @@ function estimatePage1BottomHeight(input: ProformaLayoutInput): number {
 }
 
 function estimateContinuationTopHeight(): number {
-  // compact header + title + table header
-  return PI_MARGIN + 18 + 6 + 8 + 11 + PI_TABLE_HEADER_H;
+  return PI_MARGIN + 18 + 5 + 4 + 9 + PI_TABLE_HEADER_H;
 }
 
 /**
- * Iterative first-page fit:
- * start at min(8, n), reduce until header+rows+notice+bottom+footer gaps fit.
- * Continuation notice height is included only when vehicles remain after page 1.
+ * Prefer 8 vehicles on page 1. Only reduce when measured content
+ * still crosses the footer boundary after compact layout.
  */
 export function paginateProformaVehicles(
   input: ProformaLayoutInput
@@ -281,7 +273,6 @@ export function paginateProformaVehicles(
 
   while (firstCount >= 1) {
     const hasMore = firstCount < n;
-    // Notice only when continuation page actually exists.
     const afterTableGap = hasMore
       ? PI_GAP.moreNotice + PI_GAP.tableToCharges
       : PI_GAP.tableToCharges;
@@ -294,7 +285,6 @@ export function paginateProformaVehicles(
     firstCount -= 1;
   }
 
-  // Continuation pages: pack as many full rows as fit under compact header.
   const contTop = estimateContinuationTopHeight();
   const contAvailable = PI_CONTENT_BOTTOM - contTop - 10 - FIT_SAFETY_PT;
   const pages: number[][] = [];
@@ -312,9 +302,7 @@ export function paginateProformaVehicles(
       chunk.push(idx);
       usedH += h;
       idx += 1;
-      if (chunk.length === 1 && usedH > contAvailable) {
-        break;
-      }
+      if (chunk.length === 1 && usedH > contAvailable) break;
     }
     pages.push(chunk);
   }
@@ -327,7 +315,7 @@ export function paginateProformaVehicles(
   };
 }
 
-/** @deprecated Prefer paginateProformaVehicles — kept for any residual callers. */
+/** @deprecated Prefer paginateProformaVehicles */
 export function calcPage1VehicleCapacity(opts: {
   yAfterTableHeader: number;
   bottomBlockHeight: number;

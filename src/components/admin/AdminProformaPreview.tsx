@@ -156,7 +156,7 @@ function A4Page({
         minHeight: compact ? undefined : "297mm",
       }}
     >
-      <div className="flex min-h-[inherit] flex-col p-4 sm:p-5 text-[11px] leading-snug">
+      <div className="flex min-h-[inherit] flex-col px-4 py-3 sm:px-5 sm:py-3.5 text-[11px] leading-snug">
         {/* Header */}
         <Header
           website={website}
@@ -168,8 +168,8 @@ function A4Page({
         {isFirst ? (
           <>
             {/* 3-column info */}
-            <div className="mt-2 grid grid-cols-1 gap-2 border-b border-[#D4AF37] pb-2 sm:grid-cols-3">
-              <div className="space-y-1.5">
+            <div className="mt-1.5 grid grid-cols-1 gap-1.5 border-b border-[#D4AF37] pb-1.5 sm:grid-cols-3">
+              <div className="space-y-1">
                 <Meta label="Invoice No. / 发票号" value={model.invoiceNumber} />
                 <Meta
                   label="Contract No. / 合同号"
@@ -183,7 +183,7 @@ function A4Page({
                 <Meta label="Currency / 货币" value="USD" />
               </div>
               <div>
-                <p className="mb-1 text-[11px] font-bold text-[#1E293B]">
+                <p className="mb-0.5 text-[11px] font-bold text-[#1E293B]">
                   Seller / 卖方
                 </p>
                 <Field label="Company" value={model.company.companyName} />
@@ -194,7 +194,7 @@ function A4Page({
                 <Field label="Website" value={website} />
               </div>
               <div>
-                <p className="mb-1 text-[11px] font-bold text-[#1E293B]">
+                <p className="mb-0.5 text-[11px] font-bold text-[#1E293B]">
                   Buyer / 买方
                 </p>
                 <Field label="Customer" value={model.customerName || "—"} />
@@ -226,8 +226,8 @@ function A4Page({
               </p>
             ) : null}
 
-            {/* Charges + Summary */}
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {/* Charges + Summary — 10px gap after table */}
+            <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
               <div>
                 <SectionTitle>Other Charges / 其他费用</SectionTitle>
                 <ul className="space-y-0.5 text-[10px]">
@@ -245,7 +245,7 @@ function A4Page({
                       </span>
                     </li>
                   ))}
-                  <li className="flex justify-between gap-2 border-t border-slate-200 pt-1 font-bold text-[#1E293B]">
+                  <li className="flex justify-between gap-2 border-t border-slate-200 pt-0.5 font-bold text-[#1E293B]">
                     <span>Total Other Charges / 其他费用合计</span>
                     <span className="tabular-nums">
                       {formatUsd(model.chargesTotalUsd)}
@@ -253,7 +253,7 @@ function A4Page({
                   </li>
                 </ul>
               </div>
-              <div className="rounded border border-[#D4AF37] bg-slate-50 p-2 text-[10px]">
+              <div className="rounded border border-[#D4AF37] bg-slate-50 px-2 py-1 text-[10px]">
                 <SectionTitle>Financial Summary / 金额汇总</SectionTitle>
                 <SummaryRow
                   label="Vehicle Total / 车辆总价"
@@ -280,8 +280,8 @@ function A4Page({
               </div>
             </div>
 
-            {/* Payment */}
-            <div className="mt-2 rounded border border-slate-200 px-2 py-1.5">
+            {/* Payment — 10px gap */}
+            <div className="mt-2.5 rounded border border-slate-200 px-2 py-1">
               <SectionTitle>Payment Information / 付款信息</SectionTitle>
               <div className="grid gap-0.5 sm:grid-cols-2 text-[10px]">
                 <PaymentField
@@ -307,22 +307,22 @@ function A4Page({
               </div>
             </div>
 
-            {/* Terms */}
+            {/* Terms — readable spacing into lower page area */}
             {(model.terms.some((t) => t.enabled) || model.notes) && (
-              <div className="mt-2">
+              <div className="mt-2.5">
                 <SectionTitle>Terms / 条款</SectionTitle>
-                <ol className="list-decimal space-y-0.5 pl-4 text-[10px] leading-snug">
+                <ol className="list-decimal space-y-1 pl-4 text-[10px] leading-normal">
                   {model.terms
                     .filter((t) => t.enabled)
                     .map((t) => (
                       <li key={t.id}>
                         {t.textEn ? (
-                          <p className="leading-snug text-[#1E293B]">
+                          <p className="leading-normal text-[#1E293B]">
                             {t.textEn}
                           </p>
                         ) : null}
                         {t.textZh ? (
-                          <p className="leading-snug text-slate-500">
+                          <p className="leading-normal text-slate-500">
                             {t.textZh}
                           </p>
                         ) : null}
@@ -330,7 +330,7 @@ function A4Page({
                     ))}
                 </ol>
                 {model.notes ? (
-                  <p className="mt-1 text-[10px] leading-snug text-slate-600">
+                  <p className="mt-1 text-[10px] leading-normal text-slate-600">
                     {model.notes}
                   </p>
                 ) : null}
@@ -351,7 +351,7 @@ function A4Page({
           </>
         )}
 
-        <div className="mt-auto pt-3">
+        <div className="mt-auto pt-5">
           <Footer
             website={website}
             phone={model.salespersonPhone}
@@ -495,31 +495,31 @@ function VehicleTable({
                   key={itemIndex}
                   className={i % 2 ? "bg-slate-50" : "bg-white"}
                 >
-                  <td className="border border-slate-200 px-1 py-1">
+                  <td className="border border-slate-200 px-1 py-0.5">
                     {itemIndex + 1}
                   </td>
-                  <td className="border border-slate-200 px-1 py-1 font-semibold">
+                  <td className="border border-slate-200 px-1 py-0.5 font-semibold">
                     {item.brand}
                   </td>
-                  <td className="border border-slate-200 px-1 py-1">
+                  <td className="border border-slate-200 px-1 py-0.5">
                     {item.model}
                   </td>
-                  <td className="border border-slate-200 px-1 py-1">
+                  <td className="border border-slate-200 px-1 py-0.5">
                     {item.year || "—"}
                   </td>
-                  <td className="border border-slate-200 px-1 py-1">
+                  <td className="border border-slate-200 px-1 py-0.5">
                     {item.colour || "—"}
                   </td>
-                  <td className="border border-slate-200 px-1 py-1 font-mono text-[9px]">
+                  <td className="border border-slate-200 px-1 py-0.5 font-mono text-[9px]">
                     {item.vin || "—"}
                   </td>
-                  <td className="border border-slate-200 px-1 py-1 text-center">
+                  <td className="border border-slate-200 px-1 py-0.5 text-center">
                     {item.quantity}
                   </td>
-                  <td className="border border-slate-200 px-1 py-1 text-right tabular-nums">
+                  <td className="border border-slate-200 px-1 py-0.5 text-right tabular-nums">
                     {formatUsd(item.unitPriceUsd)}
                   </td>
-                  <td className="border border-slate-200 px-1 py-1 text-right font-bold tabular-nums">
+                  <td className="border border-slate-200 px-1 py-0.5 text-right font-bold tabular-nums">
                     {formatUsd(item.totalUsd)}
                   </td>
                 </tr>
@@ -534,7 +534,7 @@ function VehicleTable({
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-0.5 mt-1.5 text-[12px] font-bold text-[#1E293B]">
+    <h3 className="mb-0.5 mt-0 text-[11px] font-bold text-[#1E293B]">
       {children}
     </h3>
   );
@@ -553,15 +553,17 @@ function PaymentField({ label, value }: { label: string; value: string }) {
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[9px] text-slate-500">{label}</p>
-      <p className="text-[11px] font-semibold text-[#1E293B]">{value}</p>
+      <p className="text-[8px] leading-tight text-slate-500">{label}</p>
+      <p className="text-[10px] font-semibold leading-snug text-[#1E293B]">
+        {value}
+      </p>
     </div>
   );
 }
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <p className="mb-0.5 text-[10px] leading-snug">
+    <p className="mb-px text-[10px] leading-snug">
       <span className="text-slate-500">{label}: </span>
       <span className="text-[#1E293B]">{value}</span>
     </p>

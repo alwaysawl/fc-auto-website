@@ -192,7 +192,7 @@ function drawDocHeader(
 ): number {
   const compact = Boolean(opts?.compact);
   let y = MARGIN;
-  const logo = compact ? 18 : 22;
+  const logo = compact ? 16 : 20;
 
   doc.setFillColor(...NAVY);
   doc.roundedRect(MARGIN, y, logo, logo, 2.5, 2.5, "F");
@@ -239,9 +239,9 @@ function drawDocHeader(
     align: "right",
   });
 
-  y += logo + (compact ? 6 : 8);
+  y += logo + (compact ? 5 : 5);
   drawGoldRule(doc, y);
-  return y + 8;
+  return y + 4;
 }
 
 function drawFooter(
@@ -281,16 +281,16 @@ function labelValue(
   w: number
 ): number {
   setProformaFont(doc, "normal");
-  doc.setFontSize(6.5);
+  doc.setFontSize(6);
   doc.setTextColor(...SLATE);
   doc.text(label, x, y);
   return (
-    8 +
-    putText(doc, value || "—", x, y + 9, {
-      fontSize: 8,
+    6 +
+    putText(doc, value || "—", x, y + 7, {
+      fontSize: 7.5,
       bold: true,
       maxWidth: w,
-      lineGap: 1.8,
+      lineGap: 1.2,
     })
   );
 }
@@ -305,15 +305,15 @@ function fieldRow(
   valueW: number
 ): number {
   setProformaFont(doc, "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(...SLATE);
   doc.text(`${label}:`, x, y);
   const h = putText(doc, value || "—", x + labelW, y, {
     fontSize: 7.5,
     maxWidth: valueW,
-    lineGap: 1.6,
+    lineGap: 1.2,
   });
-  return Math.max(10, h);
+  return Math.max(9, h);
 }
 
 function drawVehicleTableHeader(doc: Pdf, y: number): number {
@@ -375,7 +375,7 @@ function drawVehicleRow(
   doc.setLineWidth(0.35);
   doc.line(MARGIN, y + rowH, PAGE_W - MARGIN, y + rowH);
 
-  const textY = y + 11;
+  const textY = y + Math.min(10, rowH * 0.65);
   setProformaFont(doc, "normal");
   doc.setTextColor(...BLACK);
   doc.setFontSize(7.5);
@@ -429,18 +429,18 @@ function drawChargesAndSummary(
   const rightX = MARGIN + half + 10;
 
   putText(doc, "Other Charges / 其他费用", leftX, y, {
-    fontSize: 10,
+    fontSize: 9.5,
     bold: true,
     color: NAVY,
     maxWidth: half,
   });
   putText(doc, "Financial Summary / 金额汇总", rightX, y, {
-    fontSize: 10,
+    fontSize: 9.5,
     bold: true,
     color: NAVY,
     maxWidth: half,
   });
-  y += 12;
+  y += 10;
 
   const startY = y;
   let cy = y;
@@ -457,20 +457,20 @@ function drawChargesAndSummary(
         ];
 
   for (const c of rows) {
-    putText(
+    const labelH = putText(
       doc,
       `${c.nameEn}${c.nameZh ? ` / ${c.nameZh}` : ""}`,
       leftX,
       cy,
-      { fontSize: 7.5, maxWidth: half - 72, lineGap: 1.5 }
+      { fontSize: 7.5, maxWidth: half - 72, lineGap: 1.2 }
     );
     setProformaFont(doc, "normal");
     doc.setFontSize(8);
     doc.setTextColor(...BLACK);
     doc.text(formatUsd(c.amountUsd), leftX + half - 2, cy, { align: "right" });
-    cy += 11;
+    cy += Math.max(10, labelH + 1);
   }
-  putText(doc, "Total Other Charges / 其他费用合计", leftX, cy, {
+  const totalH = putText(doc, "Total Other Charges / 其他费用合计", leftX, cy, {
     fontSize: 8,
     bold: true,
     maxWidth: half - 72,
@@ -481,14 +481,7 @@ function drawChargesAndSummary(
   doc.text(formatUsd(source.chargesTotalUsd), leftX + half - 2, cy, {
     align: "right",
   });
-  cy += 12;
-
-  const boxH = 72;
-  doc.setFillColor(...LIGHT);
-  doc.roundedRect(rightX, startY - 2, half, boxH, 3, 3, "F");
-  doc.setDrawColor(...GOLD);
-  doc.setLineWidth(1);
-  doc.roundedRect(rightX, startY - 2, half, boxH, 3, 3, "S");
+  cy += Math.max(10, totalH + 1);
 
   const summary: Array<[string, string, boolean]> = [
     ["Vehicle Total / 车辆总价", formatUsd(source.vehicleSubtotalUsd), false],
@@ -497,33 +490,41 @@ function drawChargesAndSummary(
     ["Deposit / 定金", formatUsd(source.depositUsd), false],
     ["Balance / 尾款", formatUsd(source.balanceUsd), true],
   ];
-  let sy = startY + 8;
+  const boxH = 6 + summary.length * 11 + 4;
+  doc.setFillColor(...LIGHT);
+  doc.roundedRect(rightX, startY - 1, half, boxH, 3, 3, "F");
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(1);
+  doc.roundedRect(rightX, startY - 1, half, boxH, 3, 3, "S");
+
+  let sy = startY + 7;
   for (const [label, value, strong] of summary) {
     putText(doc, label, rightX + 6, sy, {
-      fontSize: strong ? 8.5 : 7.5,
+      fontSize: strong ? 8 : 7.5,
       bold: strong,
       color: strong ? NAVY : SLATE,
       maxWidth: half - 88,
-      lineGap: 1.5,
+      lineGap: 1.2,
     });
     setProformaFont(doc, strong ? "bold" : "normal");
-    doc.setFontSize(strong ? 9.5 : 8);
+    doc.setFontSize(strong ? 9 : 8);
     doc.setTextColor(...(strong ? NAVY : BLACK));
     doc.text(value, rightX + half - 6, sy, { align: "right" });
-    sy += 12;
+    sy += 11;
   }
 
-  return Math.max(cy, startY + boxH) + 8;
+  // Return measured bottom of the taller column (no trailing gap).
+  return Math.max(cy, startY - 1 + boxH);
 }
 
 function drawPayment(doc: Pdf, source: ProformaPdfSource, y: number): number {
   putText(doc, "Payment Information / 付款信息", MARGIN, y, {
-    fontSize: 10,
+    fontSize: 9.5,
     bold: true,
     color: NAVY,
     maxWidth: CONTENT_W,
   });
-  y += 10;
+  y += 9;
 
   const pay = source.paymentSnapshot;
   const colW = CONTENT_W / 2;
@@ -538,63 +539,67 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource, y: number): number {
   ];
 
   const boxTop = y;
-  let ly = y + 8;
+  let ly = y + 9;
   for (const [label, value] of left) {
     setProformaFont(doc, "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(...SLATE);
-    doc.text(`${label}:`, MARGIN + 6, ly);
+    const labelText = `${label}: `;
+    doc.text(labelText, MARGIN + 6, ly);
+    const labelW = doc.getTextWidth(labelText);
     if (value === "—") {
       setProformaFont(doc, "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(...BLACK);
-      doc.text("—", MARGIN + 6 + Math.min(118, colW * 0.55), ly);
-      ly += 10;
+      doc.text("—", MARGIN + 6 + labelW, ly);
+      ly += 11;
     } else {
-      const h = putText(doc, value, MARGIN + 6, ly + 8, {
+      const h = putText(doc, value, MARGIN + 6 + labelW, ly, {
         fontSize: 7.5,
         bold: true,
-        maxWidth: colW - 14,
+        maxWidth: colW - 14 - labelW,
         lineGap: 1.2,
       });
-      ly += Math.max(10, 7 + h);
+      ly += Math.max(11, h);
     }
   }
 
-  let ry = y + 8;
+  let ry = y + 9;
   for (const [label, value] of right) {
     setProformaFont(doc, "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(...SLATE);
-    doc.text(`${label}:`, MARGIN + colW + 4, ry);
+    const labelText = `${label}: `;
+    doc.text(labelText, MARGIN + colW + 4, ry);
+    const labelW = doc.getTextWidth(labelText);
     if (value === "—") {
       setProformaFont(doc, "bold");
       doc.setFontSize(7.5);
       doc.setTextColor(...BLACK);
-      doc.text("—", MARGIN + colW + 4 + Math.min(110, colW * 0.5), ry);
-      ry += 10;
+      doc.text("—", MARGIN + colW + 4 + labelW, ry);
+      ry += 11;
     } else {
-      const h = putText(doc, value, MARGIN + colW + 4, ry + 8, {
+      const h = putText(doc, value, MARGIN + colW + 4 + labelW, ry, {
         fontSize: 7.5,
         bold: true,
-        maxWidth: colW - 14,
+        maxWidth: colW - 14 - labelW,
         lineGap: 1.2,
       });
-      ry += Math.max(10, 7 + h);
+      ry += Math.max(11, h);
     }
   }
 
-  const boxH = Math.max(ly, ry) - boxTop + 4;
+  const boxH = Math.max(ly, ry) - boxTop + 5;
   doc.setDrawColor(...LINE);
   doc.setLineWidth(0.7);
   doc.roundedRect(MARGIN, boxTop, CONTENT_W, boxH, 3, 3, "S");
 
-  return boxTop + boxH + 6;
+  return boxTop + boxH;
 }
 
 function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
   putText(doc, "Terms / 条款", MARGIN, y, {
-    fontSize: 10,
+    fontSize: 9.5,
     bold: true,
     color: NAVY,
     maxWidth: CONTENT_W,
@@ -607,9 +612,9 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
       const h = putText(doc, `${i + 1}. ${term.textEn}`, MARGIN, y, {
         fontSize: 7.5,
         maxWidth: CONTENT_W,
-        lineGap: 1.2,
+        lineGap: 1.5,
       });
-      y += h + 0.5;
+      y += h + 1;
     }
     if (term.textZh) {
       const h = putText(
@@ -621,10 +626,10 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
           fontSize: 7.5,
           color: SLATE,
           maxWidth: CONTENT_W - (term.textEn ? 8 : 0),
-          lineGap: 1.2,
+          lineGap: 1.5,
         }
       );
-      y += h + 2;
+      y += h + 3;
     }
   });
 
@@ -633,7 +638,7 @@ function drawTerms(doc: Pdf, source: ProformaPdfSource, y: number): number {
       fontSize: 7.5,
       color: SLATE,
       maxWidth: CONTENT_W,
-      lineGap: 1.2,
+      lineGap: 1.5,
     });
   }
   return y;
@@ -739,12 +744,12 @@ export async function downloadProformaPdf(
   // Middle seller
   let y2 = infoTop;
   putText(doc, "Seller / 卖方", col2, y2, {
-    fontSize: 9,
+    fontSize: 8.5,
     bold: true,
     color: NAVY,
     maxWidth: colW - 8,
   });
-  y2 += 11;
+  y2 += 9;
   y2 += fieldRow(
     doc,
     "Company",
@@ -779,12 +784,12 @@ export async function downloadProformaPdf(
   // Right buyer
   let y3 = infoTop;
   putText(doc, "Buyer / 买方", col3, y3, {
-    fontSize: 9,
+    fontSize: 8.5,
     bold: true,
     color: NAVY,
     maxWidth: colW - 8,
   });
-  y3 += 11;
+  y3 += 9;
   const dest = [source.destinationCountry, source.destinationPort]
     .filter(Boolean)
     .join(" / ");
@@ -829,18 +834,18 @@ export async function downloadProformaPdf(
     y3 += fieldRow(doc, "Destination Port", dest, col3, y3, 52, colW - 60);
   }
 
-  y = Math.max(y1, y2, y3) + 8;
+  y = Math.max(y1, y2, y3) + 5;
   drawGoldRule(doc, y);
-  y += 8;
+  y += 5;
 
   // Vehicle table (page 1)
   putText(doc, "Vehicle Items / 车辆明细", MARGIN, y, {
-    fontSize: 10,
+    fontSize: 9.5,
     bold: true,
     color: NAVY,
     maxWidth: CONTENT_W,
   });
-  y += 11;
+  y += 9;
   y = drawVehicleTableHeader(doc, y);
 
   const page1Indices = pages[0] ?? [];
@@ -858,21 +863,23 @@ export async function downloadProformaPdf(
 
   const hasMore = source.items.length > page1Indices.length;
   if (hasMore) {
-    y += 4;
+    y += 3;
     putText(
       doc,
       "For more vehicles, please see next page.  /  如有更多车辆，请见下一页。",
       MARGIN,
       y,
-      { fontSize: 7.5, color: SLATE, maxWidth: CONTENT_W, lineGap: 1.6 }
+      { fontSize: 7.5, color: SLATE, maxWidth: CONTENT_W, lineGap: 1.4 }
     );
     y += PI_GAP.moreNotice;
   }
-  y += PI_GAP.tableToCharges;
 
-  // Charges, payment, terms — only on page 1
+  // Continuous flow: each section starts at previousBottom + gap
+  y += PI_GAP.tableToCharges;
   y = drawChargesAndSummary(doc, source, y);
+  y += PI_GAP.chargesToPayment;
   y = drawPayment(doc, source, y);
+  y += PI_GAP.paymentToTerms;
   drawTerms(doc, source, y);
   drawFooter(doc, source, 1, totalPages);
 
