@@ -3,6 +3,9 @@
  * Single source of truth for PDF + Preview — no content-based height.
  */
 
+/** Non-visual diagnostic marker — inspect DOM/data attribute or console on PDF download. */
+export const PROFORMA_LAYOUT_VERSION = "seller-buyer-invoice-v1";
+
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
 export const PI_PAGE_W = PAGE_WIDTH;

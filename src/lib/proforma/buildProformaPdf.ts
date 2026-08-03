@@ -44,6 +44,7 @@ import {
   VEHICLE_TABLE_BOTTOM,
   VEHICLE_TABLE_TOP,
   VEHICLE_TITLE_TOP,
+  PROFORMA_LAYOUT_VERSION,
   checkProformaOnePageFit,
   compactPaymentValue,
   vehicleRowTop,
@@ -1019,6 +1020,9 @@ export async function downloadProformaPdf(
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   await ensureProformaFonts(doc);
+
+  // Non-visual deploy diagnostic (browser console only — not drawn on PDF)
+  console.info("[proforma-layout]", PROFORMA_LAYOUT_VERSION);
 
   drawHeader(doc, source);
   drawInfo(doc, source);

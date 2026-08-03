@@ -38,6 +38,7 @@ import {
   VEHICLE_TABLE_TOP,
   VEHICLE_TITLE_TOP,
   compactPaymentValue,
+  PROFORMA_LAYOUT_VERSION,
 } from "@/lib/proforma/layout";
 import {
   formatSellerAddressDisplayLines,
@@ -138,6 +139,7 @@ export default function AdminProformaPreview({
 
       <div
         className="mx-auto overflow-hidden bg-white text-[#0f172a] shadow-lg"
+        data-proforma-layout={PROFORMA_LAYOUT_VERSION}
         style={{
           fontFamily:
             '"Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif',
