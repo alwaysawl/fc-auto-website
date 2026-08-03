@@ -645,7 +645,7 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
-  // Absolute fixed Y from shared map (+ CONTENT_Y_OFFSET) — never table.finalY.
+  // Absolute fixed Y from shared map (+ BODY_OFFSET_Y) — never table.finalY.
   const y0 = CHARGES_TOP;
   const half = (CONTENT_W - 10) / 2;
   const leftX = MARGIN;
@@ -753,7 +753,7 @@ function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawPayment(doc: Pdf, source: ProformaPdfSource) {
-  // Fixed map (+ CONTENT_Y_OFFSET) — never derived from cursor / finalY.
+  // Fixed map (+ BODY_OFFSET_Y) — never derived from cursor / finalY.
   const y0 = PAYMENT_TOP;
   putText(doc, "Payment Information / 付款信息", MARGIN, y0 + 10, {
     fontSize: PT_SECTION,
@@ -813,7 +813,7 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawTerms(doc: Pdf, source: ProformaPdfSource) {
-  // Fixed map (+ CONTENT_Y_OFFSET) — never derived from cursor / finalY.
+  // Fixed map (+ BODY_OFFSET_Y) — never derived from cursor / finalY.
   let y = TERMS_TOP + 10;
   putText(doc, "Terms / 条款", MARGIN, y, {
     fontSize: PT_SECTION,
