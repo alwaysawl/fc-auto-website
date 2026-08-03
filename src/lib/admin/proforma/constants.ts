@@ -115,7 +115,7 @@ export const DEFAULT_TERMS: TermSnapshot[] = [
   {
     id: "shipping_confirm",
     enabled: true,
-    textZh: "海运费及目的地费用以最终确认为准。",
+    textZh: "海运费及目的地费用以最终确认结果为准。",
     textEn:
       "Ocean freight and destination charges are subject to final confirmation.",
   },
@@ -135,7 +135,7 @@ export const DEFAULT_TERMS: TermSnapshot[] = [
   {
     id: "proforma_notice",
     enabled: true,
-    textZh: "本文件仅为形式发票，非正式税务发票。",
+    textZh: "本文件仅为形式发票，并非正式税务发票。",
     textEn:
       "This document is a Proforma Invoice only and is not a tax invoice.",
   },

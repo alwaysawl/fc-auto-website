@@ -1,11 +1,18 @@
 "use client";
 
+import { useMemo, type ReactNode } from "react";
 import { formatUsd } from "@/lib/admin/proforma/money";
 import type {
   CompanySnapshot,
   PaymentAccountSnapshot,
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
+import {
+  PI_PAGE1_TARGET_ROWS,
+  calcContinuationRowsPerPage,
+  calcPage1VehicleCapacity,
+  splitVehiclePages,
+} from "@/lib/proforma/layout";
 
 export type PreviewItem = {
   brand: string;
@@ -54,7 +61,7 @@ export type ProformaPreviewModel = {
   notes: string;
 };
 
-/** A4 portrait preview aligned with PDF V3 (Noto Sans SC / bilingual layout). */
+/** Multi-page A4 preview matching the approved PDF layout. */
 export default function AdminProformaPreview({
   model,
   compact,
@@ -62,8 +69,65 @@ export default function AdminProformaPreview({
   model: ProformaPreviewModel;
   compact?: boolean;
 }) {
-  const terms = model.terms;
-  const destPort = [model.destinationCountry, model.destinationPort]
+  const pages = useMemo(() => {
+    const page1Rows = calcPage1VehicleCapacity({
+      yAfterTableHeader: 280,
+      bottomBlockHeight: 280,
+      moreNoticeHeight: 18,
+      itemCount: model.items.length,
+    });
+    const contRows = calcContinuationRowsPerPage(90);
+    return splitVehiclePages(
+      model.items.length,
+      model.items.length === 0
+        ? 0
+        : Math.min(PI_PAGE1_TARGET_ROWS, Math.max(page1Rows, 1)),
+      contRows
+    );
+  }, [model.items.length]);
+
+  const totalPages = Math.max(1, pages.length);
+
+  return (
+    <div className="space-y-4">
+      {pages.map((indices, pageIndex) => (
+        <A4Page
+          key={pageIndex}
+          model={model}
+          pageIndex={pageIndex}
+          totalPages={totalPages}
+          itemIndices={indices}
+          hasMoreAfter={
+            pageIndex === 0 && model.items.length > indices.length
+          }
+          isLastVehiclePage={pageIndex === pages.length - 1}
+          compact={compact}
+        />
+      ))}
+    </div>
+  );
+}
+
+function A4Page({
+  model,
+  pageIndex,
+  totalPages,
+  itemIndices,
+  hasMoreAfter,
+  isLastVehiclePage,
+  compact,
+}: {
+  model: ProformaPreviewModel;
+  pageIndex: number;
+  totalPages: number;
+  itemIndices: number[];
+  hasMoreAfter: boolean;
+  isLastVehiclePage: boolean;
+  compact?: boolean;
+}) {
+  const isFirst = pageIndex === 0;
+  const website = model.company.companyWebsite || "fcautoexport.com";
+  const dest = [model.destinationCountry, model.destinationPort]
     .filter(Boolean)
     .join(" / ");
 
@@ -79,289 +143,400 @@ export default function AdminProformaPreview({
         minHeight: compact ? undefined : "297mm",
       }}
     >
-      <div className="h-[3px] bg-[#D4AF37]" />
-      <div className="space-y-3.5 p-5 sm:p-6 text-[12px] leading-relaxed">
+      <div className="flex h-full flex-col p-4 sm:p-5 text-[11px] leading-snug">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2.5">
-            <div className="flex h-[30px] w-[30px] items-center justify-center rounded bg-[#1E293B]">
-              <span className="rounded bg-[#D4AF37] px-1 py-0.5 text-[11px] font-bold text-[#1E293B]">
-                FC
-              </span>
+        <Header
+          website={website}
+          phone={model.salespersonPhone}
+          email={model.salespersonEmail}
+          compact={!isFirst}
+        />
+
+        {isFirst ? (
+          <>
+            {/* 3-column info */}
+            <div className="mt-2 grid grid-cols-1 gap-2 border-b border-[#D4AF37] pb-2 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Meta label="Invoice No. / 发票号" value={model.invoiceNumber} />
+                <Meta
+                  label="Contract No. / 合同号"
+                  value={model.contractNumber || model.invoiceNumber}
+                />
+                <Meta label="Offer Date / 报价日期" value={model.offerDate} />
+                <Meta
+                  label="Validity / 有效期"
+                  value={model.validityText || "7 Days"}
+                />
+                <Meta label="Currency / 货币" value="USD" />
+              </div>
+              <div>
+                <p className="mb-1 text-[11px] font-bold text-[#1E293B]">
+                  Seller / 卖方
+                </p>
+                <Field label="Company" value={model.company.companyName} />
+                <Field label="Address" value={model.company.companyAddress} />
+                <Field label="Sales" value={model.salespersonName} />
+                <Field label="Phone" value={model.salespersonPhone} />
+                <Field label="Email" value={model.salespersonEmail} />
+                <Field label="Website" value={website} />
+              </div>
+              <div>
+                <p className="mb-1 text-[11px] font-bold text-[#1E293B]">
+                  Buyer / 买方
+                </p>
+                <Field label="Customer" value={model.customerName || "—"} />
+                {model.customerCompany ? (
+                  <Field label="Company" value={model.customerCompany} />
+                ) : null}
+                {model.customerCountry ? (
+                  <Field label="Country" value={model.customerCountry} />
+                ) : null}
+                {model.customerWhatsapp ? (
+                  <Field label="WhatsApp" value={model.customerWhatsapp} />
+                ) : null}
+                {model.customerEmail ? (
+                  <Field label="Email" value={model.customerEmail} />
+                ) : null}
+                {dest ? (
+                  <Field label="Destination Port" value={dest} />
+                ) : null}
+              </div>
             </div>
-            <div>
-              <p className="text-[15px] font-bold text-[#1E293B]">
-                FC Auto Export
+
+            <SectionTitle>
+              Vehicle Items / 车辆明细
+            </SectionTitle>
+            <VehicleTable model={model} indices={itemIndices} />
+            {hasMoreAfter ? (
+              <p className="mt-1.5 text-[10px] text-slate-500">
+                For more vehicles, please see next page. / 如有更多车辆，请见下一页。
               </p>
-              <p className="text-[11px] text-slate-500">Used Vehicle Export</p>
+            ) : null}
+
+            {/* Charges + Summary */}
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div>
+                <SectionTitle>Other Charges / 其他费用</SectionTitle>
+                <ul className="space-y-0.5 text-[10px]">
+                  {(model.charges.length
+                    ? model.charges
+                    : [{ nameEn: "—", nameZh: "", amountUsd: 0 }]
+                  ).map((c, i) => (
+                    <li key={i} className="flex justify-between gap-2">
+                      <span>
+                        {c.nameEn}
+                        {c.nameZh ? ` / ${c.nameZh}` : ""}
+                      </span>
+                      <span className="tabular-nums">
+                        {formatUsd(c.amountUsd)}
+                      </span>
+                    </li>
+                  ))}
+                  <li className="flex justify-between gap-2 border-t border-slate-200 pt-1 font-bold text-[#1E293B]">
+                    <span>Total Other Charges / 其他费用合计</span>
+                    <span className="tabular-nums">
+                      {formatUsd(model.chargesTotalUsd)}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+              <div className="rounded border border-[#D4AF37] bg-slate-50 p-2 text-[10px]">
+                <SectionTitle>Financial Summary / 金额汇总</SectionTitle>
+                <SummaryRow
+                  label="Vehicle Total / 车辆总价"
+                  value={formatUsd(model.vehicleSubtotalUsd)}
+                />
+                <SummaryRow
+                  label="Other Charges / 其他费用"
+                  value={formatUsd(model.chargesTotalUsd)}
+                />
+                <SummaryRow
+                  label="Grand Total / 总计"
+                  value={formatUsd(model.totalUsd)}
+                  strong
+                />
+                <SummaryRow
+                  label="Deposit / 定金"
+                  value={formatUsd(model.depositUsd)}
+                />
+                <SummaryRow
+                  label="Balance / 尾款"
+                  value={formatUsd(model.balanceUsd)}
+                  strong
+                />
+              </div>
             </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[18px] font-bold tracking-wide text-[#1E293B]">
-              PROFORMA INVOICE
-            </p>
-            <p className="text-[11px] font-medium text-[#D4AF37]">
-              {model.company.companyWebsite || "fcautoexport.com"}
-            </p>
-          </div>
-        </div>
 
-        <div className="border-t border-[#D4AF37]" />
+            {/* Payment */}
+            <div className="mt-3 rounded border border-slate-200 p-2">
+              <SectionTitle>Payment Information / 付款信息</SectionTitle>
+              <div className="grid gap-1 sm:grid-cols-2 text-[10px]">
+                <Meta
+                  label="Beneficiary / 收款人"
+                  value={model.payment.fullName || "—"}
+                />
+                <Meta
+                  label="Bank Address / 开户行地址"
+                  value={model.payment.bankAddress || "—"}
+                />
+                <Meta
+                  label="Bank / 开户银行"
+                  value={model.payment.bankName || "—"}
+                />
+                <Meta
+                  label="SWIFT / SWIFT代码"
+                  value={model.payment.swift || "—"}
+                />
+                <Meta
+                  label="Account Number / 银行账号"
+                  value={model.payment.accountNumber || "—"}
+                />
+              </div>
+            </div>
 
-        {/* Identifiers */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Meta label="Invoice No. / 发票号" value={model.invoiceNumber} />
-          <Meta
-            label="Contract No. / 合同号"
-            value={model.contractNumber || model.invoiceNumber}
-          />
-          <Meta label="Offer Date / 报价日期" value={model.offerDate} />
-          <Meta
-            label="Validity / 有效期"
-            value={model.validityText || "7 Days"}
-          />
-        </div>
-
-        {/* Seller | Buyer */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md bg-slate-50 p-3">
-            <p className="mb-2 text-[12px] font-bold text-[#1E293B]">
-              Seller / 卖方
-            </p>
-            <Field label="Company" value={model.company.companyName} />
-            <Field label="Address" value={model.company.companyAddress} />
-            <Field label="Sales" value={model.salespersonName} />
-            <Field label="Phone" value={model.salespersonPhone} />
-            <Field label="Email" value={model.salespersonEmail} />
-            <Field label="Website" value={model.company.companyWebsite} />
-          </div>
-          <div className="rounded-md bg-slate-50 p-3">
-            <p className="mb-2 text-[12px] font-bold text-[#1E293B]">
-              Buyer / 买方
-            </p>
-            <Field label="Customer" value={model.customerName || "—"} />
-            {model.customerCompany ? (
-              <Field label="Company" value={model.customerCompany} />
+            {/* Terms */}
+            {(model.terms.some((t) => t.enabled) || model.notes) && (
+              <div className="mt-3">
+                <SectionTitle>Terms / 条款</SectionTitle>
+                <ol className="list-decimal space-y-1.5 pl-4 text-[10px]">
+                  {model.terms
+                    .filter((t) => t.enabled)
+                    .map((t) => (
+                      <li key={t.id}>
+                        {t.textEn ? (
+                          <p className="leading-relaxed text-[#1E293B]">
+                            {t.textEn}
+                          </p>
+                        ) : null}
+                        {t.textZh ? (
+                          <p className="mt-0.5 leading-relaxed text-slate-500">
+                            {t.textZh}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                </ol>
+                {model.notes ? (
+                  <p className="mt-1 text-[10px] text-slate-600">{model.notes}</p>
+                ) : null}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <SectionTitle>
+              Vehicle Items (Continued) / 车辆明细（续）
+            </SectionTitle>
+            <VehicleTable model={model} indices={itemIndices} />
+            {isLastVehiclePage ? (
+              <p className="mt-3 text-center text-[10px] font-semibold text-slate-500">
+                *** End of List / 以下无更多车辆 ***
+              </p>
             ) : null}
-            {model.customerCountry ? (
-              <Field label="Country" value={model.customerCountry} />
-            ) : null}
-            {model.customerWhatsapp ? (
-              <Field label="WhatsApp" value={model.customerWhatsapp} />
-            ) : null}
-            {model.customerEmail ? (
-              <Field label="Email" value={model.customerEmail} />
-            ) : null}
-            {destPort ? (
-              <Field label="Destination Port" value={destPort} />
-            ) : null}
-          </div>
-        </div>
-
-        {/* Vehicles */}
-        <div>
-          <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
-            Vehicle Items / 车辆明细
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-[11px]">
-              <thead>
-                <tr className="bg-[#1E293B] text-white">
-                  <Th en="No." zh="序号" />
-                  <Th en="Brand" zh="品牌" />
-                  <Th en="Model" zh="型号" />
-                  <Th en="Year" zh="年份" />
-                  <Th en="Colour" zh="颜色" />
-                  <Th en="VIN / Chassis No." zh="VIN / 车架号" />
-                  <Th en="Qty" zh="数量" right />
-                  <Th en="Unit Price" zh="单价" right />
-                  <Th en="Amount" zh="金额" right />
-                </tr>
-              </thead>
-              <tbody>
-                {model.items.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="border border-slate-200 px-2 py-3 text-center text-slate-400"
-                    >
-                      暂无车辆
-                    </td>
-                  </tr>
-                ) : (
-                  model.items.map((item, i) => (
-                    <tr
-                      key={i}
-                      className={i % 2 ? "bg-slate-50" : "bg-white"}
-                    >
-                      <td className="border border-slate-200 px-1.5 py-1.5">
-                        {i + 1}
-                      </td>
-                      <td className="border border-slate-200 px-1.5 py-1.5 font-semibold">
-                        {item.brand}
-                      </td>
-                      <td className="border border-slate-200 px-1.5 py-1.5">
-                        {item.model}
-                      </td>
-                      <td className="border border-slate-200 px-1.5 py-1.5">
-                        {item.year || "—"}
-                      </td>
-                      <td className="border border-slate-200 px-1.5 py-1.5">
-                        {item.colour || "—"}
-                      </td>
-                      <td className="border border-slate-200 px-1.5 py-1.5 font-mono text-[10px]">
-                        {item.vin || "—"}
-                      </td>
-                      <td className="border border-slate-200 px-1.5 py-1.5 text-right">
-                        {item.quantity}
-                      </td>
-                      <td className="border border-slate-200 px-1.5 py-1.5 text-right">
-                        {formatUsd(item.unitPriceUsd)}
-                      </td>
-                      <td className="border border-slate-200 px-1.5 py-1.5 text-right font-bold">
-                        {formatUsd(item.totalUsd)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Charges + Summary */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
-              Other Charges / 其他费用
-            </h3>
-            <ul className="space-y-1 text-[11px]">
-              {model.charges.length === 0 ? (
-                <li className="text-slate-400">—</li>
-              ) : (
-                model.charges.map((c, i) => (
-                  <li key={i} className="flex justify-between gap-2">
-                    <span>
-                      {c.nameEn}
-                      {c.nameZh ? ` / ${c.nameZh}` : ""}
-                    </span>
-                    <span className="font-medium tabular-nums">
-                      {formatUsd(c.amountUsd)}
-                    </span>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-          <div className="rounded-md border border-[#D4AF37] bg-slate-50 p-3 text-[11px]">
-            <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
-              Financial Summary / 金额汇总
-            </h3>
-            <SummaryRow
-              label="Vehicle Total"
-              value={formatUsd(model.vehicleSubtotalUsd)}
-            />
-            <SummaryRow
-              label="Other Charges"
-              value={formatUsd(model.chargesTotalUsd)}
-            />
-            <SummaryRow
-              label="Grand Total / 总计"
-              value={formatUsd(model.totalUsd)}
-              strong
-            />
-            <SummaryRow
-              label="Deposit / 定金"
-              value={formatUsd(model.depositUsd)}
-            />
-            <SummaryRow
-              label="Balance / 尾款"
-              value={formatUsd(model.balanceUsd)}
-              strong
-            />
-          </div>
-        </div>
-
-        {/* Payment */}
-        <div>
-          <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
-            Payment Information / 付款信息
-          </h3>
-          <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
-            <Meta
-              label="Beneficiary / 收款人"
-              value={model.payment.fullName || "—"}
-            />
-            <Meta
-              label="Bank / 开户银行"
-              value={model.payment.bankName || "—"}
-            />
-            <Meta
-              label="Account Number / 银行账号"
-              value={model.payment.accountNumber || "—"}
-            />
-            <Meta
-              label="SWIFT / SWIFT代码"
-              value={model.payment.swift || "—"}
-            />
-          </div>
-          {model.payment.bankAddress ? (
-            <p className="mt-1.5 text-[11px] text-slate-600">
-              Bank Address / 开户行地址: {model.payment.bankAddress}
-            </p>
-          ) : null}
-        </div>
-
-        {/* Terms — English then Chinese on separate lines */}
-        {(terms.some((t) => t.enabled) || model.notes) && (
-          <div>
-            <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
-              Terms / 条款
-            </h3>
-            <ol className="list-decimal space-y-2 pl-4 text-[11px] text-slate-800">
-              {terms
-                .filter((t) => t.enabled)
-                .map((t) => (
-                  <li key={t.id} className="marker:font-semibold">
-                    {t.textEn ? <p className="leading-relaxed">{t.textEn}</p> : null}
-                    {t.textZh ? (
-                      <p className="mt-0.5 leading-relaxed text-slate-500">
-                        {t.textZh}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-            </ol>
-            {model.notes ? (
-              <p className="mt-2 text-[11px] text-slate-600">{model.notes}</p>
-            ) : null}
-          </div>
+          </>
         )}
 
-        <div className="border-t border-slate-200 pt-2 text-center text-[10px] text-slate-500">
-          <p className="font-bold tracking-wide text-[#1E293B]">
-            FC AUTO EXPORT
-          </p>
-          <p>www.fcautoexport.com</p>
-          <p>Used Vehicle Export</p>
+        <div className="mt-auto pt-3">
+          <Footer
+            website={website}
+            phone={model.salespersonPhone}
+            email={model.salespersonEmail}
+            page={pageIndex + 1}
+            total={totalPages}
+          />
         </div>
       </div>
     </div>
   );
 }
 
+function Header({
+  website,
+  phone,
+  email,
+  compact,
+}: {
+  website: string;
+  phone: string;
+  email: string;
+  compact?: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2">
+          <div
+            className={`flex items-center justify-center rounded bg-[#1E293B] ${
+              compact ? "h-5 w-5" : "h-6 w-6"
+            }`}
+          >
+            <span className="rounded bg-[#D4AF37] px-0.5 text-[9px] font-bold text-[#1E293B]">
+              FC
+            </span>
+          </div>
+          <div>
+            <p
+              className={`font-bold text-[#1E293B] ${
+                compact ? "text-[11px]" : "text-[13px]"
+              }`}
+            >
+              FC AUTO EXPORT
+            </p>
+            <p className="text-[9px] tracking-wide text-slate-500">
+              USED VEHICLE EXPORT
+            </p>
+          </div>
+        </div>
+        <div className="text-center">
+          <p
+            className={`font-bold text-[#1E293B] ${
+              compact ? "text-[13px]" : "text-[16px]"
+            }`}
+          >
+            PROFORMA INVOICE
+          </p>
+          <p className="text-[10px] font-medium text-[#D4AF37]">形式发票</p>
+        </div>
+        <div className="max-w-[34%] text-right text-[9px] leading-tight text-slate-600">
+          <p>{website}</p>
+          <p className="text-[#1E293B]">{phone}</p>
+          <p className="text-[#1E293B]">{email}</p>
+        </div>
+      </div>
+      <div className="mt-2 h-px bg-[#D4AF37]" />
+    </div>
+  );
+}
+
+function Footer({
+  website,
+  phone,
+  email,
+  page,
+  total,
+}: {
+  website: string;
+  phone: string;
+  email: string;
+  page: number;
+  total: number;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 h-px bg-[#D4AF37]" />
+      <p className="text-center text-[10px] font-bold tracking-wide text-[#1E293B]">
+        FC AUTO EXPORT
+      </p>
+      <div className="relative mt-0.5 text-[9px] text-slate-500">
+        <p className="text-center">
+          {website} · {phone} · {email}
+        </p>
+        <p className="absolute right-0 top-0 font-medium text-[#1E293B]">
+          Page {page} / {total}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function VehicleTable({
+  model,
+  indices,
+}: {
+  model: ProformaPreviewModel;
+  indices: number[];
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full border-collapse text-[10px]">
+        <thead>
+          <tr className="bg-[#1E293B] text-white">
+            <Th en="No." zh="序号" />
+            <Th en="Brand" zh="品牌" />
+            <Th en="Model" zh="型号" />
+            <Th en="Year" zh="年份" />
+            <Th en="Colour" zh="颜色" />
+            <Th en="VIN / Chassis No." zh="VIN / 车架号" />
+            <Th en="Qty" zh="数量" center />
+            <Th en="Unit Price (USD)" zh="单价" right />
+            <Th en="Amount (USD)" zh="金额" right />
+          </tr>
+        </thead>
+        <tbody>
+          {indices.length === 0 ? (
+            <tr>
+              <td
+                colSpan={9}
+                className="border border-slate-200 px-2 py-2 text-center text-slate-400"
+              >
+                —
+              </td>
+            </tr>
+          ) : (
+            indices.map((itemIndex, i) => {
+              const item = model.items[itemIndex]!;
+              return (
+                <tr
+                  key={itemIndex}
+                  className={i % 2 ? "bg-slate-50" : "bg-white"}
+                >
+                  <td className="border border-slate-200 px-1 py-1">
+                    {itemIndex + 1}
+                  </td>
+                  <td className="border border-slate-200 px-1 py-1 font-semibold">
+                    {item.brand}
+                  </td>
+                  <td className="border border-slate-200 px-1 py-1">
+                    {item.model}
+                  </td>
+                  <td className="border border-slate-200 px-1 py-1">
+                    {item.year || "—"}
+                  </td>
+                  <td className="border border-slate-200 px-1 py-1">
+                    {item.colour || "—"}
+                  </td>
+                  <td className="border border-slate-200 px-1 py-1 font-mono text-[9px]">
+                    {item.vin || "—"}
+                  </td>
+                  <td className="border border-slate-200 px-1 py-1 text-center">
+                    {item.quantity}
+                  </td>
+                  <td className="border border-slate-200 px-1 py-1 text-right tabular-nums">
+                    {formatUsd(item.unitPriceUsd)}
+                  </td>
+                  <td className="border border-slate-200 px-1 py-1 text-right font-bold tabular-nums">
+                    {formatUsd(item.totalUsd)}
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h3 className="mb-1 mt-2 text-[12px] font-bold text-[#1E293B]">
+      {children}
+    </h3>
+  );
+}
+
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] text-slate-500">{label}</p>
-      <p className="text-[12px] font-semibold text-[#1E293B]">{value}</p>
+      <p className="text-[9px] text-slate-500">{label}</p>
+      <p className="text-[11px] font-semibold text-[#1E293B]">{value}</p>
     </div>
   );
 }
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <p className="mb-1 text-[11px] leading-snug">
+    <p className="mb-0.5 text-[10px] leading-snug">
       <span className="text-slate-500">{label}: </span>
       <span className="text-[#1E293B]">{value}</span>
     </p>
@@ -372,17 +547,21 @@ function Th({
   en,
   zh,
   right,
+  center,
 }: {
   en: string;
   zh: string;
   right?: boolean;
+  center?: boolean;
 }) {
   return (
     <th
-      className={`px-1.5 py-1.5 ${right ? "text-right" : "text-left"} font-semibold`}
+      className={`px-1 py-1 font-semibold ${
+        right ? "text-right" : center ? "text-center" : "text-left"
+      }`}
     >
       <div className="leading-tight">{en}</div>
-      <div className="text-[9px] font-normal opacity-90">{zh}</div>
+      <div className="text-[8px] font-normal opacity-90">{zh}</div>
     </th>
   );
 }
@@ -398,9 +577,7 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2 py-0.5">
-      <span
-        className={strong ? "font-bold text-[#1E293B]" : "text-slate-600"}
-      >
+      <span className={strong ? "font-bold text-[#1E293B]" : "text-slate-600"}>
         {label}
       </span>
       <span
