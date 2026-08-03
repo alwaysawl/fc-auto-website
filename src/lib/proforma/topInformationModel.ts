@@ -1,7 +1,6 @@
 /**
  * Shared top-information data for Preview + PDF.
- * Vertical order only: Seller → Buyer → Invoice Information.
- * Never Invoice | Seller | Buyer as three side-by-side columns.
+ * Three horizontal columns: Seller | Buyer | Invoice Information.
  */
 
 import {
@@ -31,22 +30,19 @@ export type TopInfoMetaField = {
 export type ProformaTopInformationData = {
   seller: {
     title: string;
-    left: Array<TopInfoPartyField | TopInfoAddressField>;
-    right: TopInfoPartyField[];
+    fields: Array<TopInfoPartyField | TopInfoAddressField>;
   };
   buyer: {
     title: string;
-    left: TopInfoPartyField[];
-    right: TopInfoPartyField[];
+    fields: TopInfoPartyField[];
   };
   invoice: {
     title: string;
-    left: TopInfoMetaField[];
-    right: TopInfoMetaField[];
+    fields: TopInfoMetaField[];
   };
 };
 
-/** Raw fields needed to build the shared top-info stack. */
+/** Raw fields needed to build the shared top-info columns. */
 export type ProformaTopInformationInput = {
   invoiceNumber: string;
   contractNumber: string;
@@ -88,7 +84,7 @@ function meta(label: string, value: string): TopInfoMetaField {
   };
 }
 
-/** Build the single stacked top-information model used by Preview and PDF. */
+/** Build the three-column top-information model used by Preview and PDF. */
 export function buildProformaTopInformation(
   input: ProformaTopInformationInput
 ): ProformaTopInformationData {
@@ -101,19 +97,17 @@ export function buildProformaTopInformation(
   return {
     seller: {
       title: "Seller / 卖方",
-      left: [
+      fields: [
         party(
           "Company / 公司",
           formatSellerCompanyDisplay(input.companyName),
-          2
+          3
         ),
         {
           kind: "address",
           label: "Address / 地址",
           lines: formatSellerAddressDisplayLines(input.companyAddress),
         },
-      ],
-      right: [
         party("Sales / 销售", input.salespersonName),
         party("Phone / 电话", input.salespersonPhone),
         party("Email / 邮箱", input.salespersonEmail),
@@ -122,12 +116,10 @@ export function buildProformaTopInformation(
     },
     buyer: {
       title: "Buyer / 买方",
-      left: [
+      fields: [
         party("Customer / 客户", input.customerName, 2),
         party("Company / 公司", input.customerCompany, 2),
         party("Country / 国家", input.customerCountry),
-      ],
-      right: [
         party("WhatsApp / 电话", input.customerWhatsapp),
         party("Email / 邮箱", input.customerEmail),
         party("Destination Port / 目的港", dest || "—", 2),
@@ -135,15 +127,13 @@ export function buildProformaTopInformation(
     },
     invoice: {
       title: "Invoice Information / 发票信息",
-      left: [
+      fields: [
         meta("Invoice No. / 发票号", input.invoiceNumber),
         meta(
           "Contract No. / 合同号",
           input.contractNumber || input.invoiceNumber
         ),
         meta("Offer Date / 报价日期", input.offerDate),
-      ],
-      right: [
         meta("Validity / 有效期", input.validityText || "7 Days"),
         meta("Currency / 货币", "USD"),
       ],

@@ -180,7 +180,7 @@ export default function AdminProformaPreview({
             <div className="absolute bottom-0 left-0 right-0 h-px bg-[#D4AF37]" />
           </div>
 
-          {/* Top information: shared Seller → Buyer → Invoice Information stack */}
+          {/* Top information: three columns Seller | Buyer | Invoice Information */}
           <ProformaTopInformation
             input={{
               invoiceNumber: model.invoiceNumber,

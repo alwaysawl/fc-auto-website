@@ -1,19 +1,18 @@
 /**
- * PDF drawer for the shared Proforma top-information stack.
- * Uses the same ProformaTopInformationData as the React preview component.
- * Vertical order only: Seller → Buyer → Invoice Information.
+ * PDF drawer for the shared Proforma top-information band.
+ * Three horizontal columns: Seller | Buyer | Invoice Information.
+ * Uses the same ProformaTopInformationData as the React preview.
  */
 
 import type { jsPDF } from "jspdf";
 import {
-  BUYER_TOP,
   INFO_BOTTOM,
-  INVOICE_INFO_TOP,
+  INFO_HEIGHT,
+  INFO_TOP,
   INVOICE_LABEL_VALUE_GAP,
   INVOICE_LABEL_WIDTH,
   PI_CONTENT_W,
   PI_MARGIN,
-  SELLER_TOP,
 } from "@/lib/proforma/layout";
 import { setProformaFont } from "@/lib/proforma/pdfFonts";
 import type {
@@ -36,6 +35,7 @@ const PT_PARTY = 8.5;
 const PT_META_LABEL = 9;
 const PT_META_VALUE = 9.5;
 const PT_LINE_HEIGHT = 1.18;
+const INFO_BOTTOM_PAD = 6.5;
 
 const MARGIN = PI_MARGIN;
 const CONTENT_W = PI_CONTENT_W;
@@ -107,6 +107,21 @@ function oneLine(
     out = `${out}…`;
   }
   doc.text(out, x, y);
+}
+
+function measurePartyField(
+  doc: Pdf,
+  value: string,
+  valueW: number,
+  maxLines = 99,
+  fontSize = PT_PARTY
+): number {
+  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
+  setProformaFont(doc, "normal");
+  doc.setFontSize(fontSize);
+  const lines = doc.splitTextToSize((value || "—").trim() || "—", valueW) as string[];
+  const n = Math.min(maxLines, Math.max(1, lines.length));
+  return Math.max(fontSize * PT_LINE_HEIGHT, n * (fontSize + lineGap)) + 1.2;
 }
 
 function drawPartyField(
@@ -186,117 +201,148 @@ function drawMetaField(
   setProformaFont(doc, "bold");
   doc.setFontSize(PT_META_LABEL);
   doc.setTextColor(...SLATE);
-  doc.text(field.label, x, y);
+  // Keep bilingual label inside the fixed label column (no overlap into value).
+  oneLine(doc, field.label, x, y, labelW, {
+    fontSize: PT_META_LABEL,
+    bold: true,
+    color: SLATE,
+  });
   oneLine(doc, field.value, x + labelW + gap, y, valueW, {
     fontSize: PT_META_VALUE,
     bold: false,
     color: BLACK,
   });
-  return 11.5;
+  return 12.5;
 }
 
-function drawSectionTitle(doc: Pdf, title: string, x: number, y: number) {
+function drawSectionTitle(
+  doc: Pdf,
+  title: string,
+  x: number,
+  y: number,
+  maxWidth: number
+) {
   putText(doc, title, x, y, {
     fontSize: PT_SECTION,
     bold: true,
     color: NAVY,
-    maxWidth: CONTENT_W,
+    maxWidth,
   });
 }
 
 /**
- * Draw Seller → Buyer → Invoice Information (full-width stack).
- * Consumes the same data object as ProformaTopInformationView.
+ * Draw Seller | Buyer | Invoice Information (one horizontal row).
  */
 export function drawProformaTopInformation(
   doc: Pdf,
   data: ProformaTopInformationData
 ): void {
-  const half = CONTENT_W / 2;
-  const leftX = MARGIN;
-  const rightX = MARGIN + half + 6;
-  const labelW = 52;
-  const leftValueW = half - labelW - 10;
-  const rightValueW = half - labelW - 16;
+  const colW = CONTENT_W / 3;
+  const col1 = MARGIN;
+  const col2 = MARGIN + colW;
+  const col3 = MARGIN + colW * 2;
+  const infoTop = INFO_TOP;
+  const infoLimit = INFO_TOP + INFO_HEIGHT - INFO_BOTTOM_PAD;
 
-  // 1. Seller
-  let y = SELLER_TOP + 9;
-  drawSectionTitle(doc, data.seller.title, leftX, y);
-  y += 12;
-  const sellerLeftTop = y;
-  let ly = y;
-  for (const field of data.seller.left) {
-    if (field.kind === "address") {
-      ly += drawAddressField(
-        doc,
-        field,
-        leftX,
-        ly,
-        labelW,
-        leftValueW,
-        5
-      );
-    } else {
-      ly += drawPartyField(doc, field, leftX, ly, labelW, leftValueW);
-    }
-  }
-  let ry = sellerLeftTop;
-  for (const field of data.seller.right) {
-    ry += drawPartyField(doc, field, rightX, ry, labelW, rightValueW);
-  }
-  void Math.max(ly, ry);
-
-  // 2. Buyer
-  y = BUYER_TOP + 9;
-  drawSectionTitle(doc, data.buyer.title, leftX, y);
-  y += 12;
-  const buyerLeftTop = y;
-  let byL = y;
-  for (const field of data.buyer.left) {
-    byL += drawPartyField(doc, field, leftX, byL, labelW, leftValueW);
-  }
-  let byR = buyerLeftTop;
-  for (const field of data.buyer.right) {
-    byR += drawPartyField(doc, field, rightX, byR, labelW, rightValueW);
-  }
-  void Math.max(byL, byR);
-
-  // 3. Invoice Information
-  y = INVOICE_INFO_TOP + 9;
-  drawSectionTitle(doc, data.invoice.title, leftX, y);
-  y += 12;
-
+  const sellerLabelW = 70;
+  const sellerValueW = colW - sellerLabelW - 10;
+  const buyerLabelW = 78;
+  const buyerValueW = colW - buyerLabelW - 10;
   const metaLabelW = INVOICE_LABEL_WIDTH;
   const metaGap = INVOICE_LABEL_VALUE_GAP;
-  const metaColW = (CONTENT_W - 12) / 2;
-  const metaValueW = metaColW - metaLabelW - metaGap - 4;
+  const metaValueW = Math.max(36, colW - metaLabelW - metaGap - 8);
 
-  let myL = y;
-  for (const field of data.invoice.left) {
-    myL += drawMetaField(
+  // Column titles on the same baseline
+  drawSectionTitle(doc, data.seller.title, col1, infoTop, colW - 8);
+  drawSectionTitle(doc, data.buyer.title, col2, infoTop, colW - 8);
+  drawSectionTitle(doc, data.invoice.title, col3, infoTop, colW - 8);
+
+  const bodyY = infoTop + 12;
+
+  // —— Left: Seller ——
+  let y1 = bodyY;
+  const partyFields = data.seller.fields.filter(
+    (f): f is TopInfoPartyField => f.kind === "party"
+  );
+  const addressField = data.seller.fields.find(
+    (f): f is TopInfoAddressField => f.kind === "address"
+  );
+
+  // Budget address lines so phone/email/website stay visible
+  let reserved = 0;
+  for (const f of partyFields) {
+    if (f.label.startsWith("Company")) continue;
+    reserved += measurePartyField(
+      doc,
+      f.value,
+      sellerValueW,
+      f.maxLines ?? 99
+    );
+  }
+  const companyField = partyFields.find((f) => f.label.startsWith("Company"));
+  if (companyField) {
+    reserved += measurePartyField(
+      doc,
+      companyField.value,
+      sellerValueW,
+      companyField.maxLines ?? 3
+    );
+  }
+
+  const addressBudget = Math.max(
+    PT_PARTY * PT_LINE_HEIGHT + 1.5,
+    infoLimit - (bodyY + reserved)
+  );
+  const addrLineH = PT_PARTY * PT_LINE_HEIGHT;
+  const addressMaxLines = Math.max(
+    1,
+    Math.min(
+      5,
+      Math.floor(addressBudget / addrLineH),
+      addressField?.lines.length || 1
+    )
+  );
+
+  for (const field of data.seller.fields) {
+    if (field.kind === "address") {
+      y1 += drawAddressField(
+        doc,
+        field,
+        col1,
+        y1,
+        sellerLabelW,
+        sellerValueW,
+        addressMaxLines
+      );
+    } else {
+      y1 += drawPartyField(doc, field, col1, y1, sellerLabelW, sellerValueW);
+    }
+  }
+  void y1;
+
+  // —— Middle: Buyer ——
+  let y2 = bodyY;
+  for (const field of data.buyer.fields) {
+    y2 += drawPartyField(doc, field, col2, y2, buyerLabelW, buyerValueW);
+  }
+  void y2;
+
+  // —— Right: Invoice Information (label | value, no overlap) ——
+  let y3 = bodyY;
+  for (const field of data.invoice.fields) {
+    y3 += drawMetaField(
       doc,
       field,
-      leftX,
-      myL,
+      col3,
+      y3,
       metaLabelW,
       metaValueW,
       metaGap
     );
   }
-  let myR = y;
-  for (const field of data.invoice.right) {
-    myR += drawMetaField(
-      doc,
-      field,
-      rightX,
-      myR,
-      metaLabelW,
-      metaValueW,
-      metaGap
-    );
-  }
+  void y3;
 
   doc.setDrawColor(...GOLD);
-  doc.setLineWidth(0.6);
+  doc.setLineWidth(0.9);
   doc.line(MARGIN, INFO_BOTTOM - 2, MARGIN + CONTENT_W, INFO_BOTTOM - 2);
 }

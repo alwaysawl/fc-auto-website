@@ -2,24 +2,19 @@
 
 /**
  * Shared top-information renderer for Admin Proforma Preview.
- * Full-width vertical stack only:
- *   1. Seller / 卖方
- *   2. Buyer / 买方
- *   3. Invoice Information / 发票信息
- * No three-column (Invoice | Seller | Buyer) layout.
+ * Three horizontal columns on one row:
+ *   Left:   Seller / 卖方
+ *   Middle: Buyer / 买方
+ *   Right:  Invoice Information / 发票信息
  */
 
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
-  BUYER_HEIGHT,
   INFO_HEIGHT,
-  INVOICE_INFO_HEIGHT,
+  INFO_TOP,
   INVOICE_LABEL_VALUE_GAP,
   INVOICE_LABEL_WIDTH,
   PI_MARGIN,
-  SELLER_HEIGHT,
-  SELLER_TOP,
-  TOP_SECTION_GAP,
 } from "@/lib/proforma/layout";
 import {
   buildProformaTopInformation,
@@ -34,11 +29,7 @@ function pt(n: number): string {
   return `${n}pt`;
 }
 
-function PartyField({
-  field,
-}: {
-  field: TopInfoPartyField;
-}) {
+function PartyField({ field }: { field: TopInfoPartyField }) {
   return (
     <p className="mb-[1.5pt] text-[8.5pt]" style={{ lineHeight: 1.18 }}>
       <span className="font-bold text-slate-500">{field.label}: </span>
@@ -80,7 +71,7 @@ function AddressField({ field }: { field: TopInfoAddressField }) {
 function MetaField({ field }: { field: TopInfoMetaField }) {
   return (
     <div
-      className="mb-[1.5pt] grid items-baseline"
+      className="mb-[1pt] grid items-baseline"
       style={{
         gridTemplateColumns: `${INVOICE_LABEL_WIDTH}pt 1fr`,
         columnGap: pt(INVOICE_LABEL_VALUE_GAP),
@@ -89,61 +80,17 @@ function MetaField({ field }: { field: TopInfoMetaField }) {
       <p className="text-[9pt] font-semibold leading-[1.18] text-slate-500">
         {field.label}
       </p>
-      <p className="truncate text-[9.5pt] font-normal leading-[1.18] text-[#1E293B]">
+      <p className="min-w-0 truncate text-[9.5pt] font-normal leading-[1.18] text-[#1E293B]">
         {field.value}
       </p>
     </div>
   );
 }
 
-function TwoCol({
-  left,
-  right,
-}: {
-  left: ReactNode;
-  right: ReactNode;
-}) {
+function ColumnTitle({ children }: { children: ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-x-3">
-      <div>{left}</div>
-      <div>{right}</div>
-    </div>
+    <p className="mb-[4pt] text-[9.5pt] font-bold text-[#1E293B]">{children}</p>
   );
-}
-
-function Section({
-  title,
-  height,
-  children,
-  borderBottom,
-}: {
-  title: string;
-  height: number;
-  children: ReactNode;
-  borderBottom?: boolean;
-}) {
-  const style: CSSProperties = {
-    height: pt(height),
-    lineHeight: 1.18,
-    boxSizing: "border-box",
-    overflow: "hidden",
-    ...(borderBottom
-      ? {
-          borderBottom: "1px solid #D4AF37",
-          paddingBottom: pt(4),
-        }
-      : null),
-  };
-  return (
-    <section style={style}>
-      <p className="mb-[3pt] text-[9.5pt] font-bold text-[#1E293B]">{title}</p>
-      {children}
-    </section>
-  );
-}
-
-function Gap() {
-  return <div style={{ height: pt(TOP_SECTION_GAP), flexShrink: 0 }} aria-hidden />;
 }
 
 /** Renders from pre-built shared data (preferred). */
@@ -154,59 +101,54 @@ export function ProformaTopInformationView({
 }) {
   return (
     <div
-      data-proforma-top-info="seller-buyer-invoice-stack"
+      data-proforma-top-info="seller-buyer-invoice-cols"
       style={{
         position: "absolute",
         left: pt(PI_MARGIN),
         right: pt(PI_MARGIN),
-        top: pt(SELLER_TOP),
+        top: pt(INFO_TOP),
         height: pt(INFO_HEIGHT),
-        display: "flex",
-        flexDirection: "column",
         boxSizing: "border-box",
         overflow: "hidden",
       }}
     >
-      <Section title={data.seller.title} height={SELLER_HEIGHT}>
-        <TwoCol
-          left={data.seller.left.map((f, i) =>
+      <div
+        className="grid h-full grid-cols-3 gap-2 border-b border-[#D4AF37]"
+        style={{
+          lineHeight: 1.18,
+          minHeight: "100%",
+          paddingBottom: pt(6.5),
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Left — Seller */}
+        <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
+          <ColumnTitle>{data.seller.title}</ColumnTitle>
+          {data.seller.fields.map((f, i) =>
             f.kind === "address" ? (
               <AddressField key={i} field={f} />
             ) : (
               <PartyField key={i} field={f} />
             )
           )}
-          right={data.seller.right.map((f, i) => (
+        </div>
+
+        {/* Middle — Buyer */}
+        <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
+          <ColumnTitle>{data.buyer.title}</ColumnTitle>
+          {data.buyer.fields.map((f, i) => (
             <PartyField key={i} field={f} />
           ))}
-        />
-      </Section>
-      <Gap />
-      <Section title={data.buyer.title} height={BUYER_HEIGHT}>
-        <TwoCol
-          left={data.buyer.left.map((f, i) => (
-            <PartyField key={i} field={f} />
-          ))}
-          right={data.buyer.right.map((f, i) => (
-            <PartyField key={i} field={f} />
-          ))}
-        />
-      </Section>
-      <Gap />
-      <Section
-        title={data.invoice.title}
-        height={INVOICE_INFO_HEIGHT}
-        borderBottom
-      >
-        <TwoCol
-          left={data.invoice.left.map((f, i) => (
+        </div>
+
+        {/* Right — Invoice Information */}
+        <div className="space-y-[1pt]" style={{ overflow: "hidden" }}>
+          <ColumnTitle>{data.invoice.title}</ColumnTitle>
+          {data.invoice.fields.map((f, i) => (
             <MetaField key={i} field={f} />
           ))}
-          right={data.invoice.right.map((f, i) => (
-            <MetaField key={i} field={f} />
-          ))}
-        />
-      </Section>
+        </div>
+      </div>
     </div>
   );
 }
