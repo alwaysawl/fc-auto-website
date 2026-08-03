@@ -17,14 +17,14 @@ import type {
 } from "@/lib/admin/proforma/types";
 import {
   PI_CONTENT_W,
+  PI_GAP,
   PI_MARGIN,
   PI_PAGE_H,
   PI_PAGE_W,
-  PI_ROW_H,
   PI_TABLE_HEADER_H,
-  calcContinuationRowsPerPage,
-  calcPage1VehicleCapacity,
-  splitVehiclePages,
+  estimateVehicleRowHeight,
+  paginateProformaVehicles,
+  type ProformaLayoutInput,
 } from "@/lib/proforma/layout";
 import {
   ensureProformaFonts,
@@ -43,7 +43,6 @@ const MARGIN = PI_MARGIN;
 const PAGE_W = PI_PAGE_W;
 const PAGE_H = PI_PAGE_H;
 const CONTENT_W = PI_CONTENT_W;
-const ROW_H = PI_ROW_H;
 
 type Pdf = jsPDF;
 
@@ -90,6 +89,30 @@ export type ProformaPdfSource = {
     Pick<ProformaCharge, "nameZh" | "nameEn" | "amountUsd" | "note">
   >;
 };
+
+function toLayoutInput(source: ProformaPdfSource): ProformaLayoutInput {
+  return {
+    items: source.items.map((item) => ({
+      brand: item.brand,
+      model: item.model,
+      year: item.year,
+      colour: item.colour,
+      vin: item.vin,
+    })),
+    chargesCount: source.charges.length,
+    enabledTerms: source.termsSnapshot
+      .filter((t) => t.enabled)
+      .map((t) => ({ textEn: t.textEn, textZh: t.textZh })),
+    notes: source.notes,
+    companyAddress: source.companySnapshot.companyAddress || "",
+    customerCompany: source.customerCompany,
+    customerCountry: source.customerCountry,
+    customerWhatsapp: source.customerWhatsapp,
+    customerEmail: source.customerEmail,
+    destinationCountry: source.destinationCountry,
+    destinationPort: source.destinationPort,
+  };
+}
 
 function putText(
   doc: Pdf,
@@ -332,29 +355,31 @@ function drawVehicleRow(
   item: ProformaPdfSource["items"][number],
   displayNo: number,
   y: number,
-  zebra: boolean
+  zebra: boolean,
+  rowHeight?: number
 ): number {
+  const rowH = rowHeight ?? estimateVehicleRowHeight(item);
   if (zebra) {
     doc.setFillColor(...LIGHT);
-    doc.rect(MARGIN, y, CONTENT_W, ROW_H, "F");
+    doc.rect(MARGIN, y, CONTENT_W, rowH, "F");
   }
   doc.setDrawColor(...LINE);
   doc.setLineWidth(0.35);
-  doc.line(MARGIN, y + ROW_H, PAGE_W - MARGIN, y + ROW_H);
+  doc.line(MARGIN, y + rowH, PAGE_W - MARGIN, y + rowH);
 
-  const mid = y + 12;
+  const textY = y + 11;
   setProformaFont(doc, "normal");
   doc.setTextColor(...BLACK);
   doc.setFontSize(7.5);
-  doc.text(String(displayNo), MARGIN + 8, mid);
+  doc.text(String(displayNo), MARGIN + 8, textY);
 
-  putText(doc, item.brand || "—", MARGIN + 24, mid, {
+  putText(doc, item.brand || "—", MARGIN + 24, textY, {
     fontSize: 7.5,
     bold: true,
     maxWidth: 60,
     lineGap: 1.2,
   });
-  putText(doc, item.model || "—", MARGIN + 88, mid, {
+  putText(doc, item.model || "—", MARGIN + 88, textY, {
     fontSize: 7.5,
     maxWidth: 74,
     lineGap: 1.2,
@@ -363,41 +388,27 @@ function drawVehicleRow(
   setProformaFont(doc, "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(...BLACK);
-  doc.text(item.year || "—", MARGIN + 168, mid);
-  putText(doc, item.colour || "—", MARGIN + 200, mid, {
+  doc.text(item.year || "—", MARGIN + 168, textY);
+  putText(doc, item.colour || "—", MARGIN + 200, textY, {
     fontSize: 7,
     maxWidth: 44,
     lineGap: 1.2,
   });
   setProformaFont(doc, "normal");
   doc.setFontSize(6.5);
-  doc.text((item.vin || "—").slice(0, 18), MARGIN + 248, mid);
+  doc.text((item.vin || "—").slice(0, 18), MARGIN + 248, textY);
 
   doc.setFontSize(7.5);
-  doc.text(String(item.quantity), MARGIN + 390, mid, { align: "center" });
-  doc.text(formatUsd(item.unitPriceUsd), MARGIN + 455, mid, { align: "right" });
+  doc.text(String(item.quantity), MARGIN + 390, textY, { align: "center" });
+  doc.text(formatUsd(item.unitPriceUsd), MARGIN + 455, textY, {
+    align: "right",
+  });
   setProformaFont(doc, "bold");
-  doc.text(formatUsd(item.totalUsd), MARGIN + CONTENT_W - 3, mid, {
+  doc.text(formatUsd(item.totalUsd), MARGIN + CONTENT_W - 3, textY, {
     align: "right",
   });
 
-  return y + ROW_H;
-}
-
-/** Estimate height of charges + summary + payment + terms for page-1 reservation. */
-function estimateBottomBlockHeight(source: ProformaPdfSource): number {
-  const chargeCount = Math.max(1, source.charges.length) + 1; // + total other
-  const chargesH = 14 + chargeCount * 11 + 8;
-  const summaryH = 78;
-  const paymentH = 52;
-  const terms = source.termsSnapshot.filter((t) => t.enabled);
-  let termsH = 14;
-  for (const t of terms) {
-    termsH += 22;
-    if (t.textZh) termsH += 12;
-  }
-  if (source.notes) termsH += 12;
-  return Math.max(chargesH, summaryH) + 8 + paymentH + 6 + termsH + 4;
+  return y + rowH;
 }
 
 function drawChargesAndSummary(
@@ -649,31 +660,11 @@ export async function downloadProformaPdf(
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   await ensureProformaFonts(doc);
 
-  // —— Measure pagination before drawing ——
-  // Approximate y after header + 3-col info + vehicle section title + table header
-  const approxYAfterHeader = MARGIN + 30 + 8;
-  const approxInfoH = 78;
-  const approxTitleH = 14;
-  const yAfterTableHeader =
-    approxYAfterHeader + approxInfoH + approxTitleH + PI_TABLE_HEADER_H;
-  const bottomH = estimateBottomBlockHeight(source);
-  const moreNoticeH = 18;
-  const page1Rows = calcPage1VehicleCapacity({
-    yAfterTableHeader,
-    bottomBlockHeight: bottomH,
-    moreNoticeHeight: moreNoticeH,
-    itemCount: source.items.length,
-  });
-  const contHeaderY = MARGIN + 28 + 8 + 14 + PI_TABLE_HEADER_H;
-  const contRows = calcContinuationRowsPerPage(contHeaderY);
-  const page1Capacity =
-    source.items.length === 0 ? 0 : Math.max(1, Math.min(8, page1Rows || 8));
-  const pages = splitVehiclePages(
-    source.items.length,
-    page1Capacity,
-    contRows
-  );
-  const totalPages = pages.length;
+  // —— Shared iterative pagination (same helper as preview) ——
+  const pagination = paginateProformaVehicles(toLayoutInput(source));
+  const pages = pagination.pages;
+  const totalPages = pagination.totalPages;
+  const rowHeights = pagination.rowHeights;
 
   // ========== PAGE 1 ==========
   let y = drawDocHeader(doc, source);
@@ -831,12 +822,19 @@ export async function downloadProformaPdf(
   const page1Indices = pages[0] ?? [];
   page1Indices.forEach((itemIndex, i) => {
     const item = source.items[itemIndex]!;
-    y = drawVehicleRow(doc, item, itemIndex + 1, y, i % 2 === 1);
+    y = drawVehicleRow(
+      doc,
+      item,
+      itemIndex + 1,
+      y,
+      i % 2 === 1,
+      rowHeights[itemIndex]
+    );
   });
 
   const hasMore = source.items.length > page1Indices.length;
   if (hasMore) {
-    y += 6;
+    y += 4;
     putText(
       doc,
       "For more vehicles, please see next page.  /  如有更多车辆，请见下一页。",
@@ -844,10 +842,9 @@ export async function downloadProformaPdf(
       y,
       { fontSize: 7.5, color: SLATE, maxWidth: CONTENT_W, lineGap: 1.6 }
     );
-    y += 12;
-  } else {
-    y += 6;
+    y += PI_GAP.moreNotice;
   }
+  y += PI_GAP.tableToCharges;
 
   // Charges, payment, terms — only on page 1
   y = drawChargesAndSummary(doc, source, y);
@@ -871,7 +868,14 @@ export async function downloadProformaPdf(
     const indices = pages[p]!;
     indices.forEach((itemIndex, i) => {
       const item = source.items[itemIndex]!;
-      cy = drawVehicleRow(doc, item, itemIndex + 1, cy, i % 2 === 1);
+      cy = drawVehicleRow(
+        doc,
+        item,
+        itemIndex + 1,
+        cy,
+        i % 2 === 1,
+        rowHeights[itemIndex]
+      );
     });
 
     if (p === pages.length - 1) {

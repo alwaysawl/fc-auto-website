@@ -8,10 +8,8 @@ import type {
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
 import {
-  PI_PAGE1_TARGET_ROWS,
-  calcContinuationRowsPerPage,
-  calcPage1VehicleCapacity,
-  splitVehiclePages,
+  paginateProformaVehicles,
+  type ProformaLayoutInput,
 } from "@/lib/proforma/layout";
 
 export type PreviewItem = {
@@ -70,21 +68,29 @@ export default function AdminProformaPreview({
   compact?: boolean;
 }) {
   const pages = useMemo(() => {
-    const page1Rows = calcPage1VehicleCapacity({
-      yAfterTableHeader: 280,
-      bottomBlockHeight: 280,
-      moreNoticeHeight: 18,
-      itemCount: model.items.length,
-    });
-    const contRows = calcContinuationRowsPerPage(90);
-    return splitVehiclePages(
-      model.items.length,
-      model.items.length === 0
-        ? 0
-        : Math.min(PI_PAGE1_TARGET_ROWS, Math.max(page1Rows, 1)),
-      contRows
-    );
-  }, [model.items.length]);
+    const input: ProformaLayoutInput = {
+      items: model.items.map((item) => ({
+        brand: item.brand,
+        model: item.model,
+        year: item.year,
+        colour: item.colour,
+        vin: item.vin,
+      })),
+      chargesCount: model.charges.length,
+      enabledTerms: model.terms
+        .filter((t) => t.enabled)
+        .map((t) => ({ textEn: t.textEn, textZh: t.textZh })),
+      notes: model.notes,
+      companyAddress: model.company.companyAddress || "",
+      customerCompany: model.customerCompany,
+      customerCountry: model.customerCountry,
+      customerWhatsapp: model.customerWhatsapp,
+      customerEmail: model.customerEmail,
+      destinationCountry: model.destinationCountry,
+      destinationPort: model.destinationPort,
+    };
+    return paginateProformaVehicles(input).pages;
+  }, [model]);
 
   const totalPages = Math.max(1, pages.length);
 
@@ -139,11 +145,10 @@ function A4Page({
       style={{
         fontFamily:
           '"Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif',
-        aspectRatio: "210 / 297",
         minHeight: compact ? undefined : "297mm",
       }}
     >
-      <div className="flex h-full flex-col p-4 sm:p-5 text-[11px] leading-snug">
+      <div className="flex min-h-[inherit] flex-col p-4 sm:p-5 text-[11px] leading-snug">
         {/* Header */}
         <Header
           website={website}
