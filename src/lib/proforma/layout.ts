@@ -45,6 +45,13 @@ export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 196
 export const INVOICE_LABEL_WIDTH = 100;
 export const INVOICE_LABEL_VALUE_GAP = 8;
 
+/**
+ * Fixed label column for Buyer fields.
+ * Wide enough for the longest bilingual label: "Destination Port / 目的港".
+ */
+export const BUYER_LABEL_WIDTH = 118;
+export const BUYER_LABEL_VALUE_GAP = 8;
+
 /** —— Vehicle title + fixed 8-row table —— */
 export const VEHICLE_TITLE_TOP = BASE_VEHICLE_TITLE_TOP + BODY_OFFSET_Y; // 196
 export const VEHICLE_TITLE_HEIGHT = 16;

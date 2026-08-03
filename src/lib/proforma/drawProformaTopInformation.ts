@@ -6,6 +6,8 @@
 
 import type { jsPDF } from "jspdf";
 import {
+  BUYER_LABEL_VALUE_GAP,
+  BUYER_LABEL_WIDTH,
   INFO_BOTTOM,
   INFO_HEIGHT,
   INFO_TOP,
@@ -149,6 +151,41 @@ function drawPartyField(
   return Math.max(fontSize * PT_LINE_HEIGHT, textH) + 1.2;
 }
 
+/**
+ * Buyer fields: fixed label column + gap.
+ * Value X = buyerLabelX + BUYER_LABEL_WIDTH + BUYER_LABEL_VALUE_GAP.
+ * Labels are never truncated; long values wrap (max 2 lines for Destination Port).
+ */
+function drawBuyerField(
+  doc: Pdf,
+  field: TopInfoPartyField,
+  x: number,
+  y: number,
+  valueW: number
+): number {
+  const fontSize = PT_PARTY;
+  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
+  const labelW = BUYER_LABEL_WIDTH;
+  const gap = BUYER_LABEL_VALUE_GAP;
+  const valueX = x + labelW + gap;
+
+  setProformaFont(doc, "bold");
+  doc.setFontSize(PT_LABEL);
+  doc.setTextColor(...SLATE);
+  // Full bilingual label — never clipped/truncated.
+  doc.text(`${field.label}:`, x, y);
+
+  const textH = putText(doc, field.value || "—", valueX, y, {
+    fontSize,
+    bold: false,
+    maxWidth: valueW,
+    lineGap,
+    maxLines: field.maxLines ?? 99,
+    ellipsis: true,
+  });
+  return Math.max(fontSize * PT_LINE_HEIGHT, textH) + 1.2;
+}
+
 function drawAddressField(
   doc: Pdf,
   field: TopInfoAddressField,
@@ -246,8 +283,9 @@ export function drawProformaTopInformation(
 
   const sellerLabelW = 70;
   const sellerValueW = colW - sellerLabelW - 10;
-  const buyerLabelW = 78;
-  const buyerValueW = colW - buyerLabelW - 10;
+  const buyerLabelW = BUYER_LABEL_WIDTH;
+  const buyerGap = BUYER_LABEL_VALUE_GAP;
+  const buyerValueW = Math.max(28, colW - buyerLabelW - buyerGap - 8);
   const metaLabelW = INVOICE_LABEL_WIDTH;
   const metaGap = INVOICE_LABEL_VALUE_GAP;
   const metaValueW = Math.max(36, colW - metaLabelW - metaGap - 8);
@@ -323,7 +361,7 @@ export function drawProformaTopInformation(
   // —— Middle: Buyer ——
   let y2 = bodyY;
   for (const field of data.buyer.fields) {
-    y2 += drawPartyField(doc, field, col2, y2, buyerLabelW, buyerValueW);
+    y2 += drawBuyerField(doc, field, col2, y2, buyerValueW);
   }
   void y2;
 

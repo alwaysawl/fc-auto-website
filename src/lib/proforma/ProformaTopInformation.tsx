@@ -10,6 +10,8 @@
 
 import type { ReactNode } from "react";
 import {
+  BUYER_LABEL_VALUE_GAP,
+  BUYER_LABEL_WIDTH,
   INFO_HEIGHT,
   INFO_TOP,
   INVOICE_LABEL_VALUE_GAP,
@@ -49,6 +51,39 @@ function PartyField({ field }: { field: TopInfoPartyField }) {
         {field.value}
       </span>
     </p>
+  );
+}
+
+/** Buyer fields: fixed label column + gap so bilingual labels never overlap values. */
+function BuyerField({ field }: { field: TopInfoPartyField }) {
+  return (
+    <div
+      className="mb-[1.5pt] grid items-start"
+      style={{
+        gridTemplateColumns: `${BUYER_LABEL_WIDTH}pt 1fr`,
+        columnGap: pt(BUYER_LABEL_VALUE_GAP),
+        lineHeight: 1.18,
+      }}
+    >
+      <p className="text-[8.5pt] font-bold leading-[1.18] text-slate-500">
+        {field.label}:
+      </p>
+      <p
+        className="min-w-0 break-words text-[8.5pt] font-normal leading-[1.18] text-[#1E293B]"
+        style={
+          field.maxLines
+            ? {
+                display: "-webkit-box",
+                WebkitLineClamp: field.maxLines,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }
+            : undefined
+        }
+      >
+        {field.value || "—"}
+      </p>
+    </div>
   );
 }
 
@@ -137,7 +172,7 @@ export function ProformaTopInformationView({
         <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
           <ColumnTitle>{data.buyer.title}</ColumnTitle>
           {data.buyer.fields.map((f, i) => (
-            <PartyField key={i} field={f} />
+            <BuyerField key={i} field={f} />
           ))}
         </div>
 
