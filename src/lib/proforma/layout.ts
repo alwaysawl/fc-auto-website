@@ -1,37 +1,55 @@
 /**
  * Fixed one-page A4 Proforma Invoice layout constants.
  * Exactly 8 vehicle slots — no dynamic pagination.
+ *
+ * Vertical strategy: compact header/meta, taller fixed vehicle table,
+ * then charges → payment → terms with 10pt gaps down toward the footer.
  */
 
 export const PI_PAGE_W = 595.28;
 export const PI_PAGE_H = 841.89;
-export const PI_MARGIN = 28;
+export const PI_MARGIN = 26;
 export const PI_CONTENT_W = PI_PAGE_W - PI_MARGIN * 2;
 
 /** Hard business limit — never more than 8 vehicles on a proforma. */
 export const PI_VEHICLE_ROW_COUNT = 8;
 export const PI_MAX_VEHICLES = PI_VEHICLE_ROW_COUNT;
 
-/** Fixed vehicle table metrics (pt). */
-export const PI_VEHICLE_HEADER_H = 20;
-export const PI_VEHICLE_ROW_H = 15;
+/**
+ * Fixed vehicle table metrics (pt).
+ * Row height increased so the table uses recovered top space + lower blank.
+ */
+export const PI_VEHICLE_HEADER_H = 22;
+export const PI_VEHICLE_ROW_H = 28;
 export const PI_VEHICLE_TABLE_BODY_H =
   PI_VEHICLE_ROW_COUNT * PI_VEHICLE_ROW_H;
 export const PI_VEHICLE_TABLE_H =
   PI_VEHICLE_HEADER_H + PI_VEHICLE_TABLE_BODY_H;
 
-/** Fixed vertical region tops (pt from page top). */
+/**
+ * Fixed vertical region tops (pt from page top).
+ * Top band compacted ~25–30mm vs prior (table top was ~179pt).
+ */
 export const PI_HEADER_TOP = PI_MARGIN;
-export const PI_META_TOP = 56;
-export const PI_META_MAX_H = 108;
-export const PI_VEHICLE_TITLE_TOP = PI_META_TOP + PI_META_MAX_H + 4;
-export const PI_VEHICLE_TABLE_TOP = PI_VEHICLE_TITLE_TOP + 11;
+export const PI_META_TOP = 42;
+/** Compact seller/buyer band — one-line fields only. */
+export const PI_META_MAX_H = 55;
+export const PI_VEHICLE_TITLE_TOP = PI_META_TOP + PI_META_MAX_H + 2;
+export const PI_VEHICLE_TABLE_TOP = PI_VEHICLE_TITLE_TOP + 8;
+
+/** 10pt gaps between major lower sections. */
+export const PI_SECTION_GAP = 10;
+
 export const PI_CHARGES_TOP =
-  PI_VEHICLE_TABLE_TOP + PI_VEHICLE_TABLE_H + 10;
+  PI_VEHICLE_TABLE_TOP + PI_VEHICLE_TABLE_H + PI_SECTION_GAP;
 export const PI_CHARGES_MAX_H = 78;
-export const PI_PAYMENT_TOP = PI_CHARGES_TOP + PI_CHARGES_MAX_H + 10;
+export const PI_PAYMENT_TOP =
+  PI_CHARGES_TOP + PI_CHARGES_MAX_H + PI_SECTION_GAP;
 export const PI_PAYMENT_MAX_H = 56;
-export const PI_TERMS_TOP = PI_PAYMENT_TOP + PI_PAYMENT_MAX_H + 10;
+export const PI_TERMS_TOP =
+  PI_PAYMENT_TOP + PI_PAYMENT_MAX_H + PI_SECTION_GAP;
+
+/** Footer stays anchored near the bottom of A4. */
 export const PI_FOOTER_TOP = PI_PAGE_H - 34;
 /** Terms must end before this Y (breathing room above footer). */
 export const PI_TERMS_BOTTOM_LIMIT = PI_FOOTER_TOP - 18;
@@ -46,9 +64,9 @@ export const PI_CONTENT_BOTTOM = PI_TERMS_BOTTOM_LIMIT;
 export const PI_FOOTER_RESERVE = PI_PAGE_H - PI_FOOTER_TOP;
 
 export const PI_GAP = {
-  tableToCharges: 10,
-  chargesToPayment: 10,
-  paymentToTerms: 10,
+  tableToCharges: PI_SECTION_GAP,
+  chargesToPayment: PI_SECTION_GAP,
+  paymentToTerms: PI_SECTION_GAP,
   termsToFooter: 18,
   moreNotice: 0,
 } as const;

@@ -193,7 +193,7 @@ function drawGoldRule(doc: Pdf, y: number) {
 
 function drawDocHeader(doc: Pdf, source: ProformaPdfSource) {
   const y = PI_HEADER_TOP;
-  const logo = 20;
+  const logo = 18;
 
   doc.setFillColor(...NAVY);
   doc.roundedRect(MARGIN, y, logo, logo, 2.5, 2.5, "F");
@@ -207,36 +207,36 @@ function drawDocHeader(doc: Pdf, source: ProformaPdfSource) {
   setProformaFont(doc, "bold");
   doc.setFontSize(11);
   doc.setTextColor(...NAVY);
-  doc.text("FC AUTO EXPORT", MARGIN + logo + 6, y + 9);
+  doc.text("FC AUTO EXPORT", MARGIN + logo + 5, y + 8);
   setProformaFont(doc, "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(...SLATE);
-  doc.text("USED VEHICLE EXPORT", MARGIN + logo + 6, y + 18);
+  doc.text("USED VEHICLE EXPORT", MARGIN + logo + 5, y + 16);
 
   setProformaFont(doc, "bold");
   doc.setFontSize(14);
   doc.setTextColor(...NAVY);
-  doc.text("PROFORMA INVOICE", PAGE_W / 2, y + 10, { align: "center" });
+  doc.text("PROFORMA INVOICE", PAGE_W / 2, y + 9, { align: "center" });
   setProformaFont(doc, "normal");
   doc.setFontSize(9);
   doc.setTextColor(...GOLD);
-  doc.text("形式发票", PAGE_W / 2, y + 20, { align: "center" });
+  doc.text("形式发票", PAGE_W / 2, y + 18, { align: "center" });
 
   const website = source.companySnapshot.companyWebsite || "fcautoexport.com";
   setProformaFont(doc, "normal");
   doc.setFontSize(7);
   doc.setTextColor(...SLATE);
-  doc.text(website, PAGE_W - MARGIN, y + 7, { align: "right" });
+  doc.text(website, PAGE_W - MARGIN, y + 6, { align: "right" });
   doc.setTextColor(...BLACK);
   doc.setFontSize(7.5);
-  doc.text(source.salespersonPhone || "", PAGE_W - MARGIN, y + 16, {
+  doc.text(source.salespersonPhone || "", PAGE_W - MARGIN, y + 14, {
     align: "right",
   });
-  doc.text(source.salespersonEmail || "", PAGE_W - MARGIN, y + 25, {
+  doc.text(source.salespersonEmail || "", PAGE_W - MARGIN, y + 22, {
     align: "right",
   });
 
-  drawGoldRule(doc, y + logo + 4);
+  drawGoldRule(doc, y + logo + 3);
 }
 
 function drawFooter(doc: Pdf, source: ProformaPdfSource) {
@@ -269,11 +269,11 @@ function labelValue(
   w: number
 ): number {
   setProformaFont(doc, "normal");
-  doc.setFontSize(6);
+  doc.setFontSize(5.5);
   doc.setTextColor(...SLATE);
   doc.text(label, x, y);
-  oneLine(doc, value || "—", x, y + 8, w, { fontSize: 7.5, bold: true });
-  return 15;
+  oneLine(doc, value || "—", x, y + 7, w, { fontSize: 7.5, bold: true });
+  return 12;
 }
 
 function fieldRow(
@@ -286,11 +286,11 @@ function fieldRow(
   valueW: number
 ): number {
   setProformaFont(doc, "normal");
-  doc.setFontSize(6.5);
+  doc.setFontSize(6);
   doc.setTextColor(...SLATE);
   doc.text(`${label}:`, x, y);
   oneLine(doc, value || "—", x + labelW, y, valueW, { fontSize: 7.5 });
-  return 9;
+  return 8;
 }
 
 function drawMeta(doc: Pdf, source: ProformaPdfSource) {
@@ -328,7 +328,7 @@ function drawMeta(doc: Pdf, source: ProformaPdfSource) {
     color: NAVY,
     maxWidth: colW - 8,
   });
-  y2 += 9;
+  y2 += 8;
   y2 += fieldRow(doc, "Company", source.companySnapshot.companyName, col2, y2, 42, colW - 50);
   y2 += fieldRow(doc, "Address", source.companySnapshot.companyAddress, col2, y2, 42, colW - 50);
   y2 += fieldRow(doc, "Sales", source.salespersonName, col2, y2, 42, colW - 50);
@@ -343,7 +343,7 @@ function drawMeta(doc: Pdf, source: ProformaPdfSource) {
     color: NAVY,
     maxWidth: colW - 8,
   });
-  y3 += 9;
+  y3 += 8;
   const dest = [source.destinationCountry, source.destinationPort]
     .filter(Boolean)
     .join(" / ");
@@ -432,7 +432,7 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
     doc.setLineWidth(0.35);
     doc.line(MARGIN, y + PI_VEHICLE_ROW_H, PAGE_W - MARGIN, y + PI_VEHICLE_ROW_H);
 
-    const mid = y + 10;
+    const mid = y + Math.floor(PI_VEHICLE_ROW_H * 0.62);
     if (!blank) {
       setProformaFont(doc, "normal");
       doc.setFontSize(7.5);

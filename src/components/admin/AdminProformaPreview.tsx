@@ -94,15 +94,15 @@ export default function AdminProformaPreview({
           minHeight: compact ? undefined : "297mm",
         }}
       >
-        <div className="flex min-h-[inherit] flex-col px-4 py-3 sm:px-5 sm:py-3.5 text-[11px] leading-snug">
+        <div className="flex min-h-[inherit] flex-col px-3 py-2 sm:px-4 sm:py-2.5 text-[11px] leading-snug">
           <Header
             website={website}
             phone={model.salespersonPhone}
             email={model.salespersonEmail}
           />
 
-          <div className="mt-1.5 grid grid-cols-1 gap-1.5 border-b border-[#D4AF37] pb-1.5 sm:grid-cols-3">
-            <div className="space-y-1">
+          <div className="mt-1 grid grid-cols-1 gap-1 border-b border-[#D4AF37] pb-1 sm:grid-cols-3">
+            <div className="space-y-0.5">
               <Meta label="Invoice No. / 发票号" value={model.invoiceNumber} />
               <Meta
                 label="Contract No. / 合同号"
@@ -150,7 +150,7 @@ export default function AdminProformaPreview({
           <SectionTitle>Vehicle Items / 车辆明细</SectionTitle>
           <VehicleTable model={model} />
 
-          <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+          <div className="mt-[10px] grid gap-2 sm:grid-cols-2">
             <div>
               <SectionTitle>Other Charges / 其他费用</SectionTitle>
               <ul className="space-y-0.5 text-[10px]">
@@ -203,7 +203,7 @@ export default function AdminProformaPreview({
             </div>
           </div>
 
-          <div className="mt-2.5 rounded border border-slate-200 px-2 py-1">
+          <div className="mt-[10px] rounded border border-slate-200 px-2 py-1">
             <SectionTitle>Payment Information / 付款信息</SectionTitle>
             <div className="grid gap-0.5 sm:grid-cols-2 text-[10px]">
               <PaymentField
@@ -230,7 +230,7 @@ export default function AdminProformaPreview({
           </div>
 
           {(model.terms.some((t) => t.enabled) || model.notes) && (
-            <div className="mt-2.5">
+            <div className="mt-[10px]">
               <SectionTitle>Terms / 条款</SectionTitle>
               <ol className="list-decimal space-y-1 pl-4 text-[10px] leading-snug">
                 {model.terms
@@ -254,7 +254,7 @@ export default function AdminProformaPreview({
             </div>
           )}
 
-          <div className="mt-auto pt-5">
+          <div className="mt-auto pt-[18px]">
             <Footer
               website={website}
               phone={model.salespersonPhone}
@@ -279,9 +279,9 @@ function Header({
   return (
     <div>
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#1E293B]">
-            <div className="flex h-5 w-5 items-center justify-center rounded bg-[#D4AF37] text-[10px] font-bold text-[#1E293B]">
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#1E293B]">
+            <div className="flex h-4 w-4 items-center justify-center rounded bg-[#D4AF37] text-[9px] font-bold text-[#1E293B]">
               FC
             </div>
           </div>
@@ -302,7 +302,7 @@ function Header({
           <p className="text-[#1E293B]">{email}</p>
         </div>
       </div>
-      <div className="mt-1.5 h-px bg-[#D4AF37]" />
+      <div className="mt-1 h-px bg-[#D4AF37]" />
     </div>
   );
 }
@@ -360,7 +360,7 @@ function VehicleTable({ model }: { model: ProformaPreviewModel }) {
           {slots.map(({ index, item }) => (
             <tr
               key={index}
-              className={`h-[22px] ${index % 2 ? "bg-slate-50" : "bg-white"}`}
+              className={`h-[28px] ${index % 2 ? "bg-slate-50" : "bg-white"}`}
             >
               <td className="border border-slate-200 px-1 py-0.5 truncate">
                 {item ? index + 1 : ""}
@@ -399,7 +399,7 @@ function VehicleTable({ model }: { model: ProformaPreviewModel }) {
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-0.5 mt-1.5 text-[11px] font-bold text-[#1E293B]">
+    <h3 className="mb-0.5 mt-1 text-[11px] font-bold text-[#1E293B]">
       {children}
     </h3>
   );
@@ -419,7 +419,7 @@ function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[8px] leading-tight text-slate-500">{label}</p>
-      <p className="truncate text-[10px] font-semibold leading-snug text-[#1E293B]">
+      <p className="truncate text-[10px] font-semibold leading-tight text-[#1E293B]">
         {value}
       </p>
     </div>
@@ -428,7 +428,7 @@ function Meta({ label, value }: { label: string; value: string }) {
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <p className="mb-px truncate text-[10px] leading-snug">
+    <p className="mb-0 truncate text-[10px] leading-tight">
       <span className="text-slate-500">{label}: </span>
       <span className="text-[#1E293B]">{value}</span>
     </p>
