@@ -15,7 +15,6 @@ import type {
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
 import {
-  CHARGES_BOTTOM,
   CHARGES_HEIGHT,
   CHARGES_TOP,
   FOOTER_TOP,
@@ -503,11 +502,19 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
-  const y0 = CHARGES_TOP;
+  // Absolute fixed Y — never table.finalY / lastAutoTable / cursor after vehicle rows.
+  // There is no AutoTable in this file; vehicle rows are drawn manually above.
+  const CHARGES_TOP_FIXED = 395;
+  if (CHARGES_TOP !== CHARGES_TOP_FIXED) {
+    throw new Error(
+      `CHARGES_TOP drift: layout has ${CHARGES_TOP}, expected ${CHARGES_TOP_FIXED}`
+    );
+  }
+  const y0 = CHARGES_TOP_FIXED;
   const half = (CONTENT_W - 10) / 2;
   const leftX = MARGIN;
   const rightX = MARGIN + half + 10;
-  const bandBottom = CHARGES_BOTTOM;
+  const bandBottom = y0 + CHARGES_HEIGHT;
 
   putText(doc, "Other Charges / 其他费用", leftX, y0 + 10, {
     fontSize: 9.5,
@@ -564,13 +571,14 @@ function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
     });
   }
 
-  const startY = y0 + 20;
+  // Summary box top inside the charges band — NOT autoTable startY / finalY.
+  const summaryBoxTop = y0 + 20;
   const boxH = Math.min(70, CHARGES_HEIGHT - 24);
   doc.setFillColor(...LIGHT);
-  doc.roundedRect(rightX, startY, half, boxH, 3, 3, "F");
+  doc.roundedRect(rightX, summaryBoxTop, half, boxH, 3, 3, "F");
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(1);
-  doc.roundedRect(rightX, startY, half, boxH, 3, 3, "S");
+  doc.roundedRect(rightX, summaryBoxTop, half, boxH, 3, 3, "S");
 
   const summary: Array<[string, string, boolean]> = [
     ["Vehicle Total / 车辆总价", formatUsd(source.vehicleSubtotalUsd), false],
@@ -579,9 +587,9 @@ function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
     ["Deposit / 定金", formatUsd(source.depositUsd), false],
     ["Balance / 尾款", formatUsd(source.balanceUsd), true],
   ];
-  let sy = startY + 10;
+  let sy = summaryBoxTop + 10;
   for (const [label, value, strong] of summary) {
-    if (sy > startY + boxH - 6) break;
+    if (sy > summaryBoxTop + boxH - 6) break;
     oneLine(doc, label, rightX + 6, sy, half - 88, {
       fontSize: strong ? 8 : 7.5,
       bold: strong,
@@ -596,7 +604,14 @@ function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawPayment(doc: Pdf, source: ProformaPdfSource) {
-  const y0 = PAYMENT_TOP;
+  // Fixed map — never derived from charges height / cursor / finalY.
+  const PAYMENT_TOP_FIXED = 505;
+  if (PAYMENT_TOP !== PAYMENT_TOP_FIXED) {
+    throw new Error(
+      `PAYMENT_TOP drift: layout has ${PAYMENT_TOP}, expected ${PAYMENT_TOP_FIXED}`
+    );
+  }
+  const y0 = PAYMENT_TOP_FIXED;
   putText(doc, "Payment Information / 付款信息", MARGIN, y0 + 10, {
     fontSize: 9.5,
     bold: true,
@@ -654,7 +669,14 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawTerms(doc: Pdf, source: ProformaPdfSource) {
-  let y = TERMS_TOP + 10;
+  // Fixed map — never derived from payment height / cursor / finalY.
+  const TERMS_TOP_FIXED = 575;
+  if (TERMS_TOP !== TERMS_TOP_FIXED) {
+    throw new Error(
+      `TERMS_TOP drift: layout has ${TERMS_TOP}, expected ${TERMS_TOP_FIXED}`
+    );
+  }
+  let y = TERMS_TOP_FIXED + 10;
   putText(doc, "Terms / 条款", MARGIN, y, {
     fontSize: 9.5,
     bold: true,
