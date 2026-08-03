@@ -17,10 +17,10 @@ import {
 } from "@/lib/proforma/alignedLabelValue";
 import {
   INFO_BOTTOM,
-  INFO_COL_W,
   INFO_HEIGHT,
   INFO_TOP,
   infoColLeft,
+  infoColWidth,
   PI_CONTENT_W,
   PI_MARGIN,
 } from "@/lib/proforma/layout";
@@ -119,6 +119,7 @@ function drawAlignedField(
   colLeft: number,
   y: number,
   layout: AlignedColumnLayout,
+  columnWidth: number,
   opts?: {
     labelSize?: number;
     valueSize?: number;
@@ -132,7 +133,7 @@ function drawAlignedField(
   const lineGap = valueSize * (PT_LINE_HEIGHT - 1);
   const colonX = colLeft + layout.colonX;
   const valueX = colLeft + layout.valueX;
-  const valueW = alignedValueMaxWidth(layout, INFO_COL_W);
+  const valueW = alignedValueMaxWidth(layout, columnWidth);
 
   setProformaFont(doc, "bold");
   doc.setFontSize(labelSize);
@@ -163,6 +164,7 @@ function drawImmediateColonField(
   value: string,
   colLeft: number,
   y: number,
+  columnWidth: number,
   opts?: {
     labelSize?: number;
     valueSize?: number;
@@ -177,7 +179,7 @@ function drawImmediateColonField(
   const layout = layoutImmediateColon(label, labelSize);
   const colonX = colLeft + layout.colonX;
   const valueX = colLeft + layout.valueX;
-  const valueW = alignedValueMaxWidth(layout, INFO_COL_W);
+  const valueW = alignedValueMaxWidth(layout, columnWidth);
 
   setProformaFont(doc, "bold");
   doc.setFontSize(labelSize);
@@ -191,7 +193,7 @@ function drawImmediateColonField(
     maxWidth: valueW,
     lineGap,
     maxLines: opts?.maxLines ?? 99,
-    ellipsis: opts?.ellipsis !== false,
+    ellipsis: opts?.ellipsis === true,
   });
 
   if (opts?.rowStep != null) return opts.rowStep;
@@ -211,7 +213,7 @@ function drawAlignedAddress(
   const step = fontSize + lineGap;
   const colonX = colLeft + layout.colonX;
   const valueX = colLeft + layout.valueX;
-  const valueW = alignedValueMaxWidth(layout, INFO_COL_W);
+  const valueW = alignedValueMaxWidth(layout, infoColWidth(0));
 
   setProformaFont(doc, "bold");
   doc.setFontSize(PT_LABEL);
@@ -275,11 +277,15 @@ export function drawProformaTopInformation(
     PT_LABEL
   );
 
-  const sellerValueW = alignedValueMaxWidth(sellerLayout, INFO_COL_W);
+  const sellerColW = infoColWidth(0);
+  const buyerColW = infoColWidth(1);
+  const invoiceColW = infoColWidth(2);
 
-  drawSectionTitle(doc, data.seller.title, col1, infoTop, INFO_COL_W - 8);
-  drawSectionTitle(doc, data.buyer.title, col2, infoTop, INFO_COL_W - 8);
-  drawSectionTitle(doc, data.invoice.title, col3, infoTop, INFO_COL_W - 8);
+  const sellerValueW = alignedValueMaxWidth(sellerLayout, sellerColW);
+
+  drawSectionTitle(doc, data.seller.title, col1, infoTop, sellerColW - 4);
+  drawSectionTitle(doc, data.buyer.title, col2, infoTop, buyerColW - 4);
+  drawSectionTitle(doc, data.invoice.title, col3, infoTop, invoiceColW - 4);
 
   const bodyY = infoTop + 12;
 
@@ -344,6 +350,7 @@ export function drawProformaTopInformation(
         col1,
         y1,
         sellerLayout,
+        sellerColW,
         {
           maxLines: field.maxLines ?? 99,
           ellipsis: false,
@@ -362,6 +369,7 @@ export function drawProformaTopInformation(
       field.value,
       col2,
       y2,
+      buyerColW,
       {
         maxLines: field.maxLines ?? 99,
         ellipsis: true,
@@ -370,7 +378,7 @@ export function drawProformaTopInformation(
   }
   void y2;
 
-  // —— Right: Invoice Information (colon immediately after each label) ——
+  // —— Right: Invoice Information (full values, no ellipsis) ——
   let y3 = bodyY;
   for (const field of data.invoice.fields) {
     y3 += drawImmediateColonField(
@@ -379,11 +387,12 @@ export function drawProformaTopInformation(
       field.value,
       col3,
       y3,
+      invoiceColW,
       {
         labelSize: PT_META_LABEL,
         valueSize: PT_META_VALUE,
-        maxLines: 1,
-        ellipsis: true,
+        maxLines: 2,
+        ellipsis: false,
         rowStep: 12.5,
       }
     );

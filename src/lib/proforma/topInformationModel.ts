@@ -128,14 +128,16 @@ export function buildProformaTopInformation(
     invoice: {
       title: "Invoice Information / 发票信息",
       fields: [
-        meta("Invoice No. / 发票号", input.invoiceNumber),
+        // Compact bilingual labels (no padding spaces around "/") so values
+        // like PI-/CT- numbers keep full visible width.
+        meta("Invoice No./发票号", input.invoiceNumber),
         meta(
-          "Contract No. / 合同号",
+          "Contract No./合同号",
           input.contractNumber || input.invoiceNumber
         ),
-        meta("Offer Date / 报价日期", input.offerDate),
-        meta("Validity / 有效期", input.validityText || "7 Days"),
-        meta("Currency / 货币", "USD"),
+        meta("Offer Date/报价日期", input.offerDate),
+        meta("Validity/有效期", input.validityText || "7 Days"),
+        meta("Currency/货币", "USD"),
       ],
     },
   };

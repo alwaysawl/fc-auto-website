@@ -17,10 +17,12 @@ import {
   type AlignedColumnLayout,
 } from "@/lib/proforma/alignedLabelValue";
 import {
-  INFO_COL_W,
+  INFO_COL_FRACTIONS,
+  INFO_COL_GAP,
   INFO_HEIGHT,
   INFO_TOP,
   PI_MARGIN,
+  infoColWidth,
 } from "@/lib/proforma/layout";
 import {
   buildProformaTopInformation,
@@ -95,7 +97,7 @@ function AlignedFieldRow({
         className={valueClassName}
         style={{
           marginLeft: pt(layout.valueX),
-          maxWidth: pt(alignedValueMaxWidth(layout, INFO_COL_W)),
+          maxWidth: pt(alignedValueMaxWidth(layout, infoColWidth(0))),
           lineHeight: 1.18,
           ...valueStyle,
         }}
@@ -109,8 +111,8 @@ function AlignedFieldRow({
 /** Buyer / Invoice: colon immediately after the label text. */
 function ImmediateColonField({
   label,
-  value,
   fontSize,
+  columnWidth,
   labelClassName,
   valueClassName,
   valueStyle,
@@ -118,8 +120,8 @@ function ImmediateColonField({
   children,
 }: {
   label: string;
-  value?: string;
   fontSize: number;
+  columnWidth: number;
   labelClassName: string;
   valueClassName: string;
   valueStyle?: CSSProperties;
@@ -161,12 +163,12 @@ function ImmediateColonField({
         className={valueClassName}
         style={{
           marginLeft: pt(layout.valueX),
-          maxWidth: pt(alignedValueMaxWidth(layout, INFO_COL_W)),
+          maxWidth: pt(alignedValueMaxWidth(layout, columnWidth)),
           lineHeight: 1.18,
           ...valueStyle,
         }}
       >
-        {children ?? value ?? "—"}
+        {children ?? "—"}
       </div>
     </div>
   );
@@ -230,6 +232,7 @@ function BuyerField({ field }: { field: TopInfoPartyField }) {
     <ImmediateColonField
       label={field.label}
       fontSize={PARTY_LABEL_SIZE}
+      columnWidth={infoColWidth(1)}
       labelClassName="text-[8.5pt] font-bold text-slate-500"
       valueClassName="min-w-0 break-words text-[8.5pt] font-normal text-[#1E293B]"
       valueStyle={
@@ -253,9 +256,10 @@ function InvoiceMetaField({ field }: { field: TopInfoMetaField }) {
     <ImmediateColonField
       label={field.label}
       fontSize={META_LABEL_SIZE}
+      columnWidth={infoColWidth(2)}
       rowClassName="relative mb-[1pt]"
       labelClassName="text-[9pt] font-semibold text-slate-500"
-      valueClassName="min-w-0 truncate text-[9.5pt] font-normal text-[#1E293B]"
+      valueClassName="min-w-0 break-words text-[9.5pt] font-normal text-[#1E293B]"
     >
       {field.value || "—"}
     </ImmediateColonField>
@@ -293,8 +297,12 @@ export function ProformaTopInformationView({
       }}
     >
       <div
-        className="grid h-full grid-cols-3 gap-2 border-b border-[#D4AF37]"
+        className="grid h-full border-b border-[#D4AF37]"
         style={{
+          gridTemplateColumns: INFO_COL_FRACTIONS.map((f) => `${f}fr`).join(
+            " "
+          ),
+          columnGap: pt(INFO_COL_GAP),
           lineHeight: 1.18,
           minHeight: "100%",
           paddingBottom: pt(6.5),

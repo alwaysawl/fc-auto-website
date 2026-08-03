@@ -4,7 +4,7 @@
  */
 
 /** Non-visual diagnostic marker — inspect DOM/data attribute or console on PDF download. */
-export const PROFORMA_LAYOUT_VERSION = "left-align-colon-pad-v5";
+export const PROFORMA_LAYOUT_VERSION = "invoice-value-full-v6";
 
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
@@ -42,11 +42,34 @@ export const INFO_HEIGHT = 100;
 export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 196
 
 export const INFO_COL_COUNT = 3;
+
+/** Horizontal gap between the three info columns (pt). */
+export const INFO_COL_GAP = 6;
+
+/**
+ * Unequal info columns — Invoice Information needs more room for full
+ * invoice/contract numbers (no ellipsis). Fractions of the width remaining
+ * after INFO_COL_GAP × 2.
+ * Seller | Buyer | Invoice Information
+ */
+export const INFO_COL_FRACTIONS = [0.3, 0.28, 0.42] as const;
+
+const INFO_COLS_INNER_W = PI_CONTENT_W - INFO_COL_GAP * (INFO_COL_COUNT - 1);
+
+export function infoColWidth(index: 0 | 1 | 2): number {
+  return INFO_COLS_INNER_W * INFO_COL_FRACTIONS[index];
+}
+
+/** Equal-third width kept for callers that only need an approximate band. */
 export const INFO_COL_W = PI_CONTENT_W / INFO_COL_COUNT;
 
 /** Absolute left X of info column `index` (0=Seller, 1=Buyer, 2=Invoice). */
 export function infoColLeft(index: 0 | 1 | 2): number {
-  return PI_MARGIN + INFO_COL_W * index;
+  let x = PI_MARGIN;
+  for (let i = 0; i < index; i++) {
+    x += infoColWidth(i as 0 | 1 | 2) + INFO_COL_GAP;
+  }
+  return x;
 }
 
 /** —— Vehicle title + fixed 8-row table —— */
