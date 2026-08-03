@@ -15,24 +15,26 @@ import type {
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
 import {
-  PI_CHARGES_TOP,
+  ChargesTop,
+  FooterTop,
   PI_CONTENT_W,
-  PI_FOOTER_TOP,
   PI_HEADER_TOP,
   PI_MARGIN,
   PI_META_TOP,
   PI_PAGE_H,
   PI_PAGE_W,
-  PI_PAYMENT_TOP,
   PI_TERMS_BOTTOM_LIMIT,
-  PI_TERMS_TOP,
-  PI_VEHICLE_HEADER_H,
-  PI_VEHICLE_ROW_COUNT,
-  PI_VEHICLE_ROW_H,
-  PI_VEHICLE_TABLE_TOP,
   PI_VEHICLE_TITLE_TOP,
+  PaymentTop,
+  TermsTop,
+  VEHICLE_HEADER_HEIGHT,
+  VEHICLE_ROW_COUNT,
+  VEHICLE_ROW_HEIGHT,
+  VehicleTableTop,
   checkProformaOnePageFit,
   compactPaymentValue,
+  vehicleRowTop,
+  vehicleTableBottom,
 } from "@/lib/proforma/layout";
 import {
   ensureProformaFonts,
@@ -240,7 +242,7 @@ function drawDocHeader(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawFooter(doc: Pdf, source: ProformaPdfSource) {
-  const y = PI_FOOTER_TOP;
+  const y = FooterTop;
   drawGoldRule(doc, y);
   setProformaFont(doc, "bold");
   doc.setFontSize(8);
@@ -379,9 +381,10 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
     maxWidth: CONTENT_W,
   });
 
-  let y = PI_VEHICLE_TABLE_TOP;
+  // Header — fixed band starting at VehicleTableTop
+  const headerY = VehicleTableTop;
   doc.setFillColor(...NAVY);
-  doc.rect(MARGIN, y, CONTENT_W, PI_VEHICLE_HEADER_H, "F");
+  doc.rect(MARGIN, headerY, CONTENT_W, VEHICLE_HEADER_HEIGHT, "F");
   setProformaFont(doc, "bold");
   doc.setTextColor(...WHITE);
 
@@ -405,34 +408,35 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
   for (const c of cols) {
     doc.setFontSize(6.5);
     if (c.align === "right") {
-      doc.text(c.en, c.x, y + 7, { align: "right" });
+      doc.text(c.en, c.x, headerY + 7, { align: "right" });
       doc.setFontSize(5.5);
-      doc.text(c.zh, c.x, y + 15, { align: "right" });
+      doc.text(c.zh, c.x, headerY + 15, { align: "right" });
     } else if (c.align === "center") {
-      doc.text(c.en, c.x, y + 7, { align: "center" });
+      doc.text(c.en, c.x, headerY + 7, { align: "center" });
       doc.setFontSize(5.5);
-      doc.text(c.zh, c.x, y + 15, { align: "center" });
+      doc.text(c.zh, c.x, headerY + 15, { align: "center" });
     } else {
-      doc.text(c.en, c.x, y + 7);
+      doc.text(c.en, c.x, headerY + 7);
       doc.setFontSize(5.5);
-      doc.text(c.zh, c.x, y + 15);
+      doc.text(c.zh, c.x, headerY + 15);
     }
   }
 
-  y += PI_VEHICLE_HEADER_H;
-
-  for (let i = 0; i < PI_VEHICLE_ROW_COUNT; i++) {
+  // Exactly 8 rows — each at vehicleRowTop(i). Height never depends on item count.
+  for (let i = 0; i < VEHICLE_ROW_COUNT; i++) {
+    const y = vehicleRowTop(i);
     const item = source.items[i];
     const blank = !item;
+
     if (i % 2 === 1) {
       doc.setFillColor(...LIGHT);
-      doc.rect(MARGIN, y, CONTENT_W, PI_VEHICLE_ROW_H, "F");
+      doc.rect(MARGIN, y, CONTENT_W, VEHICLE_ROW_HEIGHT, "F");
     }
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.35);
-    doc.line(MARGIN, y + PI_VEHICLE_ROW_H, PAGE_W - MARGIN, y + PI_VEHICLE_ROW_H);
+    doc.line(MARGIN, y + VEHICLE_ROW_HEIGHT, PAGE_W - MARGIN, y + VEHICLE_ROW_HEIGHT);
 
-    const mid = y + Math.floor(PI_VEHICLE_ROW_H * 0.62);
+    const mid = y + Math.floor(VEHICLE_ROW_HEIGHT * 0.62);
     if (!blank) {
       setProformaFont(doc, "normal");
       doc.setFontSize(7.5);
@@ -458,13 +462,16 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
         align: "right",
       });
     }
+  }
 
-    y += PI_VEHICLE_ROW_H;
+  // Drawn bottom === VehicleTableTop + VEHICLE_TABLE_HEIGHT === ChargesTop - GAP
+  if (vehicleRowTop(VEHICLE_ROW_COUNT - 1) + VEHICLE_ROW_HEIGHT !== vehicleTableBottom()) {
+    throw new Error("Vehicle table height constant mismatch");
   }
 }
 
 function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
-  const y0 = PI_CHARGES_TOP;
+  const y0 = ChargesTop;
   const half = (CONTENT_W - 10) / 2;
   const leftX = MARGIN;
   const rightX = MARGIN + half + 10;
@@ -552,7 +559,7 @@ function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawPayment(doc: Pdf, source: ProformaPdfSource) {
-  const y0 = PI_PAYMENT_TOP;
+  const y0 = PaymentTop;
   putText(doc, "Payment Information / 付款信息", MARGIN, y0, {
     fontSize: 9.5,
     bold: true,
@@ -610,7 +617,7 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawTerms(doc: Pdf, source: ProformaPdfSource) {
-  let y = PI_TERMS_TOP;
+  let y = TermsTop;
   putText(doc, "Terms / 条款", MARGIN, y, {
     fontSize: 9.5,
     bold: true,

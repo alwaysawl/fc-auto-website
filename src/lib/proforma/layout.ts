@@ -2,8 +2,11 @@
  * Fixed one-page A4 Proforma Invoice layout constants.
  * Exactly 8 vehicle slots — no dynamic pagination.
  *
- * Vertical strategy: compact header/meta, taller fixed vehicle table,
- * then charges → payment → terms with 10pt gaps down toward the footer.
+ * SINGLE SOURCE OF TRUTH for vehicle table height:
+ *   VEHICLE_TABLE_HEIGHT =
+ *     VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT
+ *
+ * Never derive table height from item count, text wrap, or rendered content.
  */
 
 export const PI_PAGE_W = 595.28;
@@ -11,24 +14,25 @@ export const PI_PAGE_H = 841.89;
 export const PI_MARGIN = 26;
 export const PI_CONTENT_W = PI_PAGE_W - PI_MARGIN * 2;
 
-/** Hard business limit — never more than 8 vehicles on a proforma. */
-export const PI_VEHICLE_ROW_COUNT = 8;
-export const PI_MAX_VEHICLES = PI_VEHICLE_ROW_COUNT;
+/** —— Vehicle table (one source of truth) —— */
+export const VEHICLE_ROW_COUNT = 8;
+export const VEHICLE_HEADER_HEIGHT = 22;
+export const VEHICLE_ROW_HEIGHT = 28;
+export const VEHICLE_TABLE_HEIGHT =
+  VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT;
 
-/**
- * Fixed vehicle table metrics (pt).
- * Row height increased so the table uses recovered top space + lower blank.
- */
-export const PI_VEHICLE_HEADER_H = 22;
-export const PI_VEHICLE_ROW_H = 28;
+/** Hard business limit — never more than 8 vehicles on a proforma. */
+export const PI_VEHICLE_ROW_COUNT = VEHICLE_ROW_COUNT;
+export const PI_MAX_VEHICLES = VEHICLE_ROW_COUNT;
+export const PI_VEHICLE_HEADER_H = VEHICLE_HEADER_HEIGHT;
+export const PI_VEHICLE_ROW_H = VEHICLE_ROW_HEIGHT;
 export const PI_VEHICLE_TABLE_BODY_H =
-  PI_VEHICLE_ROW_COUNT * PI_VEHICLE_ROW_H;
-export const PI_VEHICLE_TABLE_H =
-  PI_VEHICLE_HEADER_H + PI_VEHICLE_TABLE_BODY_H;
+  VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT;
+export const PI_VEHICLE_TABLE_H = VEHICLE_TABLE_HEIGHT;
 
 /**
  * Fixed vertical region tops (pt from page top).
- * Top band compacted ~25–30mm vs prior (table top was ~179pt).
+ * Do not recalculate these from content height.
  */
 export const PI_HEADER_TOP = PI_MARGIN;
 export const PI_META_TOP = 42;
@@ -37,29 +41,55 @@ export const PI_META_MAX_H = 55;
 export const PI_VEHICLE_TITLE_TOP = PI_META_TOP + PI_META_MAX_H + 2;
 export const PI_VEHICLE_TABLE_TOP = PI_VEHICLE_TITLE_TOP + 8;
 
+/** Canonical aliases matching the layout contract. */
+export const VehicleTableTop = PI_VEHICLE_TABLE_TOP;
+export const VehicleTableHeight = VEHICLE_TABLE_HEIGHT;
+
+/** Absolute Y of the bottom edge of the fixed vehicle table. */
+export function vehicleTableBottom(): number {
+  return VehicleTableTop + VehicleTableHeight;
+}
+
+/** Absolute Y of row `index` (0..7) top edge — index-based, never accumulated. */
+export function vehicleRowTop(index: number): number {
+  return VehicleTableTop + VEHICLE_HEADER_HEIGHT + index * VEHICLE_ROW_HEIGHT;
+}
+
 /** 10pt gaps between major lower sections. */
 export const PI_SECTION_GAP = 10;
 
-export const PI_CHARGES_TOP =
-  PI_VEHICLE_TABLE_TOP + PI_VEHICLE_TABLE_H + PI_SECTION_GAP;
+/**
+ * Other Charges begins ONLY at:
+ *   VehicleTableTop + VEHICLE_TABLE_HEIGHT + GAP
+ * Never from measured draw Y or item count.
+ */
+export const PI_CHARGES_TOP = vehicleTableBottom() + PI_SECTION_GAP;
 export const PI_CHARGES_MAX_H = 78;
-export const PI_PAYMENT_TOP =
-  PI_CHARGES_TOP + PI_CHARGES_MAX_H + PI_SECTION_GAP;
+export const PI_CHARGES_BOTTOM = PI_CHARGES_TOP + PI_CHARGES_MAX_H;
+
+export const PI_PAYMENT_TOP = PI_CHARGES_BOTTOM + PI_SECTION_GAP;
 export const PI_PAYMENT_MAX_H = 56;
-export const PI_TERMS_TOP =
-  PI_PAYMENT_TOP + PI_PAYMENT_MAX_H + PI_SECTION_GAP;
+export const PI_PAYMENT_BOTTOM = PI_PAYMENT_TOP + PI_PAYMENT_MAX_H;
+
+export const PI_TERMS_TOP = PI_PAYMENT_BOTTOM + PI_SECTION_GAP;
+
+export const ChargesTop = PI_CHARGES_TOP;
+export const PaymentTop = PI_PAYMENT_TOP;
+export const TermsTop = PI_TERMS_TOP;
 
 /** Footer stays anchored near the bottom of A4. */
 export const PI_FOOTER_TOP = PI_PAGE_H - 34;
+export const FooterTop = PI_FOOTER_TOP;
+
 /** Terms must end before this Y (breathing room above footer). */
 export const PI_TERMS_BOTTOM_LIMIT = PI_FOOTER_TOP - 18;
 export const PI_TERMS_MAX_H = PI_TERMS_BOTTOM_LIMIT - PI_TERMS_TOP;
 
 /** @deprecated aliases kept for older imports */
-export const PI_PAGE1_TARGET_ROWS = PI_VEHICLE_ROW_COUNT;
-export const PI_BASE_ROW_H = PI_VEHICLE_ROW_H;
-export const PI_ROW_H = PI_VEHICLE_ROW_H;
-export const PI_TABLE_HEADER_H = PI_VEHICLE_HEADER_H;
+export const PI_PAGE1_TARGET_ROWS = VEHICLE_ROW_COUNT;
+export const PI_BASE_ROW_H = VEHICLE_ROW_HEIGHT;
+export const PI_ROW_H = VEHICLE_ROW_HEIGHT;
+export const PI_TABLE_HEADER_H = VEHICLE_HEADER_HEIGHT;
 export const PI_CONTENT_BOTTOM = PI_TERMS_BOTTOM_LIMIT;
 export const PI_FOOTER_RESERVE = PI_PAGE_H - PI_FOOTER_TOP;
 

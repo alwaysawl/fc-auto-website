@@ -9,7 +9,11 @@ import type {
 } from "@/lib/admin/proforma/types";
 import {
   PI_MAX_VEHICLES,
-  PI_VEHICLE_ROW_COUNT,
+  PI_SECTION_GAP,
+  VEHICLE_HEADER_HEIGHT,
+  VEHICLE_ROW_COUNT,
+  VEHICLE_ROW_HEIGHT,
+  VEHICLE_TABLE_HEIGHT,
   compactPaymentValue,
 } from "@/lib/proforma/layout";
 
@@ -150,7 +154,10 @@ export default function AdminProformaPreview({
           <SectionTitle>Vehicle Items / 车辆明细</SectionTitle>
           <VehicleTable model={model} />
 
-          <div className="mt-[10px] grid gap-2 sm:grid-cols-2">
+          <div
+            className="grid gap-2 sm:grid-cols-2"
+            style={{ marginTop: PI_SECTION_GAP }}
+          >
             <div>
               <SectionTitle>Other Charges / 其他费用</SectionTitle>
               <ul className="space-y-0.5 text-[10px]">
@@ -203,7 +210,10 @@ export default function AdminProformaPreview({
             </div>
           </div>
 
-          <div className="mt-[10px] rounded border border-slate-200 px-2 py-1">
+          <div
+            className="rounded border border-slate-200 px-2 py-1"
+            style={{ marginTop: PI_SECTION_GAP }}
+          >
             <SectionTitle>Payment Information / 付款信息</SectionTitle>
             <div className="grid gap-0.5 sm:grid-cols-2 text-[10px]">
               <PaymentField
@@ -230,7 +240,7 @@ export default function AdminProformaPreview({
           </div>
 
           {(model.terms.some((t) => t.enabled) || model.notes) && (
-            <div className="mt-[10px]">
+            <div style={{ marginTop: PI_SECTION_GAP }}>
               <SectionTitle>Terms / 条款</SectionTitle>
               <ol className="list-decimal space-y-1 pl-4 text-[10px] leading-snug">
                 {model.terms
@@ -335,16 +345,28 @@ function Footer({
 }
 
 function VehicleTable({ model }: { model: ProformaPreviewModel }) {
-  const slots = Array.from({ length: PI_VEHICLE_ROW_COUNT }, (_, i) => ({
+  const slots = Array.from({ length: VEHICLE_ROW_COUNT }, (_, i) => ({
     index: i,
     item: model.items[i] ?? null,
   }));
 
+  // pt → CSS px at 96dpi so preview table height matches PDF constants 1:1
+  const ptToPx = (pt: number) => (pt * 96) / 72;
+
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full table-fixed border-collapse text-[10px]">
+    <div
+      className="shrink-0 overflow-hidden"
+      style={{ height: ptToPx(VEHICLE_TABLE_HEIGHT) }}
+    >
+      <table
+        className="min-w-full table-fixed border-collapse text-[10px]"
+        style={{ height: ptToPx(VEHICLE_TABLE_HEIGHT) }}
+      >
         <thead>
-          <tr className="bg-[#1E293B] text-white">
+          <tr
+            className="bg-[#1E293B] text-white"
+            style={{ height: ptToPx(VEHICLE_HEADER_HEIGHT) }}
+          >
             <Th en="No." zh="序号" className="w-[6%]" />
             <Th en="Brand" zh="品牌" className="w-[12%]" />
             <Th en="Model" zh="型号" className="w-[16%]" />
@@ -360,33 +382,34 @@ function VehicleTable({ model }: { model: ProformaPreviewModel }) {
           {slots.map(({ index, item }) => (
             <tr
               key={index}
-              className={`h-[28px] ${index % 2 ? "bg-slate-50" : "bg-white"}`}
+              className={index % 2 ? "bg-slate-50" : "bg-white"}
+              style={{ height: ptToPx(VEHICLE_ROW_HEIGHT) }}
             >
-              <td className="border border-slate-200 px-1 py-0.5 truncate">
-                {item ? index + 1 : ""}
+              <td className="border border-slate-200 px-1 truncate">
+                {item ? index + 1 : "\u00a0"}
               </td>
-              <td className="border border-slate-200 px-1 py-0.5 truncate font-semibold">
+              <td className="border border-slate-200 px-1 truncate font-semibold">
                 {item?.brand ?? ""}
               </td>
-              <td className="border border-slate-200 px-1 py-0.5 truncate">
+              <td className="border border-slate-200 px-1 truncate">
                 {item?.model ?? ""}
               </td>
-              <td className="border border-slate-200 px-1 py-0.5 truncate">
+              <td className="border border-slate-200 px-1 truncate">
                 {item?.year || (item ? "—" : "")}
               </td>
-              <td className="border border-slate-200 px-1 py-0.5 truncate">
+              <td className="border border-slate-200 px-1 truncate">
                 {item?.colour || (item ? "—" : "")}
               </td>
-              <td className="border border-slate-200 px-1 py-0.5 truncate font-mono text-[9px]">
+              <td className="border border-slate-200 px-1 truncate font-mono text-[9px]">
                 {item?.vin || (item ? "—" : "")}
               </td>
-              <td className="border border-slate-200 px-1 py-0.5 text-center">
+              <td className="border border-slate-200 px-1 text-center">
                 {item ? item.quantity : ""}
               </td>
-              <td className="border border-slate-200 px-1 py-0.5 text-right tabular-nums truncate">
+              <td className="border border-slate-200 px-1 text-right tabular-nums truncate">
                 {item ? formatUsd(item.unitPriceUsd) : ""}
               </td>
-              <td className="border border-slate-200 px-1 py-0.5 text-right font-bold tabular-nums truncate">
+              <td className="border border-slate-200 px-1 text-right font-bold tabular-nums truncate">
                 {item ? formatUsd(item.totalUsd) : ""}
               </td>
             </tr>
