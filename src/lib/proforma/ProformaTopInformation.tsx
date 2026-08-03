@@ -6,17 +6,20 @@
  *   Left:   Seller / 卖方
  *   Middle: Buyer / 买方
  *   Right:  Invoice Information / 发票信息
+ *
+ * Field rows use right-aligned labels + a shared colon column + fixed value X
+ * (same geometry as the PDF drawer via layout.ts metrics).
  */
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
-  BUYER_LABEL_VALUE_GAP,
-  BUYER_LABEL_WIDTH,
+  BUYER_FIELD,
   INFO_HEIGHT,
   INFO_TOP,
-  INVOICE_LABEL_VALUE_GAP,
-  INVOICE_LABEL_WIDTH,
+  INVOICE_FIELD,
   PI_MARGIN,
+  SELLER_FIELD,
+  type InfoFieldMetrics,
 } from "@/lib/proforma/layout";
 import {
   buildProformaTopInformation,
@@ -31,94 +34,166 @@ function pt(n: number): string {
   return `${n}pt`;
 }
 
-function PartyField({ field }: { field: TopInfoPartyField }) {
-  return (
-    <p className="mb-[1.5pt] text-[8.5pt]" style={{ lineHeight: 1.18 }}>
-      <span className="font-bold text-slate-500">{field.label}: </span>
-      <span
-        className="break-words font-normal text-[#1E293B]"
-        style={
-          field.maxLines
-            ? {
-                display: "-webkit-box",
-                WebkitLineClamp: field.maxLines,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }
-            : undefined
-        }
-      >
-        {field.value}
-      </span>
-    </p>
-  );
-}
-
-/** Buyer fields: fixed label column + gap so bilingual labels never overlap values. */
-function BuyerField({ field }: { field: TopInfoPartyField }) {
+function AlignedFieldRow({
+  label,
+  metrics,
+  labelClassName,
+  valueClassName,
+  valueStyle,
+  children,
+  rowClassName,
+}: {
+  label: string;
+  metrics: InfoFieldMetrics;
+  labelClassName: string;
+  valueClassName: string;
+  valueStyle?: CSSProperties;
+  children: ReactNode;
+  rowClassName?: string;
+}) {
   return (
     <div
-      className="mb-[1.5pt] grid items-start"
-      style={{
-        gridTemplateColumns: `${BUYER_LABEL_WIDTH}pt 1fr`,
-        columnGap: pt(BUYER_LABEL_VALUE_GAP),
-        lineHeight: 1.18,
-      }}
+      className={rowClassName ?? "relative mb-[1.5pt]"}
+      style={{ lineHeight: 1.18, minHeight: pt(10) }}
     >
-      <p className="text-[8.5pt] font-bold leading-[1.18] text-slate-500">
-        {field.label}:
+      <p
+        className={labelClassName}
+        style={{
+          position: "absolute",
+          left: 0,
+          width: pt(metrics.labelWidth),
+          textAlign: "right",
+          lineHeight: 1.18,
+          margin: 0,
+        }}
+      >
+        {label}
       </p>
       <p
-        className="min-w-0 break-words text-[8.5pt] font-normal leading-[1.18] text-[#1E293B]"
-        style={
-          field.maxLines
-            ? {
-                display: "-webkit-box",
-                WebkitLineClamp: field.maxLines,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }
-            : undefined
-        }
+        aria-hidden
+        className={labelClassName}
+        style={{
+          position: "absolute",
+          left: pt(metrics.colonX),
+          lineHeight: 1.18,
+          margin: 0,
+        }}
       >
-        {field.value || "—"}
+        :
       </p>
+      <div
+        className={valueClassName}
+        style={{
+          marginLeft: pt(metrics.valueX),
+          lineHeight: 1.18,
+          ...valueStyle,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
 
-function AddressField({ field }: { field: TopInfoAddressField }) {
+function SellerPartyField({
+  field,
+  metrics,
+}: {
+  field: TopInfoPartyField;
+  metrics: InfoFieldMetrics;
+}) {
+  return (
+    <AlignedFieldRow
+      label={field.label}
+      metrics={metrics}
+      labelClassName="text-[8.5pt] font-bold text-slate-500"
+      valueClassName="min-w-0 break-words text-[8.5pt] font-normal text-[#1E293B]"
+      valueStyle={
+        field.maxLines
+          ? {
+              display: "-webkit-box",
+              WebkitLineClamp: field.maxLines,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }
+          : undefined
+      }
+    >
+      {field.value || "—"}
+    </AlignedFieldRow>
+  );
+}
+
+function SellerAddressField({
+  field,
+  metrics,
+}: {
+  field: TopInfoAddressField;
+  metrics: InfoFieldMetrics;
+}) {
   const shown = field.lines.slice(0, 5);
   return (
-    <div className="mb-[1.5pt] text-[8.5pt]" style={{ lineHeight: 1.18 }}>
-      <span className="font-bold text-slate-500">{field.label}: </span>
-      <span className="inline-block align-top font-normal text-[#1E293B]">
-        {(shown.length ? shown : ["—"]).map((line, i) => (
-          <span key={i} className="block break-words">
-            {line}
-          </span>
-        ))}
-      </span>
-    </div>
+    <AlignedFieldRow
+      label={field.label}
+      metrics={metrics}
+      labelClassName="text-[8.5pt] font-bold text-slate-500"
+      valueClassName="min-w-0 text-[8.5pt] font-normal text-[#1E293B]"
+    >
+      {(shown.length ? shown : ["—"]).map((line, i) => (
+        <span key={i} className="block break-words">
+          {line}
+        </span>
+      ))}
+    </AlignedFieldRow>
   );
 }
 
-function MetaField({ field }: { field: TopInfoMetaField }) {
+function BuyerField({
+  field,
+  metrics,
+}: {
+  field: TopInfoPartyField;
+  metrics: InfoFieldMetrics;
+}) {
   return (
-    <div
-      className="mb-[1pt] grid items-baseline"
-      style={{
-        gridTemplateColumns: `${INVOICE_LABEL_WIDTH}pt 1fr`,
-        columnGap: pt(INVOICE_LABEL_VALUE_GAP),
-      }}
+    <AlignedFieldRow
+      label={field.label}
+      metrics={metrics}
+      labelClassName="text-[8.5pt] font-bold text-slate-500"
+      valueClassName="min-w-0 break-words text-[8.5pt] font-normal text-[#1E293B]"
+      valueStyle={
+        field.maxLines
+          ? {
+              display: "-webkit-box",
+              WebkitLineClamp: field.maxLines,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }
+          : undefined
+      }
     >
-      <p className="text-[9pt] font-semibold leading-[1.18] text-slate-500">
-        {field.label}
-      </p>
-      <p className="min-w-0 truncate text-[9.5pt] font-normal leading-[1.18] text-[#1E293B]">
-        {field.value}
-      </p>
-    </div>
+      {field.value || "—"}
+    </AlignedFieldRow>
+  );
+}
+
+function InvoiceMetaField({
+  field,
+  metrics,
+}: {
+  field: TopInfoMetaField;
+  metrics: InfoFieldMetrics;
+}) {
+  return (
+    <AlignedFieldRow
+      label={field.label}
+      metrics={metrics}
+      rowClassName="relative mb-[1pt]"
+      labelClassName="text-[9pt] font-semibold text-slate-500"
+      valueClassName="min-w-0 truncate text-[9.5pt] font-normal text-[#1E293B]"
+    >
+      {field.value || "—"}
+    </AlignedFieldRow>
   );
 }
 
@@ -161,9 +236,9 @@ export function ProformaTopInformationView({
           <ColumnTitle>{data.seller.title}</ColumnTitle>
           {data.seller.fields.map((f, i) =>
             f.kind === "address" ? (
-              <AddressField key={i} field={f} />
+              <SellerAddressField key={i} field={f} metrics={SELLER_FIELD} />
             ) : (
-              <PartyField key={i} field={f} />
+              <SellerPartyField key={i} field={f} metrics={SELLER_FIELD} />
             )
           )}
         </div>
@@ -172,15 +247,15 @@ export function ProformaTopInformationView({
         <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
           <ColumnTitle>{data.buyer.title}</ColumnTitle>
           {data.buyer.fields.map((f, i) => (
-            <BuyerField key={i} field={f} />
+            <BuyerField key={i} field={f} metrics={BUYER_FIELD} />
           ))}
         </div>
 
         {/* Right — Invoice Information */}
-        <div className="space-y-[1pt]" style={{ overflow: "hidden" }}>
+        <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
           <ColumnTitle>{data.invoice.title}</ColumnTitle>
           {data.invoice.fields.map((f, i) => (
-            <MetaField key={i} field={f} />
+            <InvoiceMetaField key={i} field={f} metrics={INVOICE_FIELD} />
           ))}
         </div>
       </div>

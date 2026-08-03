@@ -4,7 +4,7 @@
  */
 
 /** Non-visual diagnostic marker — inspect DOM/data attribute or console on PDF download. */
-export const PROFORMA_LAYOUT_VERSION = "seller-buyer-invoice-cols-v3";
+export const PROFORMA_LAYOUT_VERSION = "right-align-colon-cols-v4";
 
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
@@ -41,16 +41,64 @@ export const INFO_TOP = BASE_INFO_TOP + BODY_OFFSET_Y; // 96
 export const INFO_HEIGHT = 100;
 export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 196
 
-/** Fixed label column for Invoice Information (bilingual labels + gap before value). */
-export const INVOICE_LABEL_WIDTH = 100;
-export const INVOICE_LABEL_VALUE_GAP = 8;
+export const INFO_COL_COUNT = 3;
+export const INFO_COL_W = PI_CONTENT_W / INFO_COL_COUNT;
 
 /**
- * Fixed label column for Buyer fields.
- * Wide enough for the longest bilingual label: "Destination Port / 目的港".
+ * Shared field-row geometry (relative to each column's left edge).
+ *
+ *   [ right-aligned label ][ gap ]:[ gap ][ value… ]
+ *                         ^labelRightX
+ *                               ^colonX
+ *                                      ^valueX
  */
+export const FIELD_COLON_GAP = 2;
+export const FIELD_VALUE_GAP = 6;
+
+/** Seller: longest labels e.g. "Company / 公司", "Address / 地址". */
+export const SELLER_LABEL_WIDTH = 92;
+/** Buyer: longest label "Destination Port / 目的港". */
 export const BUYER_LABEL_WIDTH = 118;
-export const BUYER_LABEL_VALUE_GAP = 8;
+/** Invoice Information: longest labels e.g. "Invoice No. / 发票号". */
+export const INVOICE_LABEL_WIDTH = 108;
+
+/** @deprecated Kept as aliases for older imports. */
+export const INVOICE_LABEL_VALUE_GAP = FIELD_VALUE_GAP;
+export const BUYER_LABEL_VALUE_GAP = FIELD_VALUE_GAP;
+
+export type InfoFieldMetrics = {
+  labelWidth: number;
+  /** Relative: right edge of the label text area. */
+  labelRightX: number;
+  /** Relative: X of the shared colon. */
+  colonX: number;
+  /** Relative: X where every value starts. */
+  valueX: number;
+};
+
+export function infoFieldMetrics(labelWidth: number): InfoFieldMetrics {
+  const labelRightX = labelWidth;
+  const colonX = labelRightX + FIELD_COLON_GAP;
+  const valueX = colonX + FIELD_VALUE_GAP;
+  return { labelWidth, labelRightX, colonX, valueX };
+}
+
+export const SELLER_FIELD = infoFieldMetrics(SELLER_LABEL_WIDTH);
+export const BUYER_FIELD = infoFieldMetrics(BUYER_LABEL_WIDTH);
+export const INVOICE_FIELD = infoFieldMetrics(INVOICE_LABEL_WIDTH);
+
+/** Absolute left X of info column `index` (0=Seller, 1=Buyer, 2=Invoice). */
+export function infoColLeft(index: 0 | 1 | 2): number {
+  return PI_MARGIN + INFO_COL_W * index;
+}
+
+/** Max width available for a value inside a column. */
+export function infoFieldValueMaxWidth(
+  metrics: InfoFieldMetrics,
+  padRight = 4
+): number {
+  return Math.max(24, INFO_COL_W - metrics.valueX - padRight);
+}
 
 /** —— Vehicle title + fixed 8-row table —— */
 export const VEHICLE_TITLE_TOP = BASE_VEHICLE_TITLE_TOP + BODY_OFFSET_Y; // 196

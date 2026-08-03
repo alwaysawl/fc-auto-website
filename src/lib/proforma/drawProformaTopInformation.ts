@@ -1,18 +1,23 @@
 /**
  * PDF drawer for the shared Proforma top-information band.
  * Three horizontal columns: Seller | Buyer | Invoice Information.
- * Uses the same ProformaTopInformationData as the React preview.
+ *
+ * Field rows: right-aligned label → shared colon X → fixed value X
+ * (same metrics as Preview via layout.ts).
  */
 
 import type { jsPDF } from "jspdf";
 import {
-  BUYER_LABEL_VALUE_GAP,
-  BUYER_LABEL_WIDTH,
+  BUYER_FIELD,
   INFO_BOTTOM,
+  INFO_COL_W,
   INFO_HEIGHT,
   INFO_TOP,
-  INVOICE_LABEL_VALUE_GAP,
-  INVOICE_LABEL_WIDTH,
+  INVOICE_FIELD,
+  SELLER_FIELD,
+  infoColLeft,
+  infoFieldValueMaxWidth,
+  type InfoFieldMetrics,
   PI_CONTENT_W,
   PI_MARGIN,
 } from "@/lib/proforma/layout";
@@ -83,35 +88,7 @@ function putText(
   return lines.length * (fontSize + lineGap);
 }
 
-function oneLine(
-  doc: Pdf,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  opts?: {
-    fontSize?: number;
-    bold?: boolean;
-    color?: [number, number, number];
-  }
-) {
-  const fontSize = opts?.fontSize ?? 7.5;
-  const color = opts?.color ?? BLACK;
-  setProformaFont(doc, opts?.bold ? "bold" : "normal");
-  doc.setFontSize(fontSize);
-  doc.setTextColor(...color);
-  const raw = (text || "").trim() || "—";
-  let out = raw;
-  if (doc.getTextWidth(out) > maxWidth) {
-    while (out.length > 1 && doc.getTextWidth(`${out}…`) > maxWidth) {
-      out = out.slice(0, -1);
-    }
-    out = `${out}…`;
-  }
-  doc.text(out, x, y);
-}
-
-function measurePartyField(
+function measureValueHeight(
   doc: Pdf,
   value: string,
   valueW: number,
@@ -121,87 +98,81 @@ function measurePartyField(
   const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
   setProformaFont(doc, "normal");
   doc.setFontSize(fontSize);
-  const lines = doc.splitTextToSize((value || "—").trim() || "—", valueW) as string[];
+  const lines = doc.splitTextToSize(
+    (value || "—").trim() || "—",
+    valueW
+  ) as string[];
   const n = Math.min(maxLines, Math.max(1, lines.length));
   return Math.max(fontSize * PT_LINE_HEIGHT, n * (fontSize + lineGap)) + 1.2;
 }
 
-function drawPartyField(
-  doc: Pdf,
-  field: TopInfoPartyField,
-  x: number,
-  y: number,
-  labelW: number,
-  valueW: number
-): number {
-  const fontSize = PT_PARTY;
-  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
-  setProformaFont(doc, "bold");
-  doc.setFontSize(PT_LABEL);
-  doc.setTextColor(...SLATE);
-  doc.text(`${field.label}:`, x, y);
-  const textH = putText(doc, field.value, x + labelW, y, {
-    fontSize,
-    bold: false,
-    maxWidth: valueW,
-    lineGap,
-    maxLines: field.maxLines ?? 99,
-    ellipsis: false,
-  });
-  return Math.max(fontSize * PT_LINE_HEIGHT, textH) + 1.2;
-}
-
 /**
- * Buyer fields: fixed label column + gap.
- * Value X = buyerLabelX + BUYER_LABEL_WIDTH + BUYER_LABEL_VALUE_GAP.
- * Labels are never truncated; long values wrap (max 2 lines for Destination Port).
+ * Right-aligned label + fixed colon + fixed value start.
+ * Colon is NOT part of the label string.
  */
-function drawBuyerField(
+function drawAlignedField(
   doc: Pdf,
-  field: TopInfoPartyField,
-  x: number,
+  label: string,
+  value: string,
+  colLeft: number,
   y: number,
-  valueW: number
+  metrics: InfoFieldMetrics,
+  opts?: {
+    labelSize?: number;
+    valueSize?: number;
+    maxLines?: number;
+    ellipsis?: boolean;
+    rowStep?: number;
+  }
 ): number {
-  const fontSize = PT_PARTY;
-  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
-  const labelW = BUYER_LABEL_WIDTH;
-  const gap = BUYER_LABEL_VALUE_GAP;
-  const valueX = x + labelW + gap;
+  const labelSize = opts?.labelSize ?? PT_LABEL;
+  const valueSize = opts?.valueSize ?? PT_PARTY;
+  const lineGap = valueSize * (PT_LINE_HEIGHT - 1);
+  const labelRightX = colLeft + metrics.labelRightX;
+  const colonX = colLeft + metrics.colonX;
+  const valueX = colLeft + metrics.valueX;
+  const valueW = infoFieldValueMaxWidth(metrics);
 
   setProformaFont(doc, "bold");
-  doc.setFontSize(PT_LABEL);
+  doc.setFontSize(labelSize);
   doc.setTextColor(...SLATE);
-  // Full bilingual label — never clipped/truncated.
-  doc.text(`${field.label}:`, x, y);
+  doc.text(label, labelRightX, y, { align: "right" });
+  doc.text(":", colonX, y);
 
-  const textH = putText(doc, field.value || "—", valueX, y, {
-    fontSize,
+  const textH = putText(doc, value || "—", valueX, y, {
+    fontSize: valueSize,
     bold: false,
     maxWidth: valueW,
     lineGap,
-    maxLines: field.maxLines ?? 99,
-    ellipsis: true,
+    maxLines: opts?.maxLines ?? 99,
+    ellipsis: opts?.ellipsis !== false,
   });
-  return Math.max(fontSize * PT_LINE_HEIGHT, textH) + 1.2;
+
+  if (opts?.rowStep != null) return opts.rowStep;
+  return Math.max(valueSize * PT_LINE_HEIGHT, textH) + 1.2;
 }
 
-function drawAddressField(
+function drawAlignedAddress(
   doc: Pdf,
   field: TopInfoAddressField,
-  x: number,
+  colLeft: number,
   y: number,
-  labelW: number,
-  valueW: number,
+  metrics: InfoFieldMetrics,
   maxLines: number
 ): number {
   const fontSize = PT_PARTY;
   const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
   const step = fontSize + lineGap;
+  const labelRightX = colLeft + metrics.labelRightX;
+  const colonX = colLeft + metrics.colonX;
+  const valueX = colLeft + metrics.valueX;
+  const valueW = infoFieldValueMaxWidth(metrics);
+
   setProformaFont(doc, "bold");
   doc.setFontSize(PT_LABEL);
   doc.setTextColor(...SLATE);
-  doc.text(`${field.label}:`, x, y);
+  doc.text(field.label, labelRightX, y, { align: "right" });
+  doc.text(":", colonX, y);
 
   setProformaFont(doc, "normal");
   doc.setFontSize(fontSize);
@@ -220,36 +191,10 @@ function drawAddressField(
 
   let yy = y;
   for (const w of drawn) {
-    doc.text(w, x + labelW, yy);
+    doc.text(w, valueX, yy);
     yy += step;
   }
   return drawn.length * step + 1.2;
-}
-
-function drawMetaField(
-  doc: Pdf,
-  field: TopInfoMetaField,
-  x: number,
-  y: number,
-  labelW: number,
-  valueW: number,
-  gap: number
-): number {
-  setProformaFont(doc, "bold");
-  doc.setFontSize(PT_META_LABEL);
-  doc.setTextColor(...SLATE);
-  // Keep bilingual label inside the fixed label column (no overlap into value).
-  oneLine(doc, field.label, x, y, labelW, {
-    fontSize: PT_META_LABEL,
-    bold: true,
-    color: SLATE,
-  });
-  oneLine(doc, field.value, x + labelW + gap, y, valueW, {
-    fontSize: PT_META_VALUE,
-    bold: false,
-    color: BLACK,
-  });
-  return 12.5;
 }
 
 function drawSectionTitle(
@@ -274,26 +219,18 @@ export function drawProformaTopInformation(
   doc: Pdf,
   data: ProformaTopInformationData
 ): void {
-  const colW = CONTENT_W / 3;
-  const col1 = MARGIN;
-  const col2 = MARGIN + colW;
-  const col3 = MARGIN + colW * 2;
+  const col1 = infoColLeft(0);
+  const col2 = infoColLeft(1);
+  const col3 = infoColLeft(2);
   const infoTop = INFO_TOP;
   const infoLimit = INFO_TOP + INFO_HEIGHT - INFO_BOTTOM_PAD;
 
-  const sellerLabelW = 70;
-  const sellerValueW = colW - sellerLabelW - 10;
-  const buyerLabelW = BUYER_LABEL_WIDTH;
-  const buyerGap = BUYER_LABEL_VALUE_GAP;
-  const buyerValueW = Math.max(28, colW - buyerLabelW - buyerGap - 8);
-  const metaLabelW = INVOICE_LABEL_WIDTH;
-  const metaGap = INVOICE_LABEL_VALUE_GAP;
-  const metaValueW = Math.max(36, colW - metaLabelW - metaGap - 8);
+  const sellerValueW = infoFieldValueMaxWidth(SELLER_FIELD);
 
   // Column titles on the same baseline
-  drawSectionTitle(doc, data.seller.title, col1, infoTop, colW - 8);
-  drawSectionTitle(doc, data.buyer.title, col2, infoTop, colW - 8);
-  drawSectionTitle(doc, data.invoice.title, col3, infoTop, colW - 8);
+  drawSectionTitle(doc, data.seller.title, col1, infoTop, INFO_COL_W - 8);
+  drawSectionTitle(doc, data.buyer.title, col2, infoTop, INFO_COL_W - 8);
+  drawSectionTitle(doc, data.invoice.title, col3, infoTop, INFO_COL_W - 8);
 
   const bodyY = infoTop + 12;
 
@@ -306,11 +243,10 @@ export function drawProformaTopInformation(
     (f): f is TopInfoAddressField => f.kind === "address"
   );
 
-  // Budget address lines so phone/email/website stay visible
   let reserved = 0;
   for (const f of partyFields) {
     if (f.label.startsWith("Company")) continue;
-    reserved += measurePartyField(
+    reserved += measureValueHeight(
       doc,
       f.value,
       sellerValueW,
@@ -319,7 +255,7 @@ export function drawProformaTopInformation(
   }
   const companyField = partyFields.find((f) => f.label.startsWith("Company"));
   if (companyField) {
-    reserved += measurePartyField(
+    reserved += measureValueHeight(
       doc,
       companyField.value,
       sellerValueW,
@@ -343,17 +279,27 @@ export function drawProformaTopInformation(
 
   for (const field of data.seller.fields) {
     if (field.kind === "address") {
-      y1 += drawAddressField(
+      y1 += drawAlignedAddress(
         doc,
         field,
         col1,
         y1,
-        sellerLabelW,
-        sellerValueW,
+        SELLER_FIELD,
         addressMaxLines
       );
     } else {
-      y1 += drawPartyField(doc, field, col1, y1, sellerLabelW, sellerValueW);
+      y1 += drawAlignedField(
+        doc,
+        field.label,
+        field.value,
+        col1,
+        y1,
+        SELLER_FIELD,
+        {
+          maxLines: field.maxLines ?? 99,
+          ellipsis: false,
+        }
+      );
     }
   }
   void y1;
@@ -361,21 +307,38 @@ export function drawProformaTopInformation(
   // —— Middle: Buyer ——
   let y2 = bodyY;
   for (const field of data.buyer.fields) {
-    y2 += drawBuyerField(doc, field, col2, y2, buyerValueW);
+    y2 += drawAlignedField(
+      doc,
+      field.label,
+      field.value,
+      col2,
+      y2,
+      BUYER_FIELD,
+      {
+        maxLines: field.maxLines ?? 99,
+        ellipsis: true,
+      }
+    );
   }
   void y2;
 
-  // —— Right: Invoice Information (label | value, no overlap) ——
+  // —— Right: Invoice Information ——
   let y3 = bodyY;
   for (const field of data.invoice.fields) {
-    y3 += drawMetaField(
+    y3 += drawAlignedField(
       doc,
-      field,
+      field.label,
+      field.value,
       col3,
       y3,
-      metaLabelW,
-      metaValueW,
-      metaGap
+      INVOICE_FIELD,
+      {
+        labelSize: PT_META_LABEL,
+        valueSize: PT_META_VALUE,
+        maxLines: 1,
+        ellipsis: true,
+        rowStep: 12.5,
+      }
     );
   }
   void y3;
