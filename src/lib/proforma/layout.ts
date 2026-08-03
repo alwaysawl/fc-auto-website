@@ -4,7 +4,7 @@
  */
 
 /** Non-visual diagnostic marker — inspect DOM/data attribute or console on PDF download. */
-export const PROFORMA_LAYOUT_VERSION = "invoice-value-full-v6";
+export const PROFORMA_LAYOUT_VERSION = "body-shift-25-v7";
 
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
@@ -22,24 +22,27 @@ export const HEADER_BOTTOM = HEADER_TOP + HEADER_HEIGHT; // 72
 
 /**
  * Shared downward shift for the entire invoice body (below header divider).
- * Header and footer stay fixed; relative gaps between body sections unchanged.
+ * Header and footer stay fixed. +25pt from prior 18 so Seller/Buyer/Invoice
+ * and everything below are less crowded under the gold header rule.
  */
-export const BODY_OFFSET_Y = 18;
+export const BODY_OFFSET_Y = 43;
+
+/** Extra space between the info band and Vehicle Items title. */
+export const INFO_TO_VEHICLE_GAP = 10;
 
 /** Base Y positions (pre-offset) for the body group. */
 export const BASE_INFO_TOP = 78;
-export const BASE_VEHICLE_TITLE_TOP = 178;
-export const BASE_VEHICLE_TABLE_TOP = 195;
-export const BASE_TERMS_MAX_BOTTOM = 755;
+export const BASE_VEHICLE_TITLE_TOP = 178 + INFO_TO_VEHICLE_GAP; // 188
+export const BASE_VEHICLE_TABLE_TOP = 195 + INFO_TO_VEHICLE_GAP; // 205
 
 /**
  * Top information band — three horizontal columns:
  * Seller | Buyer | Invoice Information
  */
-export const INFO_TOP = BASE_INFO_TOP + BODY_OFFSET_Y; // 96
+export const INFO_TOP = BASE_INFO_TOP + BODY_OFFSET_Y; // 121
 /** Seller/Buyer/Invoice band; must stay above vehicle title. */
 export const INFO_HEIGHT = 100;
-export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 196
+export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 221
 
 export const INFO_COL_COUNT = 3;
 
@@ -73,13 +76,13 @@ export function infoColLeft(index: 0 | 1 | 2): number {
 }
 
 /** —— Vehicle title + fixed 8-row table —— */
-export const VEHICLE_TITLE_TOP = BASE_VEHICLE_TITLE_TOP + BODY_OFFSET_Y; // 196
+export const VEHICLE_TITLE_TOP = BASE_VEHICLE_TITLE_TOP + BODY_OFFSET_Y; // 231
 export const VEHICLE_TITLE_HEIGHT = 16;
 
 /**
  * Table geometry: body row height fixed; tops follow BODY_OFFSET_Y with the body group.
  */
-export const VEHICLE_TABLE_TOP = BASE_VEHICLE_TABLE_TOP + BODY_OFFSET_Y; // 213
+export const VEHICLE_TABLE_TOP = BASE_VEHICLE_TABLE_TOP + BODY_OFFSET_Y; // 248
 export const VEHICLE_HEADER_HEIGHT = 28;
 export const VEHICLE_ROW_HEIGHT = 20;
 export const VEHICLE_ROW_COUNT = 8;
@@ -88,25 +91,31 @@ export const VEHICLE_TABLE_HEIGHT =
   VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT; // 188
 
 export const VEHICLE_TABLE_BOTTOM =
-  VEHICLE_TABLE_TOP + VEHICLE_TABLE_HEIGHT; // 401
+  VEHICLE_TABLE_TOP + VEHICLE_TABLE_HEIGHT; // 436
 
 /** —— Lower sections (gap = 12 pt after table / blocks) —— */
 export const SECTION_GAP = 12;
 
-export const CHARGES_TOP = VEHICLE_TABLE_BOTTOM + SECTION_GAP; // 413
+export const CHARGES_TOP = VEHICLE_TABLE_BOTTOM + SECTION_GAP; // 448
 export const CHARGES_HEIGHT = 98;
-export const CHARGES_BOTTOM = CHARGES_TOP + CHARGES_HEIGHT; // 511
+export const CHARGES_BOTTOM = CHARGES_TOP + CHARGES_HEIGHT; // 546
 
-export const PAYMENT_TOP = CHARGES_BOTTOM + SECTION_GAP; // 523
+export const PAYMENT_TOP = CHARGES_BOTTOM + SECTION_GAP; // 558
 export const PAYMENT_HEIGHT = 58;
-export const PAYMENT_BOTTOM = PAYMENT_TOP + PAYMENT_HEIGHT; // 581
+export const PAYMENT_BOTTOM = PAYMENT_TOP + PAYMENT_HEIGHT; // 616
 
-export const TERMS_TOP = PAYMENT_BOTTOM + SECTION_GAP; // 593
-export const TERMS_MAX_BOTTOM = BASE_TERMS_MAX_BOTTOM + BODY_OFFSET_Y; // 773
+export const TERMS_TOP = PAYMENT_BOTTOM + SECTION_GAP; // 628
 
-/** Footer stays fixed — blank space above absorbs BODY_OFFSET_Y. */
+/** Footer stays fixed. */
 export const FOOTER_TOP = 800;
 export const FOOTER_HEIGHT = 24;
+
+/**
+ * Terms may extend into former headroom above the footer; keep a balanced
+ * ~27pt gap above the fixed footer so one-page fit is preserved.
+ */
+export const TERMS_MAX_BOTTOM = FOOTER_TOP - 27; // 773
+export const BASE_TERMS_MAX_BOTTOM = TERMS_MAX_BOTTOM - BODY_OFFSET_Y;
 
 /** Absolute Y of body row `index` (0..7). */
 export function vehicleRowTop(index: number): number {
