@@ -65,3 +65,21 @@ export function alignedValueMaxWidth(
 ): number {
   return Math.max(24, columnWidth - layout.valueX - padRight);
 }
+
+/**
+ * Colon immediately after this label (no padding to a shared column width).
+ * Used by Buyer and Invoice Information.
+ */
+export function layoutImmediateColon(
+  label: string,
+  fontSize: number
+): AlignedColumnLayout {
+  const maxLabelWidth = measureLabelWidth(label, fontSize);
+  const colonSuffixWidth = measureLabelWidth(FIELD_COLON_SUFFIX, fontSize);
+  return {
+    maxLabelWidth,
+    colonX: maxLabelWidth,
+    valueX: maxLabelWidth + colonSuffixWidth,
+    colonSuffixWidth,
+  };
+}

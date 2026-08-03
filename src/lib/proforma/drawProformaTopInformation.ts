@@ -12,6 +12,7 @@ import {
   alignedValueMaxWidth,
   FIELD_COLON_SUFFIX,
   layoutAlignedColumn,
+  layoutImmediateColon,
   type AlignedColumnLayout,
 } from "@/lib/proforma/alignedLabelValue";
 import {
@@ -109,6 +110,7 @@ function measureValueHeight(
 
 /**
  * Left-aligned label + colon at longest-label edge + value after ": ".
+ * Seller only.
  */
 function drawAlignedField(
   doc: Pdf,
@@ -135,7 +137,51 @@ function drawAlignedField(
   setProformaFont(doc, "bold");
   doc.setFontSize(labelSize);
   doc.setTextColor(...SLATE);
-  // LEFT aligned — no right-align, no colon inside the label string.
+  doc.text(label, colLeft, y);
+  doc.text(FIELD_COLON_SUFFIX, colonX, y);
+
+  const textH = putText(doc, value || "—", valueX, y, {
+    fontSize: valueSize,
+    bold: false,
+    maxWidth: valueW,
+    lineGap,
+    maxLines: opts?.maxLines ?? 99,
+    ellipsis: opts?.ellipsis !== false,
+  });
+
+  if (opts?.rowStep != null) return opts.rowStep;
+  return Math.max(valueSize * PT_LINE_HEIGHT, textH) + 1.2;
+}
+
+/**
+ * Colon immediately after this label (Buyer / Invoice Information).
+ * Example: "Destination Port / 目的港: Douala"
+ */
+function drawImmediateColonField(
+  doc: Pdf,
+  label: string,
+  value: string,
+  colLeft: number,
+  y: number,
+  opts?: {
+    labelSize?: number;
+    valueSize?: number;
+    maxLines?: number;
+    ellipsis?: boolean;
+    rowStep?: number;
+  }
+): number {
+  const labelSize = opts?.labelSize ?? PT_LABEL;
+  const valueSize = opts?.valueSize ?? PT_PARTY;
+  const lineGap = valueSize * (PT_LINE_HEIGHT - 1);
+  const layout = layoutImmediateColon(label, labelSize);
+  const colonX = colLeft + layout.colonX;
+  const valueX = colLeft + layout.valueX;
+  const valueW = alignedValueMaxWidth(layout, INFO_COL_W);
+
+  setProformaFont(doc, "bold");
+  doc.setFontSize(labelSize);
+  doc.setTextColor(...SLATE);
   doc.text(label, colLeft, y);
   doc.text(FIELD_COLON_SUFFIX, colonX, y);
 
@@ -228,14 +274,6 @@ export function drawProformaTopInformation(
     data.seller.fields.map((f) => f.label),
     PT_LABEL
   );
-  const buyerLayout = layoutAlignedColumn(
-    data.buyer.fields.map((f) => f.label),
-    PT_LABEL
-  );
-  const invoiceLayout = layoutAlignedColumn(
-    data.invoice.fields.map((f) => f.label),
-    PT_META_LABEL
-  );
 
   const sellerValueW = alignedValueMaxWidth(sellerLayout, INFO_COL_W);
 
@@ -315,16 +353,15 @@ export function drawProformaTopInformation(
   }
   void y1;
 
-  // —— Middle: Buyer ——
+  // —— Middle: Buyer (colon immediately after each label) ——
   let y2 = bodyY;
   for (const field of data.buyer.fields) {
-    y2 += drawAlignedField(
+    y2 += drawImmediateColonField(
       doc,
       field.label,
       field.value,
       col2,
       y2,
-      buyerLayout,
       {
         maxLines: field.maxLines ?? 99,
         ellipsis: true,
@@ -333,16 +370,15 @@ export function drawProformaTopInformation(
   }
   void y2;
 
-  // —— Right: Invoice Information ——
+  // —— Right: Invoice Information (colon immediately after each label) ——
   let y3 = bodyY;
   for (const field of data.invoice.fields) {
-    y3 += drawAlignedField(
+    y3 += drawImmediateColonField(
       doc,
       field.label,
       field.value,
       col3,
       y3,
-      invoiceLayout,
       {
         labelSize: PT_META_LABEL,
         valueSize: PT_META_VALUE,
