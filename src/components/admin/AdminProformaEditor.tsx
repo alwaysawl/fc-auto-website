@@ -32,6 +32,12 @@ import {
 import AdminProformaPreview, {
   type ProformaPreviewModel,
 } from "@/components/admin/AdminProformaPreview";
+import {
+  PI_MAX_VEHICLES,
+  PI_MAX_VEHICLES_EN,
+  PI_MAX_VEHICLES_ZH,
+  checkProformaOnePageFit,
+} from "@/lib/proforma/layout";
 
 const fieldCls =
   "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/50";
@@ -522,6 +528,19 @@ export default function AdminProformaEditor({
       return;
     }
     if (saving) return;
+
+    const fit = checkProformaOnePageFit({
+      vehicleCount: items.length,
+      enabledTerms: terms
+        .filter((t) => t.enabled)
+        .map((t) => ({ textEn: t.textEn, textZh: t.textZh })),
+      notes,
+    });
+    if (!fit.ok) {
+      setError(fit.errorZh || fit.errorEn || "无法生成 PDF");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -560,6 +579,28 @@ export default function AdminProformaEditor({
     markIssued?: boolean;
   }) => {
     if (saving) return;
+
+    if (items.length > PI_MAX_VEHICLES) {
+      setError(
+        `${PI_MAX_VEHICLES_ZH} 当前 ${items.length} 台。请删除多余车辆后再保存。 / ${PI_MAX_VEHICLES_EN}`
+      );
+      return;
+    }
+
+    if (opts.generatePdf) {
+      const fit = checkProformaOnePageFit({
+        vehicleCount: items.length,
+        enabledTerms: terms
+          .filter((t) => t.enabled)
+          .map((t) => ({ textEn: t.textEn, textZh: t.textZh })),
+        notes,
+      });
+      if (!fit.ok) {
+        setError(fit.errorZh || fit.errorEn || "无法生成 PDF");
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -942,14 +983,30 @@ export default function AdminProformaEditor({
           {/* Vehicles */}
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-bold text-[#1E293B]">车辆明细</h2>
+              <h2 className="text-sm font-bold text-[#1E293B]">
+                车辆明细
+                <span className="ml-2 text-xs font-medium text-slate-500">
+                  {items.length} / {PI_MAX_VEHICLES}
+                </span>
+              </h2>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   className={btnGhost}
+                  disabled={items.length >= PI_MAX_VEHICLES}
+                  title={
+                    items.length >= PI_MAX_VEHICLES
+                      ? PI_MAX_VEHICLES_ZH
+                      : undefined
+                  }
                   onClick={() => {
+                    if (items.length >= PI_MAX_VEHICLES) return;
                     void ensureVehicles();
-                    setItems((prev) => [...prev, emptyItem()]);
+                    setItems((prev) =>
+                      prev.length >= PI_MAX_VEHICLES
+                        ? prev
+                        : [...prev, emptyItem()]
+                    );
                   }}
                 >
                   手动添加车辆
@@ -963,6 +1020,24 @@ export default function AdminProformaEditor({
                 </button>
               </div>
             </div>
+
+            {items.length >= PI_MAX_VEHICLES ? (
+              <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                {PI_MAX_VEHICLES_ZH}
+                <br />
+                {PI_MAX_VEHICLES_EN}
+              </p>
+            ) : null}
+
+            {items.length > PI_MAX_VEHICLES ? (
+              <p className="mb-3 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-900">
+                当前草稿含 {items.length} 台车辆，超过上限。已保留全部数据 —
+                请删除多余车辆至 8 台以内后再保存或生成 PDF。
+                <br />
+                This draft has {items.length} vehicles (over the limit). Data is
+                preserved — remove vehicles until 8 remain before saving or PDF.
+              </p>
+            ) : null}
 
             <div className="space-y-4">
               {items.map((item, index) => (
@@ -991,12 +1066,17 @@ export default function AdminProformaEditor({
                       </button>
                       <button
                         type="button"
-                        className="rounded border border-slate-200 bg-white px-2 py-1 text-xs"
+                        className="rounded border border-slate-200 bg-white px-2 py-1 text-xs disabled:opacity-50"
+                        disabled={items.length >= PI_MAX_VEHICLES}
                         onClick={() =>
-                          setItems((prev) => [
-                            ...prev,
-                            { ...item, key: uid(), vehicleId: "" },
-                          ])
+                          setItems((prev) =>
+                            prev.length >= PI_MAX_VEHICLES
+                              ? prev
+                              : [
+                                  ...prev,
+                                  { ...item, key: uid(), vehicleId: "" },
+                                ]
+                          )
                         }
                       >
                         复制行

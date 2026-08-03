@@ -260,8 +260,11 @@ export function validateProformaWrite(
   if (!opts?.partial && itemsRaw.length === 0) {
     return { ok: false, error: "请至少添加一辆车辆" };
   }
-  if (itemsRaw.length > 50) {
-    return { ok: false, error: "车辆行数过多" };
+  if (itemsRaw.length > 8) {
+    return {
+      ok: false,
+      error: "一张形式发票最多填写 8 台车辆。/ A Proforma Invoice can contain up to 8 vehicles.",
+    };
   }
 
   const items: ValidatedProformaWrite["items"] = [];
