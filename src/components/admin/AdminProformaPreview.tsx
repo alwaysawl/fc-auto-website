@@ -54,7 +54,7 @@ export type ProformaPreviewModel = {
   notes: string;
 };
 
-/** Compact A4 portrait preview aligned with PDF V2. Exact saved terms — no rewrite. */
+/** A4 portrait preview aligned with PDF V3 (Noto Sans SC / bilingual layout). */
 export default function AdminProformaPreview({
   model,
   compact,
@@ -63,7 +63,7 @@ export default function AdminProformaPreview({
   compact?: boolean;
 }) {
   const terms = model.terms;
-  const dest = [model.destinationCountry, model.destinationPort]
+  const destPort = [model.destinationCountry, model.destinationPort]
     .filter(Boolean)
     .join(" / ");
 
@@ -73,40 +73,44 @@ export default function AdminProformaPreview({
         compact ? "w-full max-w-[210mm]" : "w-[210mm] max-w-full"
       }`}
       style={{
+        fontFamily:
+          '"Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif',
+        aspectRatio: "210 / 297",
         minHeight: compact ? undefined : "297mm",
-        aspectRatio: compact ? "210 / 297" : "210 / 297",
       }}
     >
-      <div className="h-0.5 bg-[#D4AF37]" />
-      <div className="space-y-3 p-4 sm:p-5 text-[11px] leading-snug">
+      <div className="h-[3px] bg-[#D4AF37]" />
+      <div className="space-y-3.5 p-5 sm:p-6 text-[12px] leading-relaxed">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-[#1E293B]">
-              <span className="rounded bg-[#D4AF37] px-1 py-0.5 text-[10px] font-bold text-[#1E293B]">
+          <div className="flex items-start gap-2.5">
+            <div className="flex h-[30px] w-[30px] items-center justify-center rounded bg-[#1E293B]">
+              <span className="rounded bg-[#D4AF37] px-1 py-0.5 text-[11px] font-bold text-[#1E293B]">
                 FC
               </span>
             </div>
             <div>
-              <p className="text-sm font-bold text-[#1E293B]">FC Auto Export</p>
-              <p className="text-[10px] text-slate-500">Used Vehicle Export</p>
+              <p className="text-[15px] font-bold text-[#1E293B]">
+                FC Auto Export
+              </p>
+              <p className="text-[11px] text-slate-500">Used Vehicle Export</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-base font-bold tracking-wide text-[#1E293B]">
+            <p className="text-[18px] font-bold tracking-wide text-[#1E293B]">
               PROFORMA INVOICE
             </p>
-            <p className="text-[10px] font-medium text-[#D4AF37]">
+            <p className="text-[11px] font-medium text-[#D4AF37]">
               {model.company.companyWebsite || "fcautoexport.com"}
             </p>
           </div>
         </div>
 
-        <div className="border-t border-[#D4AF37] pt-2" />
+        <div className="border-t border-[#D4AF37]" />
 
         {/* Identifiers */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Meta label="Invoice No. / 发票编号" value={model.invoiceNumber} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Meta label="Invoice No. / 发票号" value={model.invoiceNumber} />
           <Meta
             label="Contract No. / 合同号"
             value={model.contractNumber || model.invoiceNumber}
@@ -119,71 +123,66 @@ export default function AdminProformaPreview({
         </div>
 
         {/* Seller | Buyer */}
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="rounded bg-slate-50 p-2">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#1E293B]">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-md bg-slate-50 p-3">
+            <p className="mb-2 text-[12px] font-bold text-[#1E293B]">
               Seller / 卖方
             </p>
-            <p className="font-semibold">{model.company.companyName}</p>
-            <p className="mt-0.5 text-[10px] text-slate-600">
-              {model.company.companyAddress}
-            </p>
-            <p className="mt-1">
-              {model.salespersonName || "—"} · {model.salespersonPhone}
-            </p>
-            <p className="text-[10px] text-slate-600">
-              {model.salespersonEmail} · {model.company.companyWebsite}
-            </p>
+            <Field label="Company" value={model.company.companyName} />
+            <Field label="Address" value={model.company.companyAddress} />
+            <Field label="Sales" value={model.salespersonName} />
+            <Field label="Phone" value={model.salespersonPhone} />
+            <Field label="Email" value={model.salespersonEmail} />
+            <Field label="Website" value={model.company.companyWebsite} />
           </div>
-          <div className="rounded bg-slate-50 p-2">
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#1E293B]">
+          <div className="rounded-md bg-slate-50 p-3">
+            <p className="mb-2 text-[12px] font-bold text-[#1E293B]">
               Buyer / 买方
             </p>
-            <p className="font-semibold">{model.customerName || "—"}</p>
+            <Field label="Customer" value={model.customerName || "—"} />
             {model.customerCompany ? (
-              <p>{model.customerCompany}</p>
+              <Field label="Company" value={model.customerCompany} />
             ) : null}
-            <p className="text-[10px] text-slate-600">
-              {[
-                model.customerCountry,
-                model.customerWhatsapp
-                  ? `WA: ${model.customerWhatsapp}`
-                  : null,
-                model.customerEmail,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "—"}
-            </p>
-            {dest ? (
-              <p className="mt-0.5">Destination: {dest}</p>
+            {model.customerCountry ? (
+              <Field label="Country" value={model.customerCountry} />
+            ) : null}
+            {model.customerWhatsapp ? (
+              <Field label="WhatsApp" value={model.customerWhatsapp} />
+            ) : null}
+            {model.customerEmail ? (
+              <Field label="Email" value={model.customerEmail} />
+            ) : null}
+            {destPort ? (
+              <Field label="Destination Port" value={destPort} />
             ) : null}
           </div>
         </div>
 
         {/* Vehicles */}
         <div>
-          <h3 className="mb-1 text-[11px] font-bold text-[#1E293B]">
+          <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
             Vehicle Items / 车辆明细
           </h3>
           <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-[10px]">
+            <table className="min-w-full border-collapse text-[11px]">
               <thead>
                 <tr className="bg-[#1E293B] text-white">
-                  <th className="px-1.5 py-1.5 text-left">No.</th>
-                  <th className="px-1.5 py-1.5 text-left">Brand / Model</th>
-                  <th className="px-1.5 py-1.5 text-left">Year</th>
-                  <th className="px-1.5 py-1.5 text-left">Colour</th>
-                  <th className="px-1.5 py-1.5 text-left">VIN</th>
-                  <th className="px-1.5 py-1.5 text-right">Qty</th>
-                  <th className="px-1.5 py-1.5 text-right">Unit Price</th>
-                  <th className="px-1.5 py-1.5 text-right">Amount</th>
+                  <Th en="No." zh="序号" />
+                  <Th en="Brand" zh="品牌" />
+                  <Th en="Model" zh="型号" />
+                  <Th en="Year" zh="年份" />
+                  <Th en="Colour" zh="颜色" />
+                  <Th en="VIN / Chassis No." zh="VIN / 车架号" />
+                  <Th en="Qty" zh="数量" right />
+                  <Th en="Unit Price" zh="单价" right />
+                  <Th en="Amount" zh="金额" right />
                 </tr>
               </thead>
               <tbody>
                 {model.items.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="border border-slate-200 px-2 py-3 text-center text-slate-400"
                     >
                       暂无车辆
@@ -195,28 +194,31 @@ export default function AdminProformaPreview({
                       key={i}
                       className={i % 2 ? "bg-slate-50" : "bg-white"}
                     >
-                      <td className="border border-slate-200 px-1.5 py-1">
+                      <td className="border border-slate-200 px-1.5 py-1.5">
                         {i + 1}
                       </td>
-                      <td className="border border-slate-200 px-1.5 py-1 font-medium">
-                        {item.brand} {item.model}
+                      <td className="border border-slate-200 px-1.5 py-1.5 font-semibold">
+                        {item.brand}
                       </td>
-                      <td className="border border-slate-200 px-1.5 py-1">
+                      <td className="border border-slate-200 px-1.5 py-1.5">
+                        {item.model}
+                      </td>
+                      <td className="border border-slate-200 px-1.5 py-1.5">
                         {item.year || "—"}
                       </td>
-                      <td className="border border-slate-200 px-1.5 py-1">
+                      <td className="border border-slate-200 px-1.5 py-1.5">
                         {item.colour || "—"}
                       </td>
-                      <td className="border border-slate-200 px-1.5 py-1 font-mono text-[9px]">
+                      <td className="border border-slate-200 px-1.5 py-1.5 font-mono text-[10px]">
                         {item.vin || "—"}
                       </td>
-                      <td className="border border-slate-200 px-1.5 py-1 text-right">
+                      <td className="border border-slate-200 px-1.5 py-1.5 text-right">
                         {item.quantity}
                       </td>
-                      <td className="border border-slate-200 px-1.5 py-1 text-right">
+                      <td className="border border-slate-200 px-1.5 py-1.5 text-right">
                         {formatUsd(item.unitPriceUsd)}
                       </td>
-                      <td className="border border-slate-200 px-1.5 py-1 text-right font-semibold">
+                      <td className="border border-slate-200 px-1.5 py-1.5 text-right font-bold">
                         {formatUsd(item.totalUsd)}
                       </td>
                     </tr>
@@ -228,12 +230,12 @@ export default function AdminProformaPreview({
         </div>
 
         {/* Charges + Summary */}
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <h3 className="mb-1 text-[11px] font-bold text-[#1E293B]">
+            <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
               Other Charges / 其他费用
             </h3>
-            <ul className="space-y-0.5 text-[10px]">
+            <ul className="space-y-1 text-[11px]">
               {model.charges.length === 0 ? (
                 <li className="text-slate-400">—</li>
               ) : (
@@ -243,7 +245,7 @@ export default function AdminProformaPreview({
                       {c.nameEn}
                       {c.nameZh ? ` / ${c.nameZh}` : ""}
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium tabular-nums">
                       {formatUsd(c.amountUsd)}
                     </span>
                   </li>
@@ -251,13 +253,16 @@ export default function AdminProformaPreview({
               )}
             </ul>
           </div>
-          <div className="rounded border border-[#D4AF37] bg-slate-50 p-2 text-[10px]">
+          <div className="rounded-md border border-[#D4AF37] bg-slate-50 p-3 text-[11px]">
+            <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
+              Financial Summary / 金额汇总
+            </h3>
             <SummaryRow
-              label="Vehicle Total / 车辆合计"
+              label="Vehicle Total"
               value={formatUsd(model.vehicleSubtotalUsd)}
             />
             <SummaryRow
-              label="Other Charges / 其他费用"
+              label="Other Charges"
               value={formatUsd(model.chargesTotalUsd)}
             />
             <SummaryRow
@@ -279,54 +284,66 @@ export default function AdminProformaPreview({
 
         {/* Payment */}
         <div>
-          <h3 className="mb-1 text-[11px] font-bold text-[#1E293B]">
+          <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
             Payment Information / 付款信息
           </h3>
-          <div className="grid grid-cols-2 gap-1 text-[10px] sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
             <Meta
               label="Beneficiary / 收款人"
               value={model.payment.fullName || "—"}
             />
-            <Meta label="Bank / 银行" value={model.payment.bankName || "—"} />
             <Meta
-              label="Account / 账号"
+              label="Bank / 开户银行"
+              value={model.payment.bankName || "—"}
+            />
+            <Meta
+              label="Account Number / 银行账号"
               value={model.payment.accountNumber || "—"}
             />
-            <Meta label="SWIFT" value={model.payment.swift || "—"} />
+            <Meta
+              label="SWIFT / SWIFT代码"
+              value={model.payment.swift || "—"}
+            />
           </div>
           {model.payment.bankAddress ? (
-            <p className="mt-1 text-[10px] text-slate-600">
-              Bank Address: {model.payment.bankAddress}
+            <p className="mt-1.5 text-[11px] text-slate-600">
+              Bank Address / 开户行地址: {model.payment.bankAddress}
             </p>
           ) : null}
         </div>
 
-        {/* Terms — exact snapshot */}
+        {/* Terms — English then Chinese on separate lines */}
         {(terms.some((t) => t.enabled) || model.notes) && (
           <div>
-            <h3 className="mb-1 text-[11px] font-bold text-[#1E293B]">
+            <h3 className="mb-1.5 text-[13px] font-bold text-[#1E293B]">
               Terms / 条款
             </h3>
-            <ol className="list-decimal space-y-1 pl-4 text-[10px] text-slate-700">
+            <ol className="list-decimal space-y-2 pl-4 text-[11px] text-slate-800">
               {terms
                 .filter((t) => t.enabled)
                 .map((t) => (
-                  <li key={t.id}>
-                    {t.textEn}
+                  <li key={t.id} className="marker:font-semibold">
+                    {t.textEn ? <p className="leading-relaxed">{t.textEn}</p> : null}
                     {t.textZh ? (
-                      <span className="text-slate-500"> ｜ {t.textZh}</span>
+                      <p className="mt-0.5 leading-relaxed text-slate-500">
+                        {t.textZh}
+                      </p>
                     ) : null}
                   </li>
                 ))}
             </ol>
             {model.notes ? (
-              <p className="mt-1 text-[10px] text-slate-600">{model.notes}</p>
+              <p className="mt-2 text-[11px] text-slate-600">{model.notes}</p>
             ) : null}
           </div>
         )}
 
-        <div className="border-t border-slate-200 pt-2 text-center text-[9px] text-slate-500">
-          FC Auto Export · fcautoexport.com
+        <div className="border-t border-slate-200 pt-2 text-center text-[10px] text-slate-500">
+          <p className="font-bold tracking-wide text-[#1E293B]">
+            FC AUTO EXPORT
+          </p>
+          <p>www.fcautoexport.com</p>
+          <p>Used Vehicle Export</p>
         </div>
       </div>
     </div>
@@ -336,9 +353,37 @@ export default function AdminProformaPreview({
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[9px] text-slate-500">{label}</p>
-      <p className="font-semibold text-[#1E293B]">{value}</p>
+      <p className="text-[10px] text-slate-500">{label}</p>
+      <p className="text-[12px] font-semibold text-[#1E293B]">{value}</p>
     </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <p className="mb-1 text-[11px] leading-snug">
+      <span className="text-slate-500">{label}: </span>
+      <span className="text-[#1E293B]">{value}</span>
+    </p>
+  );
+}
+
+function Th({
+  en,
+  zh,
+  right,
+}: {
+  en: string;
+  zh: string;
+  right?: boolean;
+}) {
+  return (
+    <th
+      className={`px-1.5 py-1.5 ${right ? "text-right" : "text-left"} font-semibold`}
+    >
+      <div className="leading-tight">{en}</div>
+      <div className="text-[9px] font-normal opacity-90">{zh}</div>
+    </th>
   );
 }
 
@@ -354,11 +399,15 @@ function SummaryRow({
   return (
     <div className="flex items-center justify-between gap-2 py-0.5">
       <span
-        className={strong ? "font-semibold text-[#1E293B]" : "text-slate-600"}
+        className={strong ? "font-bold text-[#1E293B]" : "text-slate-600"}
       >
         {label}
       </span>
-      <span className={strong ? "font-bold text-[#1E293B]" : "font-medium"}>
+      <span
+        className={`tabular-nums ${
+          strong ? "font-bold text-[#1E293B]" : "font-medium"
+        }`}
+      >
         {value}
       </span>
     </div>
