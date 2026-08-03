@@ -645,15 +645,8 @@ function drawVehicleTable(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
-  // Absolute fixed Y — never table.finalY / lastAutoTable / cursor after vehicle rows.
-  // There is no AutoTable in this file; vehicle rows are drawn manually above.
-  const CHARGES_TOP_FIXED = 395;
-  if (CHARGES_TOP !== CHARGES_TOP_FIXED) {
-    throw new Error(
-      `CHARGES_TOP drift: layout has ${CHARGES_TOP}, expected ${CHARGES_TOP_FIXED}`
-    );
-  }
-  const y0 = CHARGES_TOP_FIXED;
+  // Absolute fixed Y from shared map (+ CONTENT_Y_OFFSET) — never table.finalY.
+  const y0 = CHARGES_TOP;
   const half = (CONTENT_W - 10) / 2;
   const leftX = MARGIN;
   const rightX = MARGIN + half + 10;
@@ -760,14 +753,8 @@ function drawChargesAndSummary(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawPayment(doc: Pdf, source: ProformaPdfSource) {
-  // Fixed map — never derived from charges height / cursor / finalY.
-  const PAYMENT_TOP_FIXED = 505;
-  if (PAYMENT_TOP !== PAYMENT_TOP_FIXED) {
-    throw new Error(
-      `PAYMENT_TOP drift: layout has ${PAYMENT_TOP}, expected ${PAYMENT_TOP_FIXED}`
-    );
-  }
-  const y0 = PAYMENT_TOP_FIXED;
+  // Fixed map (+ CONTENT_Y_OFFSET) — never derived from cursor / finalY.
+  const y0 = PAYMENT_TOP;
   putText(doc, "Payment Information / 付款信息", MARGIN, y0 + 10, {
     fontSize: PT_SECTION,
     bold: true,
@@ -826,14 +813,8 @@ function drawPayment(doc: Pdf, source: ProformaPdfSource) {
 }
 
 function drawTerms(doc: Pdf, source: ProformaPdfSource) {
-  // Fixed map — never derived from payment height / cursor / finalY.
-  const TERMS_TOP_FIXED = 575;
-  if (TERMS_TOP !== TERMS_TOP_FIXED) {
-    throw new Error(
-      `TERMS_TOP drift: layout has ${TERMS_TOP}, expected ${TERMS_TOP_FIXED}`
-    );
-  }
-  let y = TERMS_TOP_FIXED + 10;
+  // Fixed map (+ CONTENT_Y_OFFSET) — never derived from cursor / finalY.
+  let y = TERMS_TOP + 10;
   putText(doc, "Terms / 条款", MARGIN, y, {
     fontSize: PT_SECTION,
     bold: true,

@@ -17,21 +17,27 @@ export const HEADER_TOP = 24;
 export const HEADER_HEIGHT = 48;
 export const HEADER_BOTTOM = HEADER_TOP + HEADER_HEIGHT; // 72
 
+/**
+ * Shared downward shift for every section below the header.
+ * Header and footer stay fixed; relative gaps between content sections unchanged.
+ */
+export const CONTENT_Y_OFFSET = 12;
+
 /** —— Invoice / Seller / Buyer —— */
-export const INFO_TOP = 78;
+export const INFO_TOP = 78 + CONTENT_Y_OFFSET; // 90
 /** Seller/Buyer band (complete wrap + ~6–7pt pad); must stay above vehicle title. */
 export const INFO_HEIGHT = 100;
-export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 178
+export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 190
 
 /** —— Vehicle title + fixed 8-row table —— */
-export const VEHICLE_TITLE_TOP = 178;
+export const VEHICLE_TITLE_TOP = 178 + CONTENT_Y_OFFSET; // 190
 export const VEHICLE_TITLE_HEIGHT = 16;
 
 /**
  * Table top shifted up 3pt so header can grow 3pt while
- * VEHICLE_TABLE_BOTTOM and body row height stay unchanged.
+ * body row height stays fixed; bottom follows CONTENT_Y_OFFSET with the rest.
  */
-export const VEHICLE_TABLE_TOP = 195;
+export const VEHICLE_TABLE_TOP = 195 + CONTENT_Y_OFFSET; // 207
 export const VEHICLE_HEADER_HEIGHT = 28;
 export const VEHICLE_ROW_HEIGHT = 20;
 export const VEHICLE_ROW_COUNT = 8;
@@ -40,22 +46,23 @@ export const VEHICLE_TABLE_HEIGHT =
   VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT; // 188
 
 export const VEHICLE_TABLE_BOTTOM =
-  VEHICLE_TABLE_TOP + VEHICLE_TABLE_HEIGHT; // 383
+  VEHICLE_TABLE_TOP + VEHICLE_TABLE_HEIGHT; // 395
 
 /** —— Lower sections (gap = 12 pt after table / blocks) —— */
 export const SECTION_GAP = 12;
 
-export const CHARGES_TOP = VEHICLE_TABLE_BOTTOM + SECTION_GAP; // 395
+export const CHARGES_TOP = VEHICLE_TABLE_BOTTOM + SECTION_GAP; // 407
 export const CHARGES_HEIGHT = 98;
-export const CHARGES_BOTTOM = CHARGES_TOP + CHARGES_HEIGHT; // 493
+export const CHARGES_BOTTOM = CHARGES_TOP + CHARGES_HEIGHT; // 505
 
-export const PAYMENT_TOP = CHARGES_BOTTOM + SECTION_GAP; // 505
+export const PAYMENT_TOP = CHARGES_BOTTOM + SECTION_GAP; // 517
 export const PAYMENT_HEIGHT = 58;
-export const PAYMENT_BOTTOM = PAYMENT_TOP + PAYMENT_HEIGHT; // 563
+export const PAYMENT_BOTTOM = PAYMENT_TOP + PAYMENT_HEIGHT; // 575
 
-export const TERMS_TOP = PAYMENT_BOTTOM + SECTION_GAP; // 575
-export const TERMS_MAX_BOTTOM = 755;
+export const TERMS_TOP = PAYMENT_BOTTOM + SECTION_GAP; // 587
+export const TERMS_MAX_BOTTOM = 755 + CONTENT_Y_OFFSET; // 767
 
+/** Footer stays fixed — blank space above absorbs CONTENT_Y_OFFSET. */
 export const FOOTER_TOP = 800;
 export const FOOTER_HEIGHT = 24;
 
