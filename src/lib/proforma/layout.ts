@@ -1,103 +1,115 @@
 /**
- * Fixed one-page A4 Proforma Invoice layout constants.
- * Exactly 8 vehicle slots — no dynamic pagination.
- *
- * SINGLE SOURCE OF TRUTH for vehicle table height:
- *   VEHICLE_TABLE_HEIGHT =
- *     VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT
- *
- * Never derive table height from item count, text wrap, or rendered content.
+ * Explicit A4 Proforma Invoice coordinate map (points).
+ * Single source of truth for PDF + Preview — no content-based height.
  */
 
-export const PI_PAGE_W = 595.28;
-export const PI_PAGE_H = 841.89;
-export const PI_MARGIN = 26;
-export const PI_CONTENT_W = PI_PAGE_W - PI_MARGIN * 2;
+export const PAGE_WIDTH = 595.28;
+export const PAGE_HEIGHT = 841.89;
+export const PI_PAGE_W = PAGE_WIDTH;
+export const PI_PAGE_H = PAGE_HEIGHT;
 
-/** —— Vehicle table (one source of truth) —— */
+/** Horizontal page margin (pt). */
+export const PI_MARGIN = 28;
+export const PI_CONTENT_W = PAGE_WIDTH - PI_MARGIN * 2;
+
+/** —— Header (logo / title / contacts only) —— */
+export const HEADER_TOP = 24;
+export const HEADER_HEIGHT = 48;
+export const HEADER_BOTTOM = HEADER_TOP + HEADER_HEIGHT; // 72
+
+/** —— Invoice / Seller / Buyer —— */
+export const INFO_TOP = 78;
+export const INFO_HEIGHT = 92;
+export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 170
+
+/** —— Vehicle title + fixed 8-row table —— */
+export const VEHICLE_TITLE_TOP = 178;
+export const VEHICLE_TITLE_HEIGHT = 16;
+
+export const VEHICLE_TABLE_TOP = 198;
+export const VEHICLE_HEADER_HEIGHT = 25;
+export const VEHICLE_ROW_HEIGHT = 20;
 export const VEHICLE_ROW_COUNT = 8;
-export const VEHICLE_HEADER_HEIGHT = 22;
-export const VEHICLE_ROW_HEIGHT = 28;
-export const VEHICLE_TABLE_HEIGHT =
-  VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT;
 
-/** Hard business limit — never more than 8 vehicles on a proforma. */
-export const PI_VEHICLE_ROW_COUNT = VEHICLE_ROW_COUNT;
-export const PI_MAX_VEHICLES = VEHICLE_ROW_COUNT;
+export const VEHICLE_TABLE_HEIGHT =
+  VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT; // 185
+
+export const VEHICLE_TABLE_BOTTOM =
+  VEHICLE_TABLE_TOP + VEHICLE_TABLE_HEIGHT; // 383
+
+/** —— Lower sections (gap = 12 pt after table / blocks) —— */
+export const SECTION_GAP = 12;
+
+export const CHARGES_TOP = VEHICLE_TABLE_BOTTOM + SECTION_GAP; // 395
+export const CHARGES_HEIGHT = 98;
+export const CHARGES_BOTTOM = CHARGES_TOP + CHARGES_HEIGHT; // 493
+
+export const PAYMENT_TOP = CHARGES_BOTTOM + SECTION_GAP; // 505
+export const PAYMENT_HEIGHT = 58;
+export const PAYMENT_BOTTOM = PAYMENT_TOP + PAYMENT_HEIGHT; // 563
+
+export const TERMS_TOP = PAYMENT_BOTTOM + SECTION_GAP; // 575
+export const TERMS_MAX_BOTTOM = 755;
+
+export const FOOTER_TOP = 800;
+export const FOOTER_HEIGHT = 24;
+
+/** Absolute Y of body row `index` (0..7). */
+export function vehicleRowTop(index: number): number {
+  return (
+    VEHICLE_TABLE_TOP + VEHICLE_HEADER_HEIGHT + index * VEHICLE_ROW_HEIGHT
+  );
+}
+
+export function vehicleTableBottom(): number {
+  return VEHICLE_TABLE_BOTTOM;
+}
+
+/** —— Aliases for existing call sites —— */
+export const PI_MARGIN_ALIAS = PI_MARGIN;
+export const PI_CONTENT_W_ALIAS = PI_CONTENT_W;
+export const PI_HEADER_TOP = HEADER_TOP;
+export const PI_META_TOP = INFO_TOP;
+export const PI_META_MAX_H = INFO_HEIGHT;
+export const PI_VEHICLE_TITLE_TOP = VEHICLE_TITLE_TOP;
+export const PI_VEHICLE_TABLE_TOP = VEHICLE_TABLE_TOP;
 export const PI_VEHICLE_HEADER_H = VEHICLE_HEADER_HEIGHT;
 export const PI_VEHICLE_ROW_H = VEHICLE_ROW_HEIGHT;
+export const PI_VEHICLE_ROW_COUNT = VEHICLE_ROW_COUNT;
+export const PI_VEHICLE_TABLE_H = VEHICLE_TABLE_HEIGHT;
 export const PI_VEHICLE_TABLE_BODY_H =
   VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT;
-export const PI_VEHICLE_TABLE_H = VEHICLE_TABLE_HEIGHT;
-
-/**
- * Fixed vertical region tops (pt from page top).
- * Do not recalculate these from content height.
- */
-export const PI_HEADER_TOP = PI_MARGIN;
-export const PI_META_TOP = 42;
-/** Compact seller/buyer band — one-line fields only. */
-export const PI_META_MAX_H = 55;
-export const PI_VEHICLE_TITLE_TOP = PI_META_TOP + PI_META_MAX_H + 2;
-export const PI_VEHICLE_TABLE_TOP = PI_VEHICLE_TITLE_TOP + 8;
-
-/** Canonical aliases matching the layout contract. */
-export const VehicleTableTop = PI_VEHICLE_TABLE_TOP;
-export const VehicleTableHeight = VEHICLE_TABLE_HEIGHT;
-
-/** Absolute Y of the bottom edge of the fixed vehicle table. */
-export function vehicleTableBottom(): number {
-  return VehicleTableTop + VehicleTableHeight;
-}
-
-/** Absolute Y of row `index` (0..7) top edge — index-based, never accumulated. */
-export function vehicleRowTop(index: number): number {
-  return VehicleTableTop + VEHICLE_HEADER_HEIGHT + index * VEHICLE_ROW_HEIGHT;
-}
-
-/** 10pt gaps between major lower sections. */
-export const PI_SECTION_GAP = 10;
-
-/**
- * Other Charges begins ONLY at:
- *   VehicleTableTop + VEHICLE_TABLE_HEIGHT + GAP
- * Never from measured draw Y or item count.
- */
-export const PI_CHARGES_TOP = vehicleTableBottom() + PI_SECTION_GAP;
-export const PI_CHARGES_MAX_H = 78;
-export const PI_CHARGES_BOTTOM = PI_CHARGES_TOP + PI_CHARGES_MAX_H;
-
-export const PI_PAYMENT_TOP = PI_CHARGES_BOTTOM + PI_SECTION_GAP;
-export const PI_PAYMENT_MAX_H = 56;
-export const PI_PAYMENT_BOTTOM = PI_PAYMENT_TOP + PI_PAYMENT_MAX_H;
-
-export const PI_TERMS_TOP = PI_PAYMENT_BOTTOM + PI_SECTION_GAP;
-
-export const ChargesTop = PI_CHARGES_TOP;
-export const PaymentTop = PI_PAYMENT_TOP;
-export const TermsTop = PI_TERMS_TOP;
-
-/** Footer stays anchored near the bottom of A4. */
-export const PI_FOOTER_TOP = PI_PAGE_H - 34;
-export const FooterTop = PI_FOOTER_TOP;
-
-/** Terms must end before this Y (breathing room above footer). */
-export const PI_TERMS_BOTTOM_LIMIT = PI_FOOTER_TOP - 18;
-export const PI_TERMS_MAX_H = PI_TERMS_BOTTOM_LIMIT - PI_TERMS_TOP;
-
-/** @deprecated aliases kept for older imports */
+export const PI_MAX_VEHICLES = VEHICLE_ROW_COUNT;
+export const PI_SECTION_GAP = SECTION_GAP;
+export const PI_CHARGES_TOP = CHARGES_TOP;
+export const PI_CHARGES_MAX_H = CHARGES_HEIGHT;
+export const PI_CHARGES_BOTTOM = CHARGES_BOTTOM;
+export const PI_PAYMENT_TOP = PAYMENT_TOP;
+export const PI_PAYMENT_MAX_H = PAYMENT_HEIGHT;
+export const PI_PAYMENT_BOTTOM = PAYMENT_BOTTOM;
+export const PI_TERMS_TOP = TERMS_TOP;
+export const PI_FOOTER_TOP = FOOTER_TOP;
+export const PI_TERMS_BOTTOM_LIMIT = TERMS_MAX_BOTTOM;
+export const PI_TERMS_MAX_H = TERMS_MAX_BOTTOM - TERMS_TOP;
+export const PI_CONTENT_BOTTOM = TERMS_MAX_BOTTOM;
+export const PI_FOOTER_RESERVE = PAGE_HEIGHT - FOOTER_TOP;
 export const PI_PAGE1_TARGET_ROWS = VEHICLE_ROW_COUNT;
 export const PI_BASE_ROW_H = VEHICLE_ROW_HEIGHT;
 export const PI_ROW_H = VEHICLE_ROW_HEIGHT;
 export const PI_TABLE_HEADER_H = VEHICLE_HEADER_HEIGHT;
-export const PI_CONTENT_BOTTOM = PI_TERMS_BOTTOM_LIMIT;
-export const PI_FOOTER_RESERVE = PI_PAGE_H - PI_FOOTER_TOP;
+
+export const VehicleTableTop = VEHICLE_TABLE_TOP;
+export const VehicleTableHeight = VEHICLE_TABLE_HEIGHT;
+export const ChargesTop = CHARGES_TOP;
+export const PaymentTop = PAYMENT_TOP;
+export const TermsTop = TERMS_TOP;
+export const FooterTop = FOOTER_TOP;
 
 export const PI_GAP = {
-  tableToCharges: PI_SECTION_GAP,
-  chargesToPayment: PI_SECTION_GAP,
-  paymentToTerms: PI_SECTION_GAP,
-  termsToFooter: 18,
+  tableToCharges: SECTION_GAP,
+  chargesToPayment: SECTION_GAP,
+  paymentToTerms: SECTION_GAP,
+  termsToFooter: FOOTER_TOP - TERMS_MAX_BOTTOM,
   moreNotice: 0,
 } as const;
 
@@ -116,7 +128,6 @@ export function compactPaymentValue(value?: string | null): string {
   return t || "—";
 }
 
-/** Approximate wrapped line count (used only for terms overflow check). */
 export function estimateWrappedLines(
   text: string,
   maxWidth: number,
@@ -144,7 +155,7 @@ export function estimateTermsHeight(
   notes?: string | null
 ): number {
   const lineH = 7.5 + 1.3;
-  let h = 10; // title
+  let h = 10;
   terms.forEach((t, i) => {
     if (t.textEn) {
       h +=
@@ -169,7 +180,6 @@ export type ProformaFitCheck = {
   errorEn?: string;
 };
 
-/** Block PDF when >8 vehicles or terms exceed the fixed Terms band. */
 export function checkProformaOnePageFit(input: {
   vehicleCount: number;
   enabledTerms: Array<{ textEn: string; textZh: string }>;
@@ -193,16 +203,9 @@ export function checkProformaOnePageFit(input: {
   return { ok: true };
 }
 
-/**
- * Pad/truncate display slots to exactly 8 for the fixed table.
- * Does not mutate saved invoice data — display only.
- */
-export function fixedVehicleSlots<T>(
-  items: T[],
-  empty: () => T
-): T[] {
+export function fixedVehicleSlots<T>(items: T[], empty: () => T): T[] {
   const slots: T[] = [];
-  for (let i = 0; i < PI_VEHICLE_ROW_COUNT; i++) {
+  for (let i = 0; i < VEHICLE_ROW_COUNT; i++) {
     slots.push(items[i] ?? empty());
   }
   return slots;
