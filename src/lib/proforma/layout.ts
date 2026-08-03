@@ -4,7 +4,7 @@
  */
 
 /** Non-visual diagnostic marker — inspect DOM/data attribute or console on PDF download. */
-export const PROFORMA_LAYOUT_VERSION = "body-shift-25-v7";
+export const PROFORMA_LAYOUT_VERSION = "compact-header-gap-v8";
 
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
@@ -15,46 +15,30 @@ export const PI_PAGE_H = PAGE_HEIGHT;
 export const PI_MARGIN = 28;
 export const PI_CONTENT_W = PAGE_WIDTH - PI_MARGIN * 2;
 
-/** —— Header (logo / title / contacts only) — FIXED, do not shift —— */
+/** —— Header (logo / title / contacts only) — FIXED —— */
 export const HEADER_TOP = 24;
 export const HEADER_HEIGHT = 48;
 export const HEADER_BOTTOM = HEADER_TOP + HEADER_HEIGHT; // 72
 
 /**
- * Shared downward shift for the entire invoice body (below header divider).
- * Header and footer stay fixed. +25pt from prior 18 so Seller/Buyer/Invoice
- * and everything below are less crowded under the gold header rule.
+ * Gap below the first gold divider before Seller / Buyer / Invoice Information.
+ * Target ~12–16pt (not the previous ~49pt waste).
  */
-export const BODY_OFFSET_Y = 43;
+export const HEADER_TO_INFO_GAP = 14;
 
-/** Extra space between the info band and Vehicle Items title. */
-export const INFO_TO_VEHICLE_GAP = 10;
-
-/** Base Y positions (pre-offset) for the body group. */
-export const BASE_INFO_TOP = 78;
-export const BASE_VEHICLE_TITLE_TOP = 178 + INFO_TO_VEHICLE_GAP; // 188
-export const BASE_VEHICLE_TABLE_TOP = 195 + INFO_TO_VEHICLE_GAP; // 205
+/** Compact readable line-height inside the top info columns. */
+export const INFO_LINE_HEIGHT = 1.12;
 
 /**
  * Top information band — three horizontal columns:
  * Seller | Buyer | Invoice Information
  */
-export const INFO_TOP = BASE_INFO_TOP + BODY_OFFSET_Y; // 121
-/** Seller/Buyer/Invoice band; must stay above vehicle title. */
-export const INFO_HEIGHT = 100;
-export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 221
+export const INFO_TOP = HEADER_BOTTOM + HEADER_TO_INFO_GAP; // 86
+export const INFO_HEIGHT = 98;
+export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 184
 
 export const INFO_COL_COUNT = 3;
-
-/** Horizontal gap between the three info columns (pt). */
 export const INFO_COL_GAP = 6;
-
-/**
- * Unequal info columns — Invoice Information needs more room for full
- * invoice/contract numbers (no ellipsis). Fractions of the width remaining
- * after INFO_COL_GAP × 2.
- * Seller | Buyer | Invoice Information
- */
 export const INFO_COL_FRACTIONS = [0.3, 0.28, 0.42] as const;
 
 const INFO_COLS_INNER_W = PI_CONTENT_W - INFO_COL_GAP * (INFO_COL_COUNT - 1);
@@ -63,10 +47,8 @@ export function infoColWidth(index: 0 | 1 | 2): number {
   return INFO_COLS_INNER_W * INFO_COL_FRACTIONS[index];
 }
 
-/** Equal-third width kept for callers that only need an approximate band. */
 export const INFO_COL_W = PI_CONTENT_W / INFO_COL_COUNT;
 
-/** Absolute left X of info column `index` (0=Seller, 1=Buyer, 2=Invoice). */
 export function infoColLeft(index: 0 | 1 | 2): number {
   let x = PI_MARGIN;
   for (let i = 0; i < index; i++) {
@@ -75,14 +57,13 @@ export function infoColLeft(index: 0 | 1 | 2): number {
   return x;
 }
 
-/** —— Vehicle title + fixed 8-row table —— */
-export const VEHICLE_TITLE_TOP = BASE_VEHICLE_TITLE_TOP + BODY_OFFSET_Y; // 231
-export const VEHICLE_TITLE_HEIGHT = 16;
+/** Tight gap: info gold rule → Vehicle Items title. */
+export const INFO_TO_VEHICLE_GAP = 6;
 
-/**
- * Table geometry: body row height fixed; tops follow BODY_OFFSET_Y with the body group.
- */
-export const VEHICLE_TABLE_TOP = BASE_VEHICLE_TABLE_TOP + BODY_OFFSET_Y; // 248
+/** —— Vehicle title + fixed 8-row table —— */
+export const VEHICLE_TITLE_TOP = INFO_BOTTOM + INFO_TO_VEHICLE_GAP; // 190
+export const VEHICLE_TITLE_HEIGHT = 14;
+export const VEHICLE_TABLE_TOP = VEHICLE_TITLE_TOP + VEHICLE_TITLE_HEIGHT; // 204
 export const VEHICLE_HEADER_HEIGHT = 28;
 export const VEHICLE_ROW_HEIGHT = 20;
 export const VEHICLE_ROW_COUNT = 8;
@@ -91,31 +72,34 @@ export const VEHICLE_TABLE_HEIGHT =
   VEHICLE_HEADER_HEIGHT + VEHICLE_ROW_HEIGHT * VEHICLE_ROW_COUNT; // 188
 
 export const VEHICLE_TABLE_BOTTOM =
-  VEHICLE_TABLE_TOP + VEHICLE_TABLE_HEIGHT; // 436
+  VEHICLE_TABLE_TOP + VEHICLE_TABLE_HEIGHT; // 392
 
-/** —— Lower sections (gap = 12 pt after table / blocks) —— */
-export const SECTION_GAP = 12;
+/** Tighter vertical rhythm below the vehicle table. */
+export const SECTION_GAP = 8;
 
-export const CHARGES_TOP = VEHICLE_TABLE_BOTTOM + SECTION_GAP; // 448
+export const CHARGES_TOP = VEHICLE_TABLE_BOTTOM + SECTION_GAP; // 400
 export const CHARGES_HEIGHT = 98;
-export const CHARGES_BOTTOM = CHARGES_TOP + CHARGES_HEIGHT; // 546
+export const CHARGES_BOTTOM = CHARGES_TOP + CHARGES_HEIGHT; // 498
 
-export const PAYMENT_TOP = CHARGES_BOTTOM + SECTION_GAP; // 558
+export const PAYMENT_TOP = CHARGES_BOTTOM + SECTION_GAP; // 506
 export const PAYMENT_HEIGHT = 58;
-export const PAYMENT_BOTTOM = PAYMENT_TOP + PAYMENT_HEIGHT; // 616
+export const PAYMENT_BOTTOM = PAYMENT_TOP + PAYMENT_HEIGHT; // 564
 
-export const TERMS_TOP = PAYMENT_BOTTOM + SECTION_GAP; // 628
+export const TERMS_TOP = PAYMENT_BOTTOM + SECTION_GAP; // 572
 
-/** Footer stays fixed. */
+/** Footer fixed; terms use all remaining space above it. */
 export const FOOTER_TOP = 800;
 export const FOOTER_HEIGHT = 24;
+export const TERMS_FOOTER_GAP = 20;
+export const TERMS_MAX_BOTTOM = FOOTER_TOP - TERMS_FOOTER_GAP; // 780
 
-/**
- * Terms may extend into former headroom above the footer; keep a balanced
- * ~27pt gap above the fixed footer so one-page fit is preserved.
- */
-export const TERMS_MAX_BOTTOM = FOOTER_TOP - 27; // 773
-export const BASE_TERMS_MAX_BOTTOM = TERMS_MAX_BOTTOM - BODY_OFFSET_Y;
+/** Compatibility aliases (no extra body offset). */
+export const BODY_OFFSET_Y = 0;
+export const BASE_INFO_TOP = INFO_TOP;
+export const BASE_VEHICLE_TITLE_TOP = VEHICLE_TITLE_TOP;
+export const BASE_VEHICLE_TABLE_TOP = VEHICLE_TABLE_TOP;
+export const BASE_TERMS_MAX_BOTTOM = TERMS_MAX_BOTTOM;
+export const INFO_TO_VEHICLE_GAP_ALIAS = INFO_TO_VEHICLE_GAP;
 
 /** Absolute Y of body row `index` (0..7). */
 export function vehicleRowTop(index: number): number {
@@ -217,9 +201,10 @@ export function estimateTermsHeight(
   terms: Array<{ textEn: string; textZh: string }>,
   notes?: string | null
 ): number {
-  const enLineH = 9 * 1.25;
-  const zhLineH = 8.5 * 1.25;
-  let h = 13;
+  // Match compact drawTerms spacing (≈1.18 line-height, tight gaps).
+  const enLineH = 9 * 1.18;
+  const zhLineH = 8.5 * 1.18;
+  let h = 12;
   terms.forEach((t, i) => {
     if (t.textEn) {
       h +=
@@ -229,7 +214,7 @@ export function estimateTermsHeight(
     }
     if (t.textZh) {
       h +=
-        estimateWrappedLines(t.textZh, PI_CONTENT_W - 8, 8.5) * zhLineH + 3;
+        estimateWrappedLines(t.textZh, PI_CONTENT_W - 8, 8.5) * zhLineH + 2;
     }
   });
   if (notes?.trim()) {
@@ -244,6 +229,11 @@ export type ProformaFitCheck = {
   errorEn?: string;
 };
 
+/**
+ * One-page fit: vehicle count is hard. Terms use remaining height after the
+ * compacted body; only reject when still clearly over after a small tolerance
+ * (estimate vs real wrap can differ slightly).
+ */
 export function checkProformaOnePageFit(input: {
   vehicleCount: number;
   enabledTerms: Array<{ textEn: string; textZh: string }>;
@@ -257,7 +247,9 @@ export function checkProformaOnePageFit(input: {
     };
   }
   const termsH = estimateTermsHeight(input.enabledTerms, input.notes);
-  if (termsH > PI_TERMS_MAX_H) {
+  const available = Math.max(0, TERMS_MAX_BOTTOM - TERMS_TOP);
+  // Allow small estimate slack — unused upper spacing was reclaimed into terms.
+  if (termsH > available + 12) {
     return {
       ok: false,
       errorZh: PI_TERMS_OVERFLOW_ZH,

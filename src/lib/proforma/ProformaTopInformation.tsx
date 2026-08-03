@@ -20,6 +20,7 @@ import {
   INFO_COL_FRACTIONS,
   INFO_COL_GAP,
   INFO_HEIGHT,
+  INFO_LINE_HEIGHT,
   INFO_TOP,
   PI_MARGIN,
   infoColWidth,
@@ -62,8 +63,8 @@ function AlignedFieldRow({
 }) {
   return (
     <div
-      className={rowClassName ?? "relative mb-[1.5pt]"}
-      style={{ lineHeight: 1.18, minHeight: pt(10) }}
+      className={rowClassName ?? "relative mb-[1pt]"}
+      style={{ lineHeight: INFO_LINE_HEIGHT, minHeight: pt(9) }}
     >
       <p
         className={labelClassName}
@@ -72,7 +73,7 @@ function AlignedFieldRow({
           left: 0,
           width: pt(layout.maxLabelWidth),
           textAlign: "left",
-          lineHeight: 1.18,
+          lineHeight: INFO_LINE_HEIGHT,
           margin: 0,
           overflow: "hidden",
           whiteSpace: "nowrap",
@@ -86,7 +87,7 @@ function AlignedFieldRow({
         style={{
           position: "absolute",
           left: pt(layout.colonX),
-          lineHeight: 1.18,
+          lineHeight: INFO_LINE_HEIGHT,
           margin: 0,
           whiteSpace: "pre",
         }}
@@ -98,7 +99,7 @@ function AlignedFieldRow({
         style={{
           marginLeft: pt(layout.valueX),
           maxWidth: pt(alignedValueMaxWidth(layout, infoColWidth(0))),
-          lineHeight: 1.18,
+          lineHeight: INFO_LINE_HEIGHT,
           ...valueStyle,
         }}
       >
@@ -131,15 +132,15 @@ function ImmediateColonField({
   const layout = layoutImmediateColon(label, fontSize);
   return (
     <div
-      className={rowClassName ?? "relative mb-[1.5pt]"}
-      style={{ lineHeight: 1.18, minHeight: pt(10) }}
+      className={rowClassName ?? "relative mb-[1pt]"}
+      style={{ lineHeight: INFO_LINE_HEIGHT, minHeight: pt(9) }}
     >
       <p
         className={labelClassName}
         style={{
           position: "absolute",
           left: 0,
-          lineHeight: 1.18,
+          lineHeight: INFO_LINE_HEIGHT,
           margin: 0,
           whiteSpace: "nowrap",
         }}
@@ -152,7 +153,7 @@ function ImmediateColonField({
         style={{
           position: "absolute",
           left: pt(layout.colonX),
-          lineHeight: 1.18,
+          lineHeight: INFO_LINE_HEIGHT,
           margin: 0,
           whiteSpace: "pre",
         }}
@@ -164,7 +165,7 @@ function ImmediateColonField({
         style={{
           marginLeft: pt(layout.valueX),
           maxWidth: pt(alignedValueMaxWidth(layout, columnWidth)),
-          lineHeight: 1.18,
+          lineHeight: INFO_LINE_HEIGHT,
           ...valueStyle,
         }}
       >
@@ -187,16 +188,6 @@ function SellerPartyField({
       layout={layout}
       labelClassName="text-[8.5pt] font-bold text-slate-500"
       valueClassName="min-w-0 break-words text-[8.5pt] font-normal text-[#1E293B]"
-      valueStyle={
-        field.maxLines
-          ? {
-              display: "-webkit-box",
-              WebkitLineClamp: field.maxLines,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }
-          : undefined
-      }
     >
       {field.value || "—"}
     </AlignedFieldRow>
@@ -235,16 +226,6 @@ function BuyerField({ field }: { field: TopInfoPartyField }) {
       columnWidth={infoColWidth(1)}
       labelClassName="text-[8.5pt] font-bold text-slate-500"
       valueClassName="min-w-0 break-words text-[8.5pt] font-normal text-[#1E293B]"
-      valueStyle={
-        field.maxLines
-          ? {
-              display: "-webkit-box",
-              WebkitLineClamp: field.maxLines,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }
-          : undefined
-      }
     >
       {field.value || "—"}
     </ImmediateColonField>
@@ -268,7 +249,7 @@ function InvoiceMetaField({ field }: { field: TopInfoMetaField }) {
 
 function ColumnTitle({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-[4pt] text-[9.5pt] font-bold text-[#1E293B]">{children}</p>
+    <p className="mb-[2.5pt] text-[9.5pt] font-bold text-[#1E293B]">{children}</p>
   );
 }
 
@@ -293,7 +274,7 @@ export function ProformaTopInformationView({
         top: pt(INFO_TOP),
         height: pt(INFO_HEIGHT),
         boxSizing: "border-box",
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       <div
@@ -303,13 +284,13 @@ export function ProformaTopInformationView({
             " "
           ),
           columnGap: pt(INFO_COL_GAP),
-          lineHeight: 1.18,
+          lineHeight: INFO_LINE_HEIGHT,
           minHeight: "100%",
-          paddingBottom: pt(6.5),
+          paddingBottom: pt(4),
           boxSizing: "border-box",
         }}
       >
-        <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
+        <div style={{ lineHeight: INFO_LINE_HEIGHT, overflow: "visible" }}>
           <ColumnTitle>{data.seller.title}</ColumnTitle>
           {data.seller.fields.map((f, i) =>
             f.kind === "address" ? (
@@ -320,14 +301,14 @@ export function ProformaTopInformationView({
           )}
         </div>
 
-        <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
+        <div style={{ lineHeight: INFO_LINE_HEIGHT, overflow: "visible" }}>
           <ColumnTitle>{data.buyer.title}</ColumnTitle>
           {data.buyer.fields.map((f, i) => (
             <BuyerField key={i} field={f} />
           ))}
         </div>
 
-        <div style={{ lineHeight: 1.18, overflow: "hidden" }}>
+        <div style={{ lineHeight: INFO_LINE_HEIGHT, overflow: "visible" }}>
           <ColumnTitle>{data.invoice.title}</ColumnTitle>
           {data.invoice.fields.map((f, i) => (
             <InvoiceMetaField key={i} field={f} />

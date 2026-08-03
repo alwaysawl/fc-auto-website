@@ -61,7 +61,7 @@ const PT_ZH = 8.5;
 const PT_LABEL = 8.5;
 const PT_SECTION = 9.5;
 const PT_FOOTER = 7.5;
-const PT_LINE_HEIGHT = 1.18;
+const PT_LINE_HEIGHT = 1.12;
 
 const MARGIN = PI_MARGIN;
 const PAGE_W = PAGE_WIDTH;

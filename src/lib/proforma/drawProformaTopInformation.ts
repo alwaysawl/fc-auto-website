@@ -43,8 +43,8 @@ const PT_LABEL = 8.5;
 const PT_PARTY = 8.5;
 const PT_META_LABEL = 9;
 const PT_META_VALUE = 9.5;
-const PT_LINE_HEIGHT = 1.18;
-const INFO_BOTTOM_PAD = 6.5;
+const PT_LINE_HEIGHT = 1.12;
+const INFO_BOTTOM_PAD = 4;
 
 const MARGIN = PI_MARGIN;
 const CONTENT_W = PI_CONTENT_W;
@@ -372,7 +372,7 @@ export function drawProformaTopInformation(
       buyerColW,
       {
         maxLines: field.maxLines ?? 99,
-        ellipsis: true,
+        ellipsis: false,
       }
     );
   }
@@ -391,9 +391,8 @@ export function drawProformaTopInformation(
       {
         labelSize: PT_META_LABEL,
         valueSize: PT_META_VALUE,
-        maxLines: 2,
+        maxLines: 3,
         ellipsis: false,
-        rowStep: 12.5,
       }
     );
   }
