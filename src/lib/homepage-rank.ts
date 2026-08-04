@@ -3,6 +3,9 @@ import type { Vehicle } from "@/lib/types";
 /** Max vehicles shown on homepage Popular Models / allowed as featured. */
 export const HOMEPAGE_SHOWCASE_LIMIT = 4;
 
+/** Max vehicles shown on homepage Latest Vehicles (newest listed). */
+export const HOMEPAGE_LATEST_LIMIT = 6;
+
 export const HOMEPAGE_MAX_FEATURED_MESSAGE =
   "首页最多展示4台推荐车辆，请先移除一台。";
 

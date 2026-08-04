@@ -3,7 +3,7 @@ import { getTranslations, getReviewText } from "@/lib/translations";
 import { getReviews } from "@/lib/data";
 import {
   dbGetHomepageShowcaseVehicles,
-  dbGetPublicVehicles,
+  dbGetLatestPublicVehicles,
 } from "@/lib/supabase/vehicle-queries";
 import { getLocalizedPath } from "@/lib/i18n";
 import HeroBanner from "@/components/HeroBanner";
@@ -43,14 +43,15 @@ export default async function HomePage({
   const t = getTranslations(locale);
   const reviews = getReviews();
 
-  let publicVehicles: Awaited<ReturnType<typeof dbGetPublicVehicles>> = [];
+  let latestVehicles: Awaited<ReturnType<typeof dbGetLatestPublicVehicles>> =
+    [];
   let showcaseVehicles: Awaited<
     ReturnType<typeof dbGetHomepageShowcaseVehicles>
   > = [];
   try {
-    // status = '在售' only — sold/draft/unavailable never included
-    publicVehicles = await dbGetPublicVehicles();
-    // featured = true ORDER BY homepage_rank ASC, max 4
+    // Latest Vehicles: status = 在售, ORDER BY created_at DESC, max 6
+    latestVehicles = await dbGetLatestPublicVehicles();
+    // Popular Models: featured = true ORDER BY homepage_rank ASC, max 4
     showcaseVehicles = await dbGetHomepageShowcaseVehicles();
   } catch (err) {
     console.error(
@@ -58,8 +59,6 @@ export default async function HomePage({
       err instanceof Error ? err.message : err
     );
   }
-
-  const featuredVehicles = publicVehicles.filter((v) => v.featured);
 
   return (
     <>
@@ -127,7 +126,7 @@ export default async function HomePage({
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredVehicles.map((vehicle) => (
+            {latestVehicles.map((vehicle) => (
               <VehicleCard
                 key={vehicle.id}
                 vehicle={vehicle}

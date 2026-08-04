@@ -63,6 +63,7 @@ import "server-only";
 import { getSupabaseAdmin } from "./admin";
 import type { Vehicle, ShippingTier } from "@/lib/types";
 import {
+  HOMEPAGE_LATEST_LIMIT,
   HOMEPAGE_MAX_FEATURED_MESSAGE,
   HOMEPAGE_SHOWCASE_LIMIT,
 } from "@/lib/homepage-rank";
@@ -339,6 +340,30 @@ export async function dbGetHomepageShowcaseVehicles(
   if (error) {
     const code = error.code ? ` [code: ${error.code}]` : "";
     console.error("[dbGetHomepageShowcaseVehicles]", error.message, error.code ?? "");
+    throw new Error(`${error.message}${code}`);
+  }
+
+  return ((data ?? []) as unknown as PublicVehicleRow[]).map(rowToPublicVehicle);
+}
+
+/**
+ * Homepage Latest Vehicles: newest listed stock, ORDER BY created_at DESC, limit 6.
+ * Sold/draft/unavailable never included (status = 在售 only).
+ */
+export async function dbGetLatestPublicVehicles(
+  limit = HOMEPAGE_LATEST_LIMIT
+): Promise<PublicVehicle[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("vehicles")
+    .select(PUBLIC_VEHICLE_SELECT)
+    .eq("status", "在售")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    const code = error.code ? ` [code: ${error.code}]` : "";
+    console.error("[dbGetLatestPublicVehicles]", error.message, error.code ?? "");
     throw new Error(`${error.message}${code}`);
   }
 
