@@ -4,6 +4,7 @@
  * Cross-platform PDF delivery from an already-in-memory File/Blob.
  *
  * NEVER opens a PDF URL / new tab from the download path.
+ * NEVER uses showSaveFilePicker / showOpenFilePicker / file inputs.
  * Preview belongs in a separate preview handler only.
  */
 
@@ -53,19 +54,39 @@ function triggerAnchorDownload(blob: Blob, filename: string): void {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  // Delay revoke so Safari/Chrome can start the download.
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 /**
- * Share or save a PDF File that is already in memory.
- * Must be called from a direct user gesture on iOS (no await fetch before this).
+ * Desktop / Android only: share if possible, else <a download>.
  *
- * Does NOT call window.open / location.href / router navigation.
+ * On Apple mobile this ALWAYS uses navigator.share only — never <a download>
+ * (which opens the Files app “最近项目” instead of the system share sheet).
+ * Must be called from a direct user gesture with no await before this call.
  */
 export async function shareOrSavePdfFile(
   file: File
 ): Promise<PdfDeliveryResult> {
+  if (isAppleMobileBrowser()) {
+    const nav = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+    };
+    if (
+      typeof navigator.share !== "function" ||
+      typeof nav.canShare !== "function" ||
+      !nav.canShare({ files: [file] })
+    ) {
+      throw new Error(
+        "当前浏览器不支持直接分享 PDF，请使用 Safari 打开。"
+      );
+    }
+    await navigator.share({
+      files: [file],
+      title: file.name,
+    });
+    return { method: "share", filename: file.name };
+  }
+
   if (canSharePdfFile(file)) {
     try {
       await navigator.share({
@@ -77,20 +98,8 @@ export async function shareOrSavePdfFile(
       if (err instanceof Error && err.name === "AbortError") {
         throw err;
       }
-      // Fall through to anchor download when share fails for non-cancel reasons
-      // on platforms that support <a download> (desktop / Android).
-      if (isAppleMobileBrowser()) {
-        throw err instanceof Error
-          ? err
-          : new Error("系统分享失败，请重试「分享或保存 PDF」");
-      }
+      // Non-Apple: fall through to anchor download.
     }
-  }
-
-  if (isAppleMobileBrowser()) {
-    throw new Error(
-      "当前浏览器无法直接分享文件。请点「分享或保存 PDF」重试，或改用「预览 PDF」后从浏览器分享。"
-    );
   }
 
   const blob =

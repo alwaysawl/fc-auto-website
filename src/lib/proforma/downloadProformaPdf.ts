@@ -28,7 +28,7 @@ export const PROFORMA_PDF_STATUS_LABEL: Record<ProformaPdfStatus, string> = {
   ready: "PDF 已生成，请点「分享或保存 PDF」",
   outdated: "发票内容已更改，请重新生成 PDF",
   sharing: "正在打开系统分享…",
-  shared: "已打开系统分享",
+  shared: "系统分享已完成",
   downloaded: "PDF 已开始下载",
   error: "下载失败，请重试",
 };

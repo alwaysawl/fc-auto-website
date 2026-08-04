@@ -2,10 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Locale, Vehicle } from "@/lib/types";
 import { downloadVehicleQuotePdf } from "@/lib/vehicleQuote/buildQuotePdf";
-import { shareOrSavePdfFile } from "@/lib/pdf/deliverPdfBlob";
 import {
   INQUIRY_PRIORITIES,
   INQUIRY_PRIORITY_LABELS,
@@ -77,9 +76,11 @@ export default function AdminInquiryDetailClient({
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [readyQuoteFile, setReadyQuoteFile] = useState<File | null>(null);
+  const readyQuoteFileRef = useRef<File | null>(null);
 
   // Switching inquiries must never reuse a previous quote PDF File.
   useEffect(() => {
+    readyQuoteFileRef.current = null;
     setReadyQuoteFile(null);
   }, [inquiry.id]);
   const [note, setNote] = useState("");
@@ -247,10 +248,11 @@ export default function AdminInquiryDetailClient({
         contactName: json.contactName,
       });
       if (delivery.deliveryMethod === "ready") {
+        readyQuoteFileRef.current = delivery.file;
         setReadyQuoteFile(delivery.file);
         setMsg(delivery.deliveryMessage || "PDF 已生成，请点「分享或保存 PDF」");
       } else if (delivery.deliveryMethod === "share") {
-        setMsg("已打开系统分享");
+        setMsg("系统分享已完成");
       } else {
         setMsg("报价已生成并下载");
       }
@@ -266,36 +268,46 @@ export default function AdminInquiryDetailClient({
     }
   }
 
+  /** STRICT: navigator.share as first await — no setState before share. */
   async function shareReadyQuote(event: React.MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
-    if (!readyQuoteFile || busy) return;
-    if (!readyQuoteFile.name || readyQuoteFile.size <= 0) {
-      setReadyQuoteFile(null);
-      setErr("PDF 无效，请重新创建报价");
+
+    const file = readyQuoteFileRef.current;
+
+    if (!file || file.size === 0) {
+      window.alert("请先生成 PDF");
       return;
     }
-    setBusy(true);
+
+    const nav = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+    };
+
+    if (
+      typeof navigator.share !== "function" ||
+      typeof nav.canShare !== "function" ||
+      !nav.canShare({ files: [file] })
+    ) {
+      window.alert("当前浏览器不支持直接分享 PDF，请使用 Safari 打开。");
+      return;
+    }
+
     try {
-      console.info("[AdminInquiryDetail] share quote", {
-        filename: readyQuoteFile.name,
-        size: readyQuoteFile.size,
-        inquiryId: inquiry.id,
+      await navigator.share({
+        files: [file],
+        title: file.name,
       });
-      const result = await shareOrSavePdfFile(readyQuoteFile);
-      setMsg(
-        result.method === "share"
-          ? `已打开系统分享\n${readyQuoteFile.name}`
-          : `报价已开始下载\n${readyQuoteFile.name}`
-      );
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
+      setMsg(`系统分享已完成\n${file.name}`);
+    } catch (error) {
+      const err = error as { name?: string };
+      if (err?.name === "AbortError") {
         setMsg("已取消分享");
-      } else {
-        setErr(err instanceof Error ? err.message : "分享失败，请重试");
+        return;
       }
-    } finally {
-      setBusy(false);
+      console.error("[AdminInquiryDetail] navigator.share failed", error);
+      window.alert("系统分享菜单打开失败");
+      setErr("系统分享菜单打开失败");
     }
   }
 

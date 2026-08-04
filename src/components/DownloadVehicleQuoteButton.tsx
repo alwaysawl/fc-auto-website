@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { Locale, Vehicle } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { useCart } from "@/components/CartProvider";
@@ -8,10 +8,7 @@ import {
   buildVehicleQuotePdfFile,
   downloadVehicleQuotePdf,
 } from "@/lib/vehicleQuote/buildQuotePdf";
-import {
-  isAppleMobileBrowser,
-  shareOrSavePdfFile,
-} from "@/lib/pdf/deliverPdfBlob";
+import { isAppleMobileBrowser } from "@/lib/pdf/deliverPdfBlob";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 type DownloadVehicleQuoteButtonProps = {
@@ -19,12 +16,6 @@ type DownloadVehicleQuoteButtonProps = {
   locale: Locale;
   t: Translations;
   className?: string;
-};
-
-type ReadyQuote = {
-  file: File;
-  vehicleId: string;
-  generatedAt: number;
 };
 
 export default function DownloadVehicleQuoteButton({
@@ -35,13 +26,18 @@ export default function DownloadVehicleQuoteButton({
 }: DownloadVehicleQuoteButtonProps) {
   const { showToast } = useCart();
   const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState<ReadyQuote | null>(null);
+  const [generatedPdfFile, setGeneratedPdfFile] = useState<File | null>(null);
+  const [generatedVehicleId, setGeneratedVehicleId] = useState<string | null>(
+    null
+  );
   const [outdated, setOutdated] = useState(false);
+  const generatedPdfFileRef = useRef<File | null>(null);
   const apple = isAppleMobileBrowser();
 
-  // New vehicle → wipe previous File completely.
   useEffect(() => {
-    setReady(null);
+    generatedPdfFileRef.current = null;
+    setGeneratedPdfFile(null);
+    setGeneratedVehicleId(null);
     setOutdated(false);
     setBusy(false);
   }, [vehicle.id]);
@@ -51,7 +47,9 @@ export default function DownloadVehicleQuoteButton({
     event.stopPropagation();
     if (busy) return;
     setBusy(true);
-    setReady(null);
+    generatedPdfFileRef.current = null;
+    setGeneratedPdfFile(null);
+    setGeneratedVehicleId(null);
     setOutdated(false);
     try {
       if (apple) {
@@ -59,17 +57,9 @@ export default function DownloadVehicleQuoteButton({
           vehicle,
           locale
         );
-        console.info("[DownloadVehicleQuote] generated", {
-          vehicleId: vehicle.id,
-          filename: file.name,
-          size: file.size,
-          generatedAt: file.lastModified,
-        });
-        setReady({
-          file,
-          vehicleId: vehicle.id,
-          generatedAt: file.lastModified,
-        });
+        generatedPdfFileRef.current = file;
+        setGeneratedPdfFile(file);
+        setGeneratedVehicleId(vehicle.id);
         trackAnalyticsEvent("quote_download", {
           vehicleId: vehicle.id,
           locale,
@@ -93,7 +83,7 @@ export default function DownloadVehicleQuoteButton({
         });
         showToast(
           result.deliveryMethod === "share"
-            ? "已打开系统分享"
+            ? "系统分享已完成"
             : t.vehicleDetail.quoteDownloadSuccess
         );
       }
@@ -109,46 +99,75 @@ export default function DownloadVehicleQuoteButton({
     }
   }
 
-  async function handleShare(event: MouseEvent<HTMLButtonElement>) {
+  /** STRICT: navigator.share as first await — no setState before share. */
+  async function handleShareOrSavePdf(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
-    if (!ready || busy || outdated) return;
-    if (ready.vehicleId !== vehicle.id) {
-      setReady(null);
-      setOutdated(true);
-      showToast("报价内容已更改，请重新生成 PDF");
+
+    const file = generatedPdfFileRef.current;
+
+    if (!file || file.size === 0) {
+      window.alert("请先生成 PDF");
       return;
     }
-    setBusy(true);
+
+    if (generatedVehicleId !== vehicle.id) {
+      generatedPdfFileRef.current = null;
+      setGeneratedPdfFile(null);
+      setOutdated(true);
+      window.alert("报价内容已更改，请重新生成 PDF");
+      return;
+    }
+
+    const nav = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+    };
+
+    if (
+      typeof navigator.share !== "function" ||
+      typeof nav.canShare !== "function" ||
+      !nav.canShare({ files: [file] })
+    ) {
+      window.alert("当前浏览器不支持直接分享 PDF，请使用 Safari 打开。");
+      return;
+    }
+
     try {
-      console.info("[DownloadVehicleQuote] share", {
-        vehicleId: vehicle.id,
-        filename: ready.file.name,
-        size: ready.file.size,
+      await navigator.share({
+        files: [file],
+        title: file.name,
       });
-      const result = await shareOrSavePdfFile(ready.file);
-      showToast(
-        result.method === "share"
-          ? "已打开系统分享"
-          : t.vehicleDetail.quoteDownloadSuccess
-      );
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
+      showToast(`系统分享已完成\n${file.name}`);
+    } catch (error) {
+      const err = error as { name?: string };
+      if (err?.name === "AbortError") {
         showToast("已取消分享");
         return;
       }
-      console.error("[DownloadVehicleQuote] share", err);
-      showToast(t.vehicleDetail.quoteDownloadError);
-    } finally {
-      setBusy(false);
+      console.error("[DownloadVehicleQuote] navigator.share failed", error);
+      window.alert("系统分享菜单打开失败");
     }
   }
 
   const shareEnabled =
-    !!ready &&
+    !!generatedPdfFile &&
     !busy &&
     !outdated &&
-    ready.vehicleId === vehicle.id;
+    generatedVehicleId === vehicle.id;
+
+  const canShareNow = (() => {
+    if (!generatedPdfFile || typeof navigator === "undefined") return false;
+    const nav = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+    };
+    if (typeof navigator.share !== "function") return false;
+    if (typeof nav.canShare !== "function") return false;
+    try {
+      return nav.canShare({ files: [generatedPdfFile] });
+    } catch {
+      return false;
+    }
+  })();
 
   if (apple) {
     return (
@@ -161,27 +180,41 @@ export default function DownloadVehicleQuoteButton({
           className="inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
         >
           <span className="text-center leading-tight">
-            {busy && !ready ? t.vehicleDetail.quotePreparing : "生成 PDF"}
+            {busy && !generatedPdfFile
+              ? t.vehicleDetail.quotePreparing
+              : "生成 PDF"}
           </span>
         </button>
         <button
           type="button"
-          onClick={(e) => void handleShare(e)}
+          onClick={(e) => void handleShareOrSavePdf(e)}
           disabled={!shareEnabled}
           className="inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
         >
           <span className="text-center leading-tight">分享或保存 PDF</span>
         </button>
-        {ready ? (
-          <span className="text-xs text-slate-500 break-all">
-            已生成：{ready.file.name}
-          </span>
-        ) : null}
         {outdated ? (
           <span className="text-xs text-amber-700">
             报价内容已更改，请重新生成 PDF
           </span>
         ) : null}
+        <span className="rounded border border-dashed border-amber-300 bg-amber-50 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-amber-950">
+          [PDF debug]
+          <br />
+          file.name: {generatedPdfFile?.name ?? "(null)"}
+          <br />
+          file.type: {generatedPdfFile?.type ?? "(null)"}
+          <br />
+          file.size: {generatedPdfFile?.size ?? "(null)"}
+          <br />
+          navigator.share:{" "}
+          {typeof navigator !== "undefined" &&
+          typeof navigator.share === "function"
+            ? "yes"
+            : "no"}
+          <br />
+          canShare(files): {String(canShareNow)}
+        </span>
       </span>
     );
   }
