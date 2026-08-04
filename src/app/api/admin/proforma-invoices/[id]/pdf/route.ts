@@ -8,7 +8,7 @@ import {
   buildProformaPdfBytes,
   detailToPdfSource,
 } from "@/lib/proforma/buildProformaPdf";
-import { PROFORMA_PDF_DOWNLOAD_FILENAME } from "@/lib/proforma/pdfDownloadName";
+import { buildProformaDownloadFilename } from "@/lib/proforma/pdfDownloadName";
 import { checkProformaOnePageFit, PI_MAX_VEHICLES } from "@/lib/proforma/layout";
 
 export const runtime = "nodejs";
@@ -18,7 +18,10 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * Server-generated Proforma Invoice PDF.
- * Headers are tuned for mobile Safari / Chrome (inline preview + Blob-friendly MIME).
+ *
+ * Query:
+ * - disposition=inline  → Preview PDF (open in browser)
+ * - disposition=attachment (default) → Download PDF
  */
 export async function GET(request: Request, ctx: Ctx) {
   const denied = await requireAdminApi(request);
@@ -26,6 +29,13 @@ export async function GET(request: Request, ctx: Ctx) {
 
   try {
     const { id } = await ctx.params;
+    const url = new URL(request.url);
+    const dispositionParam = (url.searchParams.get("disposition") || "")
+      .trim()
+      .toLowerCase();
+    const disposition =
+      dispositionParam === "inline" ? "inline" : "attachment";
+
     const result = await getProformaInvoice(id);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 404 });
@@ -65,8 +75,7 @@ export async function GET(request: Request, ctx: Ctx) {
       });
     }
 
-    const filename = PROFORMA_PDF_DOWNLOAD_FILENAME;
-    // Copy into a plain ArrayBuffer-backed Uint8Array for BodyInit typing.
+    const filename = buildProformaDownloadFilename(invoice.invoiceNumber);
     const body = new Uint8Array(bytes.byteLength);
     body.set(bytes);
 
@@ -74,7 +83,7 @@ export async function GET(request: Request, ctx: Ctx) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${filename}"`,
+        "Content-Disposition": `${disposition}; filename="${filename}"`,
         "Content-Length": String(body.byteLength),
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         Pragma: "no-cache",

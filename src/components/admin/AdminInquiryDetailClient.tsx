@@ -15,6 +15,10 @@ import {
   type InquiryActivity,
   type InquiryDetail,
 } from "@/lib/admin/inquiries/types";
+import {
+  formatBudgetUsdDisplay,
+  parseBudgetUsd,
+} from "@/lib/car-sourcing";
 
 const fieldCls =
   "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/50";
@@ -95,7 +99,11 @@ export default function AdminInquiryDetailClient({
         : "",
     customerBudgetUsd:
       initialInquiry.customerBudgetUsd != null
-        ? String(initialInquiry.customerBudgetUsd)
+        ? formatBudgetUsdDisplay(initialInquiry.customerBudgetUsd)
+        : "",
+    customerBudgetMaxUsd:
+      initialInquiry.customerBudgetMaxUsd != null
+        ? formatBudgetUsdDisplay(initialInquiry.customerBudgetMaxUsd)
         : "",
     destinationCountryId: initialInquiry.destinationCountryId || "",
     destinationPortId: initialInquiry.destinationPortId || "",
@@ -142,7 +150,10 @@ export default function AdminInquiryDetailClient({
           ? Number(form.requestedQuantity)
           : null,
         customerBudgetUsd: form.customerBudgetUsd
-          ? Number(form.customerBudgetUsd)
+          ? parseBudgetUsd(form.customerBudgetUsd)
+          : null,
+        customerBudgetMaxUsd: form.customerBudgetMaxUsd
+          ? parseBudgetUsd(form.customerBudgetMaxUsd)
           : null,
         destinationCountryId: form.destinationCountryId || null,
         destinationPortId: form.destinationPortId || null,
@@ -234,13 +245,23 @@ export default function AdminInquiryDetailClient({
       }
       const vehicle = json.vehicle as Vehicle;
       const locale = (json.locale || "en") as Locale;
-      await downloadVehicleQuotePdf(vehicle, locale, {
+      const delivery = await downloadVehicleQuotePdf(vehicle, locale, {
         contactName: json.contactName,
       });
-      setMsg("报价已生成并下载");
+      if (delivery.deliveryMethod === "ios-fallback" && delivery.deliveryMessage) {
+        setMsg(delivery.deliveryMessage);
+      } else if (delivery.deliveryMethod === "share") {
+        setMsg("已打开系统分享");
+      } else {
+        setMsg("报价已生成并下载");
+      }
       await reload();
-    } catch {
-      setErr("创建报价失败，请稍后重试");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setMsg("已取消分享");
+      } else {
+        setErr("创建报价失败，请稍后重试");
+      }
     } finally {
       setBusy(false);
     }
@@ -508,13 +529,25 @@ export default function AdminInquiryDetailClient({
             />
           </label>
           <label className="block text-sm">
-            <span className="text-slate-600">预算 USD</span>
+            <span className="text-slate-600">最低预算（USD）</span>
             <input
               className={fieldCls}
               value={form.customerBudgetUsd}
               onChange={(e) =>
                 setForm({ ...form, customerBudgetUsd: e.target.value })
               }
+              placeholder="USD 8,000"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-slate-600">最高预算（USD）</span>
+            <input
+              className={fieldCls}
+              value={form.customerBudgetMaxUsd}
+              onChange={(e) =>
+                setForm({ ...form, customerBudgetMaxUsd: e.target.value })
+              }
+              placeholder="USD 10,000"
             />
           </label>
           <label className="block text-sm">

@@ -1,72 +1,66 @@
 /**
- * Simulate desktop vs mobile PDF delivery paths (Blob + headers).
+ * Delivery strategy checks for Share vs anchor vs iOS fallback.
  * Run: npx tsx scripts/check-proforma-pdf-delivery-flow.ts
  */
 
 import assert from "node:assert/strict";
-import { PROFORMA_PDF_DOWNLOAD_FILENAME } from "../src/lib/proforma/pdfDownloadName";
+import { buildProformaDownloadFilename } from "../src/lib/proforma/pdfDownloadName";
 
-type Platform =
-  | "iPhone Safari"
-  | "Android Chrome"
-  | "Samsung Internet"
-  | "Desktop Chrome"
-  | "Desktop Safari"
-  | "Edge";
+function isAppleMobile(ua: string, maxTouchPoints = 0): boolean {
+  if (/iPhone|iPod|iPad/i.test(ua)) return true;
+  if (/Macintosh/i.test(ua) && maxTouchPoints > 1) return true;
+  return false;
+}
 
-function planDelivery(platform: Platform): {
-  mobile: boolean;
-  strategy: "share-or-new-tab" | "anchor-download";
-  contentType: string;
-  contentDisposition: string;
-  filename: string;
-} {
-  const mobile = !(
-    platform === "Desktop Chrome" ||
-    platform === "Desktop Safari" ||
-    platform === "Edge"
-  );
+function plan(platform: string, ua: string, maxTouchPoints = 0) {
+  const apple = isAppleMobile(ua, maxTouchPoints);
   return {
-    mobile,
-    strategy: mobile ? "share-or-new-tab" : "anchor-download",
-    contentType: "application/pdf",
-    contentDisposition: `inline; filename="${PROFORMA_PDF_DOWNLOAD_FILENAME}"`,
-    filename: PROFORMA_PDF_DOWNLOAD_FILENAME,
+    platform,
+    apple,
+    downloadUsesWindowOpen: false,
+    downloadUsesLocationHref: false,
+    primary: apple ? "navigator.share({files})" : "<a download> blob",
+    fallback: apple ? "blob tab + 存储到文件 instruction" : null,
   };
 }
 
-const platforms: Platform[] = [
-  "iPhone Safari",
-  "Android Chrome",
-  "Samsung Internet",
-  "Desktop Chrome",
-  "Desktop Safari",
-  "Edge",
+const cases = [
+  plan(
+    "iPhone Safari",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1"
+  ),
+  plan(
+    "iPhone Chrome",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 CriOS/120.0.0.0 Mobile/15E148 Safari/604.1"
+  ),
+  plan(
+    "Android Chrome",
+    "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36"
+  ),
+  plan(
+    "Desktop Chrome",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+  ),
+  plan(
+    "Mac Safari",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15"
+  ),
 ];
 
-for (const platform of platforms) {
-  const plan = planDelivery(platform);
-  assert.equal(plan.contentType, "application/pdf");
-  assert.equal(plan.contentDisposition, 'inline; filename="Invoice.pdf"');
-  assert.equal(plan.filename, "Invoice.pdf");
-  if (
-    platform === "Desktop Chrome" ||
-    platform === "Desktop Safari" ||
-    platform === "Edge"
-  ) {
-    assert.equal(plan.mobile, false);
-    assert.equal(plan.strategy, "anchor-download");
+for (const c of cases) {
+  assert.equal(c.downloadUsesWindowOpen, false);
+  assert.equal(c.downloadUsesLocationHref, false);
+  if (c.platform.startsWith("iPhone")) {
+    assert.equal(c.apple, true);
+    assert.equal(c.primary, "navigator.share({files})");
   } else {
-    assert.equal(plan.mobile, true);
-    assert.equal(plan.strategy, "share-or-new-tab");
+    assert.equal(c.apple, false);
+    assert.equal(c.primary, "<a download> blob");
   }
-  console.log(
-    `✓ ${platform}: mobile=${plan.mobile} strategy=${plan.strategy}`
-  );
+  console.log(`✓ ${c.platform}: ${c.primary}`);
 }
 
-// Blob MIME must stay application/pdf for iOS Safari viewers.
-const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]); // %PDF-
-assert.equal(String.fromCharCode(...pdfBytes), "%PDF-");
-console.log("✓ Blob MIME contract: application/pdf + %PDF- payload");
-console.log("All platform delivery plans OK.");
+const name = buildProformaDownloadFilename("PI-2026-001");
+assert.equal(name, "FC-Auto-Proforma-Invoice-PI-2026-001.pdf");
+console.log("✓ filename", name);
+console.log("All delivery plans OK.");

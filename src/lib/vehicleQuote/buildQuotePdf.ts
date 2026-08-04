@@ -18,6 +18,7 @@ import {
   renderTextBitmap,
   type QuoteImageAsset,
 } from "@/lib/vehicleQuote/images";
+import { deliverPdfBlob } from "@/lib/pdf/deliverPdfBlob";
 
 const NAVY: [number, number, number] = [26, 35, 50];
 const YELLOW: [number, number, number] = [245, 198, 54];
@@ -220,7 +221,12 @@ export async function downloadVehicleQuotePdf(
   vehicle: Vehicle,
   locale: Locale,
   options?: { contactName?: string | null }
-): Promise<{ contactName: string }> {
+): Promise<{
+  contactName: string;
+  filename: string;
+  deliveryMethod: "share" | "download" | "ios-fallback";
+  deliveryMessage?: string;
+}> {
   const copy = getVehicleQuoteCopy(locale);
   const contact = await resolveQuoteContact(options?.contactName);
   const whatsappDisplay = contact.whatsappDisplay;
@@ -609,6 +615,13 @@ export async function downloadVehicleQuotePdf(
   addFooter(doc, copy, whatsappDisplay);
   finalizePageNumbers(doc, copy);
 
-  doc.save(buildQuoteFilename(vehicle));
-  return { contactName: contact.name };
+  const filename = buildQuoteFilename(vehicle);
+  const blob = doc.output("blob") as Blob;
+  const delivery = await deliverPdfBlob(blob, filename);
+  return {
+    contactName: contact.name,
+    filename,
+    deliveryMethod: delivery.method,
+    deliveryMessage: delivery.message,
+  };
 }

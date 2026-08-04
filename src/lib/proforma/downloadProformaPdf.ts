@@ -1,163 +1,136 @@
 "use client";
 
-import { PROFORMA_PDF_DOWNLOAD_FILENAME } from "@/lib/proforma/pdfDownloadName";
+import { deliverPdfBlob, type PdfDeliveryResult } from "@/lib/pdf/deliverPdfBlob";
+import { buildProformaDownloadFilename } from "@/lib/proforma/pdfDownloadName";
 
-/**
- * Detect phones / tablets where `<a download>` is unreliable
- * (iPhone Safari, Android Chrome, Samsung Internet, iPadOS).
- */
-export function isMobileBrowser(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent || "";
+export type ProformaPdfStatus =
+  | "generating"
+  | "preparing"
+  | "shared"
+  | "downloaded"
+  | "ios-fallback"
+  | "error";
 
-  if (/iPhone|iPod/i.test(ua)) return true;
-  if (/Android/i.test(ua) && /Mobile/i.test(ua)) return true;
-  if (/Android/i.test(ua)) return true; // tablets
-  if (/SamsungBrowser/i.test(ua)) return true;
-  if (/Mobile/i.test(ua) && /Safari/i.test(ua) && !/Chrome|CriOS|EdgiOS/i.test(ua)) {
-    return true;
-  }
-  // iPadOS 13+ reports as Macintosh with touch
-  if (
-    /Macintosh/i.test(ua) &&
-    typeof navigator.maxTouchPoints === "number" &&
-    navigator.maxTouchPoints > 1
-  ) {
-    return true;
-  }
-  return false;
-}
+export const PROFORMA_PDF_STATUS_LABEL: Record<ProformaPdfStatus, string> = {
+  generating: "正在生成 PDF…",
+  preparing: "正在准备下载…",
+  shared: "已打开系统分享",
+  downloaded: "PDF 已开始下载",
+  "ios-fallback": "请点击浏览器分享按钮，然后选择「存储到文件」",
+  error: "下载失败，请重试",
+};
 
-function triggerDesktopDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
-}
-
-async function tryNativeShare(file: File): Promise<"shared" | "cancelled" | "unavailable"> {
-  const nav = navigator as Navigator & {
-    canShare?: (data: ShareData) => boolean;
-  };
-  if (typeof navigator.share !== "function") return "unavailable";
-  if (typeof nav.canShare === "function" && !nav.canShare({ files: [file] })) {
-    return "unavailable";
-  }
-  try {
-    await navigator.share({
-      files: [file],
-      title: file.name,
-    });
-    return "shared";
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") return "cancelled";
-    return "unavailable";
-  }
-}
-
-/**
- * Mobile: Share API when available, otherwise open a Blob URL in a new tab.
- * Never relies solely on the HTML download attribute.
- */
-async function deliverMobilePdf(
-  blob: Blob,
-  filename: string,
-  previewWindow: Window | null
-): Promise<void> {
-  const file = new File([blob], filename, { type: "application/pdf" });
-  const shareResult = await tryNativeShare(file);
-  if (shareResult === "shared") {
-    previewWindow?.close();
-    return;
-  }
-  // Share unavailable or user cancelled → open Blob URL in a new tab.
-  const url = URL.createObjectURL(blob);
-  try {
-    if (previewWindow && !previewWindow.closed) {
-      previewWindow.location.href = url;
-    } else {
-      // Do not pass "noopener" here — modern browsers then return null and
-      // we cannot detect popup blocking.
-      const opened = window.open(url, "_blank");
-      if (!opened) {
-        // Popup blocked: navigate current tab so the user still gets the PDF.
-        window.location.assign(url);
-        return;
-      }
-    }
-  } finally {
-    window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
-  }
+function statusFromDelivery(result: PdfDeliveryResult): ProformaPdfStatus {
+  if (result.method === "share") return "shared";
+  if (result.method === "ios-fallback") return "ios-fallback";
+  return "downloaded";
 }
 
 async function readErrorMessage(res: Response): Promise<string> {
-  const fallback = "PDF 下载失败";
   try {
     const contentType = res.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       const json = (await res.json()) as { error?: string };
-      return json.error?.trim() || fallback;
+      return json.error?.trim() || PROFORMA_PDF_STATUS_LABEL.error;
     }
     const text = (await res.text()).trim();
-    return text.slice(0, 200) || fallback;
+    return text.slice(0, 200) || PROFORMA_PDF_STATUS_LABEL.error;
   } catch {
-    return fallback;
+    return PROFORMA_PDF_STATUS_LABEL.error;
   }
 }
 
+export type DownloadProformaPdfOptions = {
+  invoiceNumber?: string | null;
+  onStatus?: (status: ProformaPdfStatus, detail?: string) => void;
+};
+
 /**
- * Fetch a server-generated Proforma PDF and deliver it cross-platform:
- * - Desktop → automatic download of Invoice.pdf
- * - Mobile → Share API or open in a new tab (Blob URL, iOS-safe)
+ * Download (save/share) a server-generated Proforma PDF.
+ * Fetches as Blob — does not navigate or window.open for the happy path.
  */
 export async function downloadProformaPdf(
-  invoiceId: string
-): Promise<{ filename: string }> {
+  invoiceId: string,
+  options?: DownloadProformaPdfOptions
+): Promise<{ filename: string; status: ProformaPdfStatus; message: string }> {
   const id = invoiceId?.trim();
   if (!id) throw new Error("缺少发票 ID，无法下载 PDF");
 
-  const filename = PROFORMA_PDF_DOWNLOAD_FILENAME;
-  const mobile = isMobileBrowser();
+  const onStatus = options?.onStatus;
+  onStatus?.("generating");
 
-  // Open a blank tab synchronously with the user gesture so iOS does not block it
-  // after the async fetch completes.
-  let previewWindow: Window | null = null;
-  if (mobile) {
-    previewWindow = window.open("about:blank", "_blank");
-  }
-
-  try {
-    const res = await fetch(`/api/admin/proforma-invoices/${id}/pdf`, {
+  const res = await fetch(
+    `/api/admin/proforma-invoices/${id}/pdf?disposition=attachment`,
+    {
       method: "GET",
       credentials: "include",
       cache: "no-store",
       headers: { Accept: "application/pdf" },
-    });
-
-    if (!res.ok) {
-      throw new Error(await readErrorMessage(res));
     }
+  );
 
-    const buffer = await res.arrayBuffer();
-    // Explicit MIME so iOS Safari treats the Blob URL as a PDF.
-    const pdfBlob = new Blob([buffer], { type: "application/pdf" });
-
-    if (mobile) {
-      await deliverMobilePdf(pdfBlob, filename, previewWindow);
-    } else {
-      previewWindow?.close();
-      triggerDesktopDownload(pdfBlob, filename);
-    }
-
-    return { filename };
-  } catch (err) {
-    previewWindow?.close();
-    throw err;
+  if (!res.ok) {
+    onStatus?.("error");
+    throw new Error(await readErrorMessage(res));
   }
+
+  onStatus?.("preparing");
+  const blob = await res.blob();
+  const filename = buildProformaDownloadFilename(
+    options?.invoiceNumber?.trim() ||
+      // Prefer Content-Disposition filename when present
+      parseFilenameFromContentDisposition(
+        res.headers.get("content-disposition")
+      ) ||
+      "PI"
+  );
+
+  try {
+    const delivery = await deliverPdfBlob(blob, filename);
+    const status = statusFromDelivery(delivery);
+    const message =
+      delivery.message || PROFORMA_PDF_STATUS_LABEL[status];
+    onStatus?.(status, message);
+    return { filename, status, message };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw err;
+    }
+    onStatus?.("error");
+    throw err instanceof Error
+      ? err
+      : new Error(PROFORMA_PDF_STATUS_LABEL.error);
+  }
+}
+
+/**
+ * Preview PDF in a new tab (inline disposition). Separate from download.
+ */
+export function previewProformaPdf(invoiceId: string): void {
+  const id = invoiceId?.trim();
+  if (!id) throw new Error("缺少发票 ID，无法预览 PDF");
+  const url = `/api/admin/proforma-invoices/${id}/pdf?disposition=inline`;
+  const opened = window.open(url, "_blank");
+  if (!opened) {
+    throw new Error("无法打开预览，请允许浏览器弹窗后重试");
+  }
+}
+
+function parseFilenameFromContentDisposition(
+  header: string | null
+): string | null {
+  if (!header) return null;
+  const utf = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf?.[1]) {
+    try {
+      return decodeURIComponent(utf[1]).replace(/\.pdf$/i, "");
+    } catch {
+      /* ignore */
+    }
+  }
+  const plain = /filename="([^"]+)"/i.exec(header);
+  if (plain?.[1]) {
+    return plain[1].replace(/\.pdf$/i, "").replace(/^FC-Auto-Proforma-Invoice-/i, "");
+  }
+  return null;
 }

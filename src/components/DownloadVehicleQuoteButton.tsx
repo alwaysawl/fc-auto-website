@@ -37,8 +37,18 @@ export default function DownloadVehicleQuoteButton({
         },
         dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
       });
-      showToast(t.vehicleDetail.quoteDownloadSuccess);
+      if (result.deliveryMethod === "ios-fallback" && result.deliveryMessage) {
+        showToast(result.deliveryMessage);
+      } else if (result.deliveryMethod === "share") {
+        showToast("已打开系统分享");
+      } else {
+        showToast(t.vehicleDetail.quoteDownloadSuccess);
+      }
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        showToast("已取消分享");
+        return;
+      }
       console.error("[DownloadVehicleQuote]", err);
       showToast(t.vehicleDetail.quoteDownloadError);
     } finally {

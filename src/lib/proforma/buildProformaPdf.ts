@@ -44,6 +44,7 @@ import {
   ensureProformaFonts,
   setProformaFont,
 } from "@/lib/proforma/pdfFonts";
+import { buildProformaDownloadFilename } from "@/lib/proforma/pdfDownloadName";
 import { drawProformaTopInformation } from "@/lib/proforma/drawProformaTopInformation";
 import { buildProformaTopInformation } from "@/lib/proforma/topInformationModel";
 
@@ -639,9 +640,6 @@ export function detailToPdfSource(detail: ProformaDetail): ProformaPdfSource {
   };
 }
 
-import { PROFORMA_PDF_DOWNLOAD_FILENAME } from "@/lib/proforma/pdfDownloadName";
-
-export { PROFORMA_PDF_DOWNLOAD_FILENAME };
 /**
  * Build a real single-page A4 PDF (server or client). Returns raw bytes.
  */
@@ -705,6 +703,6 @@ export async function buildProformaPdfBytes(
   const arrayBuffer = doc.output("arraybuffer") as ArrayBuffer;
   return {
     bytes: new Uint8Array(arrayBuffer),
-    filename: PROFORMA_PDF_DOWNLOAD_FILENAME,
+    filename: buildProformaDownloadFilename(source.invoiceNumber),
   };
 }

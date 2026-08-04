@@ -24,7 +24,12 @@ import type {
   ProformaSettings,
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
-import { downloadProformaPdf } from "@/lib/proforma/downloadProformaPdf";
+import {
+  downloadProformaPdf,
+  previewProformaPdf,
+  PROFORMA_PDF_STATUS_LABEL,
+  type ProformaPdfStatus,
+} from "@/lib/proforma/downloadProformaPdf";
 import AdminProformaPreview, {
   type ProformaPreviewModel,
 } from "@/components/admin/AdminProformaPreview";
@@ -265,6 +270,8 @@ export default function AdminProformaEditor({
   const [freightPortId, setFreightPortId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfStatusLabel, setPdfStatusLabel] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [depositWarning, setDepositWarning] = useState(false);
@@ -489,7 +496,7 @@ export default function AdminProformaEditor({
       setError("请先保存发票后再下载 PDF");
       return;
     }
-    if (saving) return;
+    if (saving || pdfBusy) return;
 
     const fit = checkProformaOnePageFit({
       vehicleCount: items.length,
@@ -503,16 +510,47 @@ export default function AdminProformaEditor({
       return;
     }
 
-    setSaving(true);
+    setPdfBusy(true);
     setError(null);
-    setMessage(null);
+    setPdfStatusLabel(PROFORMA_PDF_STATUS_LABEL.generating);
+    setMessage(PROFORMA_PDF_STATUS_LABEL.generating);
     try {
-      const { filename } = await downloadProformaPdf(initial.id);
-      setMessage(`已下载真实 A4 PDF：${filename}`);
+      const result = await downloadProformaPdf(initial.id, {
+        invoiceNumber: initial.invoiceNumber || invoiceNumber,
+        onStatus: (status: ProformaPdfStatus, detail?: string) => {
+          const label = detail || PROFORMA_PDF_STATUS_LABEL[status];
+          setPdfStatusLabel(label);
+          setMessage(label);
+        },
+      });
+      setMessage(result.message);
+      setPdfStatusLabel(result.message);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "PDF 下载失败");
+      if (err instanceof Error && err.name === "AbortError") {
+        setMessage("已取消分享");
+        setPdfStatusLabel(null);
+      } else {
+        setError(
+          err instanceof Error ? err.message : PROFORMA_PDF_STATUS_LABEL.error
+        );
+        setMessage(null);
+        setPdfStatusLabel(PROFORMA_PDF_STATUS_LABEL.error);
+      }
     } finally {
-      setSaving(false);
+      setPdfBusy(false);
+    }
+  };
+
+  const previewSavedPdf = () => {
+    if (!initial?.id) {
+      setError("请先保存发票后再预览 PDF");
+      return;
+    }
+    setError(null);
+    try {
+      previewProformaPdf(initial.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "预览失败");
     }
   };
 
@@ -595,7 +633,15 @@ export default function AdminProformaEditor({
         if (!savedId) {
           throw new Error("发票已保存但缺少 ID，无法生成 PDF");
         }
-        const { filename } = await downloadProformaPdf(savedId);
+        const { filename, message: pdfMessage } = await downloadProformaPdf(
+          savedId,
+          {
+            invoiceNumber: savedNumber,
+            onStatus: (status, detail) => {
+              setMessage(detail || PROFORMA_PDF_STATUS_LABEL[status]);
+            },
+          }
+        );
         if (!opts.markIssued) {
           const confirmIssued = window.confirm(
             "PDF 已生成。是否将状态更新为「已开具」？"
@@ -609,7 +655,9 @@ export default function AdminProformaEditor({
             });
           }
         }
-        setMessage(`已保存 ${savedNumber}，并下载 PDF：${filename}`);
+        setMessage(
+          `已保存 ${savedNumber}。${pdfMessage || `PDF：${filename}`}`
+        );
       } else {
         setMessage(`草稿已保存 ${savedNumber}`);
       }
@@ -620,7 +668,11 @@ export default function AdminProformaEditor({
       }
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "保存失败");
+      if (err instanceof Error && err.name === "AbortError") {
+        setMessage("已取消分享（发票已保存）");
+      } else {
+        setError(err instanceof Error ? err.message : "保存失败");
+      }
     } finally {
       setSaving(false);
     }
@@ -688,14 +740,26 @@ export default function AdminProformaEditor({
             保存草稿
           </button>
           {mode === "edit" && initial?.invoiceNumber ? (
-            <button
-              type="button"
-              className={btnGhost}
-              disabled={saving}
-              onClick={() => void downloadSavedPdf()}
-            >
-              下载 PDF
-            </button>
+            <>
+              <button
+                type="button"
+                className={btnGhost}
+                disabled={saving || pdfBusy}
+                onClick={previewSavedPdf}
+              >
+                预览 PDF
+              </button>
+              <button
+                type="button"
+                className={btnGhost}
+                disabled={saving || pdfBusy}
+                onClick={() => void downloadSavedPdf()}
+              >
+                {pdfBusy
+                  ? pdfStatusLabel || PROFORMA_PDF_STATUS_LABEL.generating
+                  : "下载 PDF"}
+              </button>
+            </>
           ) : null}
           <button
             type="button"

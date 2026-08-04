@@ -7,7 +7,12 @@ import {
   PI_MAX_VEHICLES,
   checkProformaOnePageFit,
 } from "@/lib/proforma/layout";
-import { downloadProformaPdf } from "@/lib/proforma/downloadProformaPdf";
+import {
+  downloadProformaPdf,
+  previewProformaPdf,
+  PROFORMA_PDF_STATUS_LABEL,
+  type ProformaPdfStatus,
+} from "@/lib/proforma/downloadProformaPdf";
 
 export default function AdminProformaDetailClient({
   invoice,
@@ -16,13 +21,28 @@ export default function AdminProformaDetailClient({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [statusLabel, setStatusLabel] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const overLimit = invoice.items.length > PI_MAX_VEHICLES;
 
+  const onStatus = (status: ProformaPdfStatus, detail?: string) => {
+    setStatusLabel(detail || PROFORMA_PDF_STATUS_LABEL[status]);
+  };
+
+  const preview = () => {
+    setMessage(null);
+    try {
+      previewProformaPdf(invoice.id);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "预览失败");
+    }
+  };
+
   const download = async () => {
     setBusy(true);
     setMessage(null);
+    setStatusLabel(PROFORMA_PDF_STATUS_LABEL.generating);
     try {
       const fit = checkProformaOnePageFit({
         vehicleCount: invoice.items.length,
@@ -34,10 +54,18 @@ export default function AdminProformaDetailClient({
       if (!fit.ok) {
         throw new Error(fit.errorZh || fit.errorEn || "无法生成 PDF");
       }
-      const { filename } = await downloadProformaPdf(invoice.id);
-      setMessage(`已下载 PDF：${filename}`);
+      const result = await downloadProformaPdf(invoice.id, {
+        invoiceNumber: invoice.invoiceNumber,
+        onStatus,
+      });
+      setMessage(result.message);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "PDF 下载失败");
+      if (err instanceof Error && err.name === "AbortError") {
+        setMessage("已取消分享");
+      } else {
+        setStatusLabel(PROFORMA_PDF_STATUS_LABEL.error);
+        setMessage(err instanceof Error ? err.message : PROFORMA_PDF_STATUS_LABEL.error);
+      }
     } finally {
       setBusy(false);
     }
@@ -70,10 +98,18 @@ export default function AdminProformaDetailClient({
       <button
         type="button"
         disabled={busy || overLimit}
+        onClick={preview}
+        className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-[#1E293B] hover:bg-slate-50 disabled:opacity-60"
+      >
+        预览 PDF
+      </button>
+      <button
+        type="button"
+        disabled={busy || overLimit}
         onClick={() => void download()}
         className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-[#1E293B] hover:bg-slate-50 disabled:opacity-60"
       >
-        下载 PDF
+        {busy ? statusLabel || PROFORMA_PDF_STATUS_LABEL.generating : "下载 PDF"}
       </button>
       <button
         type="button"
