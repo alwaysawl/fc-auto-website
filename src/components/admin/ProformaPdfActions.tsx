@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import {
   fetchProformaPdfFile,
   isAppleMobileBrowser,
@@ -9,14 +15,25 @@ import {
   downloadProformaPdf,
   PROFORMA_PDF_STATUS_LABEL,
   type ProformaPdfStatus,
+  type FetchedProformaPdf,
 } from "@/lib/proforma/downloadProformaPdf";
 
 const btnGhost =
   "inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-[#1E293B] hover:bg-slate-50 disabled:opacity-60";
 
+type ReadyPdf = FetchedProformaPdf;
+
 type ProformaPdfActionsProps = {
   invoiceId: string;
   invoiceNumber: string;
+  /** When this changes after a PDF was generated, the PDF is marked outdated. */
+  contentSignature?: string;
+  /**
+   * Optional freshly-fetched PDF from parent (e.g. after 保存并生成 PDF).
+   * Must match current invoiceId/invoiceNumber or it is ignored.
+   */
+  seedReady?: FetchedProformaPdf | null;
+  onSeedConsumed?: () => void;
   disabled?: boolean;
   className?: string;
   buttonClassName?: string;
@@ -25,21 +42,33 @@ type ProformaPdfActionsProps = {
   onError?: (error: string | null) => void;
 };
 
+function clearReady(
+  setReady: (v: ReadyPdf | null) => void,
+  blobUrlRef: React.MutableRefObject<string | null>
+) {
+  if (blobUrlRef.current) {
+    URL.revokeObjectURL(blobUrlRef.current);
+    blobUrlRef.current = null;
+  }
+  setReady(null);
+}
+
 /**
- * Production Proforma PDF controls.
+ * Production Proforma PDF controls with stale-file protection.
  *
- * iPhone/iPad (two-step, required for Web Share user-activation):
- *   1) 生成 PDF  → fetch Blob into memory (no navigation)
- *   2) 分享或保存 PDF → navigator.share() on this direct tap
+ * iPhone/iPad:
+ *   1) 生成 PDF → fresh fetch for CURRENT invoiceId/number
+ *   2) 分享或保存 PDF → share only if File matches current invoice
  *
- * Desktop/Android:
- *   下载 PDF → fetch + <a download>
- *
- * 预览 PDF is separate and may open the Safari viewer.
+ * Desktop: 下载 PDF one-shot.
+ * 预览 PDF is separate.
  */
 export default function ProformaPdfActions({
   invoiceId,
   invoiceNumber,
+  contentSignature = "",
+  seedReady = null,
+  onSeedConsumed,
   disabled = false,
   className = "",
   buttonClassName = btnGhost,
@@ -50,28 +79,82 @@ export default function ProformaPdfActions({
   const apple = isAppleMobileBrowser();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<ProformaPdfStatus>("idle");
-  const [readyFile, setReadyFile] = useState<File | null>(null);
+  const [ready, setReady] = useState<ReadyPdf | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+  const signatureAtGeneration = useRef<string>("");
 
   const setMsg = useCallback(
-    (msg: string | null) => {
-      onMessage?.(msg);
-    },
+    (msg: string | null) => onMessage?.(msg),
     [onMessage]
   );
   const setErr = useCallback(
-    (err: string | null) => {
-      onError?.(err);
-    },
+    (err: string | null) => onError?.(err),
     [onError]
   );
+
+  // Switching invoices / remount: wipe all generated PDF state.
+  useEffect(() => {
+    console.info("[ProformaPdfActions] reset for invoice", {
+      invoiceId,
+      invoiceNumber,
+    });
+    clearReady(setReady, blobUrlRef);
+    setStatus("idle");
+    setBusy(false);
+    signatureAtGeneration.current = "";
+    setMsg(null);
+    setErr(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on identity change
+  }, [invoiceId, invoiceNumber]);
+
+  // Accept a parent-provided fresh File (save + generate), never an old one.
+  useEffect(() => {
+    if (!seedReady) return;
+    if (
+      seedReady.invoiceId !== invoiceId ||
+      seedReady.invoiceNumber !== invoiceNumber ||
+      !seedReady.file.name.includes(invoiceNumber)
+    ) {
+      console.info("[ProformaPdfActions] ignore mismatched seed", {
+        seed: seedReady.file.name,
+        invoiceId,
+        invoiceNumber,
+      });
+      onSeedConsumed?.();
+      return;
+    }
+    clearReady(setReady, blobUrlRef);
+    signatureAtGeneration.current = contentSignature;
+    setReady(seedReady);
+    setStatus("ready");
+    setMsg(`已生成：\n${seedReady.file.name}`);
+    onSeedConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedReady]);
+
+  // Form edits after generation → outdated (must regenerate).
+  useEffect(() => {
+    if (!ready) return;
+    if (
+      contentSignature &&
+      signatureAtGeneration.current &&
+      contentSignature !== signatureAtGeneration.current
+    ) {
+      console.info("[ProformaPdfActions] content changed → outdated", {
+        invoiceId,
+        invoiceNumber,
+        prev: signatureAtGeneration.current,
+        next: contentSignature,
+      });
+      clearReady(setReady, blobUrlRef);
+      setStatus("outdated");
+      setMsg(PROFORMA_PDF_STATUS_LABEL.outdated);
+    }
+  }, [contentSignature, ready, invoiceId, invoiceNumber, setMsg]);
 
   const handlePreview = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    console.info("[ProformaPdfActions] preview click", {
-      file: "ProformaPdfActions.tsx",
-      invoiceId,
-    });
     setErr(null);
     try {
       previewProformaPdf(invoiceId, event);
@@ -80,7 +163,6 @@ export default function ProformaPdfActions({
     }
   };
 
-  /** Step 1 (Apple) or one-shot download (desktop). */
   const handleGenerateOrDownload = async (
     event: MouseEvent<HTMLButtonElement>
   ) => {
@@ -88,11 +170,15 @@ export default function ProformaPdfActions({
     event.stopPropagation();
     if (busy || disabled) return;
 
-    console.info("[ProformaPdfActions] generate/download click", {
-      file: "ProformaPdfActions.tsx",
-      apple,
+    // Never reuse a previous File — clear first.
+    clearReady(setReady, blobUrlRef);
+
+    console.info("[ProformaPdfActions] generate click", {
+      component: "ProformaPdfActions.tsx",
       invoiceId,
-      preventDefault: true,
+      invoiceNumber,
+      apple,
+      t: Date.now(),
     });
 
     setBusy(true);
@@ -102,10 +188,22 @@ export default function ProformaPdfActions({
 
     try {
       if (apple) {
-        const file = await fetchProformaPdfFile(invoiceId, invoiceNumber);
-        setReadyFile(file);
+        const fetched = await fetchProformaPdfFile(invoiceId, invoiceNumber);
+        if (
+          fetched.invoiceId !== invoiceId ||
+          fetched.invoiceNumber !== invoiceNumber
+        ) {
+          throw new Error("生成结果与当前发票不一致，请重试");
+        }
+        if (!fetched.file.name.includes(invoiceNumber)) {
+          throw new Error(
+            `文件名未包含当前发票号：${fetched.file.name}`
+          );
+        }
+        signatureAtGeneration.current = contentSignature;
+        setReady(fetched);
         setStatus("ready");
-        setMsg(PROFORMA_PDF_STATUS_LABEL.ready);
+        setMsg(`已生成：\n${fetched.file.name}`);
       } else {
         const result = await downloadProformaPdf(invoiceId, {
           invoiceNumber,
@@ -114,13 +212,18 @@ export default function ProformaPdfActions({
             setMsg(detail || PROFORMA_PDF_STATUS_LABEL[s]);
           },
         });
-        setMsg(result.message);
+        setMsg(
+          result.status === "downloaded" || result.status === "shared"
+            ? `${result.message}\n${result.filename}`
+            : result.message
+        );
         setStatus(result.status);
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         setMsg("已取消分享");
       } else {
+        clearReady(setReady, blobUrlRef);
         setStatus("error");
         const message =
           err instanceof Error ? err.message : PROFORMA_PDF_STATUS_LABEL.error;
@@ -132,17 +235,29 @@ export default function ProformaPdfActions({
     }
   };
 
-  /** Step 2 (Apple only): share from a fresh user gesture — no network first. */
   const handleShareOrSave = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    if (!readyFile || busy) return;
+    if (!ready || busy) return;
 
-    console.info("[ProformaPdfActions] share click (direct gesture)", {
-      file: "ProformaPdfActions.tsx",
-      filename: readyFile.name,
-      size: readyFile.size,
-      preventDefault: true,
+    // Guard: File must still match the CURRENT invoice on screen.
+    if (
+      ready.invoiceId !== invoiceId ||
+      ready.invoiceNumber !== invoiceNumber ||
+      !ready.file.name.includes(invoiceNumber)
+    ) {
+      clearReady(setReady, blobUrlRef);
+      setStatus("outdated");
+      setErr("PDF 已过期或不属于当前发票，请重新生成 PDF");
+      setMsg(PROFORMA_PDF_STATUS_LABEL.outdated);
+      return;
+    }
+
+    console.info("[ProformaPdfActions] share click", {
+      filename: ready.file.name,
+      invoiceNumber,
+      size: ready.blobSize,
+      generatedAt: ready.generatedAt,
     });
 
     setBusy(true);
@@ -151,9 +266,12 @@ export default function ProformaPdfActions({
     setErr(null);
 
     try {
-      const result = await shareOrSaveProformaPdfFile(readyFile);
+      const result = await shareOrSaveProformaPdfFile(
+        ready.file,
+        invoiceNumber
+      );
       setStatus(result.method === "share" ? "shared" : "downloaded");
-      setMsg(result.message);
+      setMsg(`${result.message}\n${ready.file.name}`);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         setMsg("已取消分享");
@@ -172,6 +290,15 @@ export default function ProformaPdfActions({
   const pad = compact
     ? "rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-white disabled:opacity-50"
     : buttonClassName;
+
+  const shareEnabled =
+    !!ready &&
+    !busy &&
+    !disabled &&
+    status !== "outdated" &&
+    ready.invoiceId === invoiceId &&
+    ready.invoiceNumber === invoiceNumber &&
+    ready.file.name.includes(invoiceNumber);
 
   return (
     <span className={`inline-flex flex-wrap items-center gap-1 ${className}`}>
@@ -198,7 +325,7 @@ export default function ProformaPdfActions({
           </button>
           <button
             type="button"
-            disabled={busy || disabled || !readyFile}
+            disabled={!shareEnabled}
             onClick={(e) => void handleShareOrSave(e)}
             className={pad}
           >

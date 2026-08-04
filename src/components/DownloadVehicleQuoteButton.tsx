@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import type { Locale, Vehicle } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { useCart } from "@/components/CartProvider";
@@ -21,6 +21,12 @@ type DownloadVehicleQuoteButtonProps = {
   className?: string;
 };
 
+type ReadyQuote = {
+  file: File;
+  vehicleId: string;
+  generatedAt: number;
+};
+
 export default function DownloadVehicleQuoteButton({
   vehicle,
   locale,
@@ -29,21 +35,41 @@ export default function DownloadVehicleQuoteButton({
 }: DownloadVehicleQuoteButtonProps) {
   const { showToast } = useCart();
   const [busy, setBusy] = useState(false);
-  const [readyFile, setReadyFile] = useState<File | null>(null);
+  const [ready, setReady] = useState<ReadyQuote | null>(null);
+  const [outdated, setOutdated] = useState(false);
   const apple = isAppleMobileBrowser();
+
+  // New vehicle → wipe previous File completely.
+  useEffect(() => {
+    setReady(null);
+    setOutdated(false);
+    setBusy(false);
+  }, [vehicle.id]);
 
   async function handleGenerate(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
     if (busy) return;
     setBusy(true);
+    setReady(null);
+    setOutdated(false);
     try {
       if (apple) {
         const { file, contactName } = await buildVehicleQuotePdfFile(
           vehicle,
           locale
         );
-        setReadyFile(file);
+        console.info("[DownloadVehicleQuote] generated", {
+          vehicleId: vehicle.id,
+          filename: file.name,
+          size: file.size,
+          generatedAt: file.lastModified,
+        });
+        setReady({
+          file,
+          vehicleId: vehicle.id,
+          generatedAt: file.lastModified,
+        });
         trackAnalyticsEvent("quote_download", {
           vehicleId: vehicle.id,
           locale,
@@ -53,7 +79,7 @@ export default function DownloadVehicleQuoteButton({
           },
           dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
         });
-        showToast("PDF 已生成，请点「分享或保存 PDF」");
+        showToast(`已生成：${file.name}，请点「分享或保存 PDF」`);
       } else {
         const result = await downloadVehicleQuotePdf(vehicle, locale);
         trackAnalyticsEvent("quote_download", {
@@ -86,12 +112,25 @@ export default function DownloadVehicleQuoteButton({
   async function handleShare(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
-    if (!readyFile || busy) return;
+    if (!ready || busy || outdated) return;
+    if (ready.vehicleId !== vehicle.id) {
+      setReady(null);
+      setOutdated(true);
+      showToast("报价内容已更改，请重新生成 PDF");
+      return;
+    }
     setBusy(true);
     try {
-      const result = await shareOrSavePdfFile(readyFile);
+      console.info("[DownloadVehicleQuote] share", {
+        vehicleId: vehicle.id,
+        filename: ready.file.name,
+        size: ready.file.size,
+      });
+      const result = await shareOrSavePdfFile(ready.file);
       showToast(
-        result.method === "share" ? "已打开系统分享" : t.vehicleDetail.quoteDownloadSuccess
+        result.method === "share"
+          ? "已打开系统分享"
+          : t.vehicleDetail.quoteDownloadSuccess
       );
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -105,6 +144,12 @@ export default function DownloadVehicleQuoteButton({
     }
   }
 
+  const shareEnabled =
+    !!ready &&
+    !busy &&
+    !outdated &&
+    ready.vehicleId === vehicle.id;
+
   if (apple) {
     return (
       <span className={`inline-flex flex-col gap-2 w-full ${className}`}>
@@ -116,19 +161,27 @@ export default function DownloadVehicleQuoteButton({
           className="inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
         >
           <span className="text-center leading-tight">
-            {busy && !readyFile
-              ? t.vehicleDetail.quotePreparing
-              : "生成 PDF"}
+            {busy && !ready ? t.vehicleDetail.quotePreparing : "生成 PDF"}
           </span>
         </button>
         <button
           type="button"
           onClick={(e) => void handleShare(e)}
-          disabled={busy || !readyFile}
+          disabled={!shareEnabled}
           className="inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
         >
           <span className="text-center leading-tight">分享或保存 PDF</span>
         </button>
+        {ready ? (
+          <span className="text-xs text-slate-500 break-all">
+            已生成：{ready.file.name}
+          </span>
+        ) : null}
+        {outdated ? (
+          <span className="text-xs text-amber-700">
+            报价内容已更改，请重新生成 PDF
+          </span>
+        ) : null}
       </span>
     );
   }

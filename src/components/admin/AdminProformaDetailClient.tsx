@@ -46,6 +46,7 @@ export default function AdminProformaDetailClient({
         </span>
       ) : null}
       <ProformaPdfActions
+        key={invoice.id}
         invoiceId={invoice.id}
         invoiceNumber={invoice.invoiceNumber}
         disabled={busy || overLimit}

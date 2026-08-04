@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DEFAULT_CHARGE_TEMPLATES,
@@ -27,7 +27,6 @@ import type {
 import {
   fetchProformaPdfFile,
   isAppleMobileBrowser,
-  shareOrSaveProformaPdfFile,
   downloadProformaPdf,
   PROFORMA_PDF_STATUS_LABEL,
   type ProformaPdfStatus,
@@ -273,11 +272,68 @@ export default function AdminProformaEditor({
   const [freightPortId, setFreightPortId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [pdfBusy, setPdfBusy] = useState(false);
-  const [readyPdfFile, setReadyPdfFile] = useState<File | null>(null);
+  const [pdfSeed, setPdfSeed] = useState<
+    import("@/lib/proforma/downloadProformaPdf").FetchedProformaPdf | null
+  >(null);
+
+  // New invoice edit page → discard any seeded PDF from a previous invoice.
+  useEffect(() => {
+    setPdfSeed(null);
+  }, [initial?.id]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [depositWarning, setDepositWarning] = useState(false);
+
+  /** Fingerprint of editable fields — used to invalidate a generated PDF. */
+  const contentSignature = useMemo(
+    () =>
+      JSON.stringify({
+        contractNumber,
+        offerDate,
+        validityText,
+        customerName,
+        customerCompany,
+        customerCountry,
+        customerAddress,
+        customerWhatsapp,
+        customerEmail,
+        destinationCountry,
+        destinationPort,
+        salespersonName,
+        salespersonPhone,
+        salespersonEmail,
+        company,
+        payment,
+        depositUsd,
+        notes,
+        terms,
+        items,
+        charges,
+      }),
+    [
+      contractNumber,
+      offerDate,
+      validityText,
+      customerName,
+      customerCompany,
+      customerCountry,
+      customerAddress,
+      customerWhatsapp,
+      customerEmail,
+      destinationCountry,
+      destinationPort,
+      salespersonName,
+      salespersonPhone,
+      salespersonEmail,
+      company,
+      payment,
+      depositUsd,
+      notes,
+      terms,
+      items,
+      charges,
+    ]
+  );
 
   const totals = useMemo(() => {
     const itemTotals = items.map((item) =>
@@ -494,31 +550,6 @@ export default function AdminProformaEditor({
     idempotencyKey: uid(),
   });
 
-  const shareReadyPdf = async (
-    event: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (!readyPdfFile || pdfBusy) return;
-    setPdfBusy(true);
-    setError(null);
-    setMessage(PROFORMA_PDF_STATUS_LABEL.sharing);
-    try {
-      const result = await shareOrSaveProformaPdfFile(readyPdfFile);
-      setMessage(result.message);
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setMessage("已取消分享");
-      } else {
-        setError(
-          err instanceof Error ? err.message : PROFORMA_PDF_STATUS_LABEL.error
-        );
-      }
-    } finally {
-      setPdfBusy(false);
-    }
-  };
-
   const save = async (opts: {
     generatePdf?: boolean;
     markIssued?: boolean;
@@ -600,19 +631,21 @@ export default function AdminProformaEditor({
         }
         setMessage(PROFORMA_PDF_STATUS_LABEL.generating);
         if (isAppleMobileBrowser()) {
-          // Step 1 only: keep File in memory for a second direct-share tap.
-          const file = await fetchProformaPdfFile(savedId, savedNumber);
-          setReadyPdfFile(file);
+          const fetched = await fetchProformaPdfFile(savedId, savedNumber);
+          setPdfSeed(fetched);
           setMessage(
-            `已保存 ${savedNumber}。${PROFORMA_PDF_STATUS_LABEL.ready}`
+            `已保存 ${savedNumber}。\n已生成：\n${fetched.file.name}\n请点「分享或保存 PDF」。`
           );
         } else {
-          const { message: pdfMessage } = await downloadProformaPdf(savedId, {
-            invoiceNumber: savedNumber,
-            onStatus: (status: ProformaPdfStatus, detail?: string) => {
-              setMessage(detail || PROFORMA_PDF_STATUS_LABEL[status]);
-            },
-          });
+          const { message: pdfMessage, filename } = await downloadProformaPdf(
+            savedId,
+            {
+              invoiceNumber: savedNumber,
+              onStatus: (status: ProformaPdfStatus, detail?: string) => {
+                setMessage(detail || PROFORMA_PDF_STATUS_LABEL[status]);
+              },
+            }
+          );
           if (!opts.markIssued) {
             const confirmIssued = window.confirm(
               "PDF 已生成。是否将状态更新为「已开具」？"
@@ -626,7 +659,7 @@ export default function AdminProformaEditor({
               });
             }
           }
-          setMessage(`已保存 ${savedNumber}。${pdfMessage}`);
+          setMessage(`已保存 ${savedNumber}。${pdfMessage}\n${filename}`);
         }
       } else {
         setMessage(`草稿已保存 ${savedNumber}`);
@@ -710,27 +743,17 @@ export default function AdminProformaEditor({
             保存草稿
           </button>
           {mode === "edit" && initial?.invoiceNumber ? (
-            <>
-              <ProformaPdfActions
-                invoiceId={initial.id}
-                invoiceNumber={initial.invoiceNumber || invoiceNumber}
-                disabled={saving || pdfBusy}
-                onMessage={setMessage}
-                onError={setError}
-              />
-              {readyPdfFile ? (
-                <button
-                  type="button"
-                  className={btnGhost}
-                  disabled={saving || pdfBusy}
-                  onClick={(e) => void shareReadyPdf(e)}
-                >
-                  {pdfBusy
-                    ? PROFORMA_PDF_STATUS_LABEL.sharing
-                    : "分享或保存 PDF"}
-                </button>
-              ) : null}
-            </>
+            <ProformaPdfActions
+              key={initial.id}
+              invoiceId={initial.id}
+              invoiceNumber={initial.invoiceNumber || invoiceNumber}
+              contentSignature={contentSignature}
+              seedReady={pdfSeed}
+              onSeedConsumed={() => setPdfSeed(null)}
+              disabled={saving}
+              onMessage={setMessage}
+              onError={setError}
+            />
           ) : null}
           <button
             type="button"

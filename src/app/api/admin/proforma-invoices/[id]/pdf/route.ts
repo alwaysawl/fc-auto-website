@@ -87,7 +87,10 @@ export async function GET(request: Request, ctx: Ctx) {
         "Content-Length": String(body.byteLength),
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         Pragma: "no-cache",
+        Expires: "0",
         "X-Content-Type-Options": "nosniff",
+        "X-Proforma-Invoice-Id": invoice.id,
+        "X-Proforma-Invoice-Number": invoice.invoiceNumber,
       },
     });
   } catch (err) {

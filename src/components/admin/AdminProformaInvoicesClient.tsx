@@ -435,6 +435,7 @@ export default function AdminProformaInvoicesClient({
                           {row.status === "draft" ? "编辑草稿" : "编辑"}
                         </Link>
                         <ProformaPdfActions
+                          key={row.id}
                           invoiceId={row.id}
                           invoiceNumber={row.invoiceNumber}
                           disabled={busyId === row.id}

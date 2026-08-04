@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Locale, Vehicle } from "@/lib/types";
 import { downloadVehicleQuotePdf } from "@/lib/vehicleQuote/buildQuotePdf";
 import { shareOrSavePdfFile } from "@/lib/pdf/deliverPdfBlob";
@@ -77,6 +77,11 @@ export default function AdminInquiryDetailClient({
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [readyQuoteFile, setReadyQuoteFile] = useState<File | null>(null);
+
+  // Switching inquiries must never reuse a previous quote PDF File.
+  useEffect(() => {
+    setReadyQuoteFile(null);
+  }, [inquiry.id]);
   const [note, setNote] = useState("");
   const [form, setForm] = useState({
     customerName: initialInquiry.customerName || "",
@@ -265,11 +270,23 @@ export default function AdminInquiryDetailClient({
     event.preventDefault();
     event.stopPropagation();
     if (!readyQuoteFile || busy) return;
+    if (!readyQuoteFile.name || readyQuoteFile.size <= 0) {
+      setReadyQuoteFile(null);
+      setErr("PDF 无效，请重新创建报价");
+      return;
+    }
     setBusy(true);
     try {
+      console.info("[AdminInquiryDetail] share quote", {
+        filename: readyQuoteFile.name,
+        size: readyQuoteFile.size,
+        inquiryId: inquiry.id,
+      });
       const result = await shareOrSavePdfFile(readyQuoteFile);
       setMsg(
-        result.method === "share" ? "已打开系统分享" : "报价已开始下载"
+        result.method === "share"
+          ? `已打开系统分享\n${readyQuoteFile.name}`
+          : `报价已开始下载\n${readyQuoteFile.name}`
       );
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
