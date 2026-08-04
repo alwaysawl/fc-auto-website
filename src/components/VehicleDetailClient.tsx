@@ -240,7 +240,7 @@ export default function VehicleDetailClient({
   const statusAvailable = vehicle.status === "在售" || !vehicle.status;
 
   return (
-    <div className="bg-white min-h-screen pb-28 lg:pb-0">
+    <div className="bg-white min-h-screen pb-32 lg:pb-0">
       <div className="container-max px-4 sm:px-6 lg:px-8 py-6 md:py-10">
         <Link
           href={getLocalizedPath("/inventory", locale)}
@@ -564,6 +564,7 @@ export default function VehicleDetailClient({
             removeLabel={t.cart.removeFromCart}
             addToast={t.cart.addedToast}
             removeToast={t.cart.removedToast}
+            locale={locale}
             className="vehicle-action-button vehicle-action-cart"
           />
           <DownloadVehicleQuoteButton

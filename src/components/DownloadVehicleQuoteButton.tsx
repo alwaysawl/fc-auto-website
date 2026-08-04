@@ -199,28 +199,62 @@ export default function DownloadVehicleQuoteButton({
   }
 
   const previewLabel = locale === "zh" ? "预览 PDF" : "Preview PDF";
-  const downloadLabel = (() => {
+
+  const compactPdfLabel = (() => {
     if (busy) {
       return locale === "zh"
-        ? "生成中…"
+        ? "正在生成…"
         : locale === "fr"
           ? "Génération…"
           : "Generating…";
     }
+    // Keep two-stage share UX; only the visible copy changes.
     if (apple && generatedPdfFile) {
-      return locale === "zh"
-        ? "分享或保存 PDF"
-        : locale === "fr"
-          ? "Partager / Enregistrer"
-          : "Share or Save PDF";
+      return locale === "zh" ? (
+        <>
+          分享或保存
+          <br />
+          PDF
+        </>
+      ) : locale === "fr" ? (
+        <>
+          Partager /
+          <br />
+          Enregistrer
+        </>
+      ) : (
+        <>
+          Share or
+          <br />
+          Save PDF
+        </>
+      );
     }
-    // Compact mobile CTA: short label. Desktop keeps the full product string.
-    if (compact) {
-      return locale === "zh"
-        ? "生成 PDF"
-        : locale === "fr"
-          ? "Générer PDF"
-          : "Generate PDF";
+    return locale === "zh" ? (
+      <>
+        一键生成车辆
+        <br />
+        报价单 PDF
+      </>
+    ) : locale === "fr" ? (
+      <>
+        Devis véhicule
+        <br />
+        PDF
+      </>
+    ) : (
+      <>
+        Generate vehicle
+        <br />
+        quote PDF
+      </>
+    );
+  })();
+
+  const downloadLabel = (() => {
+    if (busy) return t.vehicleDetail.quotePreparing;
+    if (apple && generatedPdfFile) {
+      return locale === "zh" ? "分享或保存 PDF" : "Share or Save PDF";
     }
     return t.vehicleDetail.downloadVehicleQuote;
   })();
@@ -238,10 +272,12 @@ export default function DownloadVehicleQuoteButton({
         className={
           className.includes("vehicle-action-button")
             ? className
-            : `${btnBase} w-full h-16 px-2 rounded-xl text-sm font-bold leading-tight text-center ${className}`
+            : `${btnBase} w-full h-[72px] px-2 rounded-xl text-sm font-bold leading-tight text-center ${className}`
         }
       >
-        <span className="vehicle-action-label">{downloadLabel}</span>
+        <span className="vehicle-action-label vehicle-action-label-pdf">
+          {compactPdfLabel}
+        </span>
       </button>
     );
   }

@@ -152,9 +152,9 @@ html.locale-zh .heading-section {
 
 .vehicle-action-button {
   width: 100%;
-  height: 64px;
   min-width: 0;
-  padding: 8px 10px;
+  height: 72px;
+  padding: 8px 8px;
 
   display: flex;
   align-items: center;
@@ -163,14 +163,14 @@ html.locale-zh .heading-section {
 
   border: 0;
   border-radius: 14px;
+  box-sizing: border-box;
 
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.18;
   text-align: center;
 
   cursor: pointer;
-  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -206,6 +206,42 @@ html.locale-zh .heading-section {
 
 .vehicle-action-label {
   min-width: 0;
+  text-align: center;
+  line-height: 1.18;
+}
+
+.vehicle-action-label-cart {
+  display: block;
+  max-width: 68px;
+
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+
+  word-break: keep-all;
+  overflow-wrap: normal;
+
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.vehicle-action-label-pdf {
+  display: block;
+
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+
+  word-break: keep-all;
+  overflow-wrap: normal;
+
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.vehicle-action-checkout .vehicle-action-label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -216,7 +252,6 @@ html.locale-zh .heading-section {
   cursor: not-allowed;
 }
 
-/* 手机窄屏 */
 @media (max-width: 390px) {
   .vehicle-mobile-actions {
     gap: 8px;
@@ -225,10 +260,18 @@ html.locale-zh .heading-section {
   }
 
   .vehicle-action-button {
-    height: 60px;
+    height: 70px;
     padding: 7px 6px;
     border-radius: 12px;
+  }
+
+  .vehicle-action-label-cart {
+    max-width: 60px;
     font-size: 15px;
+  }
+
+  .vehicle-action-label-pdf {
+    font-size: 13px;
   }
 
   .vehicle-action-icon {
@@ -236,7 +279,6 @@ html.locale-zh .heading-section {
   }
 }
 
-/* 只在手机端显示 */
 @media (min-width: 769px) {
   .vehicle-mobile-actions-bar,
   .vehicle-mobile-actions {

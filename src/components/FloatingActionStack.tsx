@@ -34,10 +34,9 @@ export default function FloatingActionStack() {
 
   if (!showCart && !showWhatsApp) return null;
 
-  // Vehicle detail sticky CTA is ~58px + padding. Keep cart above it and clear
-  // of the right-hand green action (extra right inset on the bar handles overlap).
+  // Sticky CTA is ~72px + padding; keep cart above it on vehicle detail.
   const bottomClass = isVehicleDetail
-    ? "bottom-[calc(96px+env(safe-area-inset-bottom,0px))] right-3 sm:right-6 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] lg:right-4"
+    ? "bottom-[calc(112px+env(safe-area-inset-bottom,0px))] right-3 sm:right-6 lg:bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] lg:right-4"
     : "bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] right-4 sm:right-6";
 
   return (
