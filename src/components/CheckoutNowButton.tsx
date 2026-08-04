@@ -43,9 +43,13 @@ export default function CheckoutNowButton({
           setBusy(false);
         }
       }}
-      className={`min-h-11 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#25D366] text-white font-semibold hover:bg-[#20BD5A] transition-colors disabled:opacity-60 ${className}`}
+      className={
+        className.includes("vehicle-action-button")
+          ? className
+          : `min-h-11 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#25D366] text-white font-semibold hover:bg-[#20BD5A] transition-colors disabled:opacity-60 ${className}`
+      }
     >
-      <span className="break-words text-center leading-tight">{label}</span>
+      <span className="vehicle-action-label">{label}</span>
     </button>
   );
 }

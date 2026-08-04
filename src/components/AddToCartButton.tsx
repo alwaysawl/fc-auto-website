@@ -41,11 +41,17 @@ export default function AddToCartButton({
         }
         addItem(vehicle, addToast);
       }}
-      className={`min-h-11 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 ${stateClass} ${className}`}
+      className={
+        className.includes("vehicle-action-button")
+          ? className
+          : `min-h-11 inline-flex items-center justify-center gap-1.5 px-3 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 ${stateClass} ${className}`
+      }
       aria-pressed={inCart}
     >
-      <span aria-hidden>{inCart ? "🗑" : "🛒"}</span>
-      <span className="break-words text-center leading-tight">
+      <span className="vehicle-action-icon" aria-hidden>
+        {inCart ? "🗑" : "🛒"}
+      </span>
+      <span className="vehicle-action-label">
         {inCart ? removeLabel : addLabel}
       </span>
     </button>

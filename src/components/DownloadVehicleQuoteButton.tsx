@@ -238,7 +238,7 @@ export default function DownloadVehicleQuoteButton({
         className={
           className.includes("vehicle-action-button")
             ? className
-            : `${btnBase} w-full min-h-[58px] h-auto max-h-[64px] self-center px-2 py-2.5 rounded-xl text-[11px] font-semibold leading-tight text-center ${className}`
+            : `${btnBase} w-full h-16 px-2 rounded-xl text-sm font-bold leading-tight text-center ${className}`
         }
       >
         <span className="vehicle-action-label">{downloadLabel}</span>

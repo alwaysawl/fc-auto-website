@@ -556,7 +556,7 @@ export default function VehicleDetailClient({
       </div>
 
       {/* Mobile sticky CTA bar */}
-      <div className="vehicle-mobile-actions-bar lg:hidden">
+      <div className="vehicle-mobile-actions-bar">
         <div className="vehicle-mobile-actions">
           <AddToCartButton
             vehicle={vehicle}
@@ -564,7 +564,7 @@ export default function VehicleDetailClient({
             removeLabel={t.cart.removeFromCart}
             addToast={t.cart.addedToast}
             removeToast={t.cart.removedToast}
-            className="vehicle-action-button vehicle-action-cart !min-h-[58px] !max-h-[64px] !rounded-xl !px-2 !py-2.5 !text-[11px]"
+            className="vehicle-action-button vehicle-action-cart"
           />
           <DownloadVehicleQuoteButton
             vehicle={vehicle}
@@ -577,7 +577,7 @@ export default function VehicleDetailClient({
             vehicle={vehicle}
             locale={locale}
             label={t.vehicleDetail.checkoutNow}
-            className="vehicle-action-button vehicle-action-checkout !min-h-[58px] !max-h-[64px] !rounded-xl !px-2 !py-2.5 !text-[11px]"
+            className="vehicle-action-button vehicle-action-checkout"
           />
         </div>
       </div>
