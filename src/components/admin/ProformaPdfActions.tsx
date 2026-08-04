@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent,
-} from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import {
   fetchProformaPdfFile,
   isAppleMobileBrowser,
@@ -23,12 +17,8 @@ const btnGhost =
 type ProformaPdfActionsProps = {
   invoiceId: string;
   invoiceNumber: string;
-  /** When this changes after a PDF was generated, the PDF is marked outdated. */
+  /** Kept for call-site compatibility; unused — download always fetches fresh. */
   contentSignature?: string;
-  /**
-   * Optional freshly-fetched PDF from parent (e.g. after 保存并生成 PDF).
-   * Must match current invoiceId/invoiceNumber or it is ignored.
-   */
   seedReady?: FetchedProformaPdf | null;
   onSeedConsumed?: () => void;
   disabled?: boolean;
@@ -40,17 +30,18 @@ type ProformaPdfActionsProps = {
 };
 
 /**
- * Production Proforma PDF controls.
+ * Proforma PDF controls.
  *
- * iPhone/iPad (strict Web Share):
- *   1) 生成 PDF → fetch Blob → File in state (no navigation)
- *   2) 分享或保存 PDF → navigator.share IMMEDIATELY on the click gesture
- *      (no fetch / setState / other async work before share)
+ * iPhone Safari「下载 PDF」:
+ *   fetch current invoice PDF → File → navigator.share({ files })
+ *   → iOS system share sheet → user picks「存储到文件」→ Save page → 存储
+ *
+ * Never opens Files Recents, never uses <a download>, never navigates.
+ * Preview is a separate button only.
  */
 export default function ProformaPdfActions({
   invoiceId,
   invoiceNumber,
-  contentSignature = "",
   seedReady = null,
   onSeedConsumed,
   disabled = false,
@@ -63,15 +54,7 @@ export default function ProformaPdfActions({
   const apple = isAppleMobileBrowser();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<ProformaPdfStatus>("idle");
-  /** Current invoice PDF File — only set by 生成 PDF / matching seed. */
-  const [generatedPdfFile, setGeneratedPdfFile] = useState<File | null>(null);
-  const [generatedMeta, setGeneratedMeta] = useState<{
-    invoiceId: string;
-    invoiceNumber: string;
-  } | null>(null);
-  /** Ref so share handler can read the File without any async/state delay. */
-  const generatedPdfFileRef = useRef<File | null>(null);
-  const signatureAtGeneration = useRef<string>("");
+  const [lastFilename, setLastFilename] = useState<string | null>(null);
 
   const setMsg = useCallback(
     (msg: string | null) => onMessage?.(msg),
@@ -82,60 +65,10 @@ export default function ProformaPdfActions({
     [onError]
   );
 
-  const clearGenerated = useCallback(() => {
-    generatedPdfFileRef.current = null;
-    setGeneratedPdfFile(null);
-    setGeneratedMeta(null);
-  }, []);
-
-  // Switching invoices: wipe generated PDF completely.
+  // Discard parent seed — download always fetches a fresh File on tap.
   useEffect(() => {
-    clearGenerated();
-    setStatus("idle");
-    setBusy(false);
-    signatureAtGeneration.current = "";
-    setMsg(null);
-    setErr(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on identity change
-  }, [invoiceId, invoiceNumber]);
-
-  // Accept parent seed only when it matches the invoice on screen.
-  useEffect(() => {
-    if (!seedReady) return;
-    if (
-      seedReady.invoiceId !== invoiceId ||
-      seedReady.invoiceNumber !== invoiceNumber ||
-      !seedReady.file.name.includes(invoiceNumber)
-    ) {
-      onSeedConsumed?.();
-      return;
-    }
-    generatedPdfFileRef.current = seedReady.file;
-    setGeneratedPdfFile(seedReady.file);
-    setGeneratedMeta({
-      invoiceId: seedReady.invoiceId,
-      invoiceNumber: seedReady.invoiceNumber,
-    });
-    signatureAtGeneration.current = contentSignature;
-    setStatus("ready");
-    setMsg(`已生成：\n${seedReady.file.name}`);
-    onSeedConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seedReady]);
-
-  // Form edits after generation → must regenerate.
-  useEffect(() => {
-    if (!generatedPdfFile) return;
-    if (
-      contentSignature &&
-      signatureAtGeneration.current &&
-      contentSignature !== signatureAtGeneration.current
-    ) {
-      clearGenerated();
-      setStatus("outdated");
-      setMsg(PROFORMA_PDF_STATUS_LABEL.outdated);
-    }
-  }, [contentSignature, generatedPdfFile, clearGenerated, setMsg]);
+    if (seedReady) onSeedConsumed?.();
+  }, [seedReady, onSeedConsumed]);
 
   const handlePreview = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -148,51 +81,85 @@ export default function ProformaPdfActions({
     }
   };
 
-  const handleGeneratePdf = async (event: MouseEvent<HTMLButtonElement>) => {
+  /**
+   * iPhone: fetch PDF Blob → File → navigator.share (system share sheet).
+   * No <a download>, no window.open, no Files navigation, no success-before-save.
+   */
+  async function handleDownloadPdf(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
     if (busy || disabled) return;
 
-    clearGenerated();
+    const currentInvoiceNumber = invoiceNumber.trim();
+    const currentInvoiceId = invoiceId.trim();
+    if (!currentInvoiceId || !currentInvoiceNumber) {
+      window.alert("缺少发票信息，无法下载 PDF");
+      return;
+    }
+
     setBusy(true);
     setErr(null);
     setStatus("generating");
+    setLastFilename(null);
     setMsg(PROFORMA_PDF_STATUS_LABEL.generating);
 
     try {
-      const fetched = await fetchProformaPdfFile(invoiceId, invoiceNumber);
-      if (
-        fetched.invoiceId !== invoiceId ||
-        fetched.invoiceNumber !== invoiceNumber ||
-        !fetched.file.name.includes(invoiceNumber)
-      ) {
-        throw new Error("生成结果与当前发票不一致，请重试");
+      const { file } = await fetchProformaPdfFile(
+        currentInvoiceId,
+        currentInvoiceNumber
+      );
+
+      if (!file.size || file.type !== "application/pdf") {
+        throw new Error("PDF generation failed");
+      }
+      if (!file.name.includes(currentInvoiceNumber)) {
+        throw new Error(
+          `文件名与当前发票不一致：${file.name} / ${currentInvoiceNumber}`
+        );
       }
 
-      generatedPdfFileRef.current = fetched.file;
-      setGeneratedPdfFile(fetched.file);
-      setGeneratedMeta({
-        invoiceId: fetched.invoiceId,
-        invoiceNumber: fetched.invoiceNumber,
+      const nav = navigator as Navigator & {
+        canShare?: (data: ShareData) => boolean;
+      };
+
+      if (
+        typeof navigator.share !== "function" ||
+        typeof nav.canShare !== "function" ||
+        !nav.canShare({ files: [file] })
+      ) {
+        throw new Error("This browser cannot save PDF files");
+      }
+
+      // Open iOS system share sheet only — never fall back to Files / preview / <a>.
+      await navigator.share({
+        files: [file],
+        title: file.name,
       });
-      signatureAtGeneration.current = contentSignature;
-      setStatus("ready");
-      setMsg(`已生成：\n${fetched.file.name}`);
-    } catch (err) {
-      clearGenerated();
+
+      // Share sheet finished (user shared/saved or iOS closed it).
+      // Never claim「保存成功」— only show the allowed guidance + filename.
+      setLastFilename(file.name);
+      setStatus("shared");
+      setMsg(`PDF 已生成，请在系统菜单中选择「存储到文件」\n${file.name}`);
+    } catch (error) {
+      const err = error as { name?: string; message?: string };
+      if (err?.name === "AbortError") {
+        setStatus("idle");
+        setMsg(null);
+        return;
+      }
+      console.error("[ProformaPdfActions] handleDownloadPdf", error);
       setStatus("error");
-      const message =
-        err instanceof Error ? err.message : PROFORMA_PDF_STATUS_LABEL.error;
-      setErr(message);
       setMsg(null);
+      setErr(err?.message || "PDF 保存失败，请重试");
+      window.alert("PDF 保存失败，请重试");
     } finally {
       setBusy(false);
     }
-  };
+  }
 
-  const handleDesktopDownload = async (
-    event: MouseEvent<HTMLButtonElement>
-  ) => {
+  /** Desktop / Android: fetch then download (non-Apple path). */
+  async function handleDesktopDownload(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
     if (busy || disabled) return;
@@ -210,6 +177,7 @@ export default function ProformaPdfActions({
           setMsg(detail || PROFORMA_PDF_STATUS_LABEL[s]);
         },
       });
+      setLastFilename(result.filename);
       setMsg(
         result.status === "downloaded" || result.status === "shared"
           ? `${result.message}\n${result.filename}`
@@ -218,106 +186,23 @@ export default function ProformaPdfActions({
       setStatus(result.status);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
-        setMsg("已取消分享");
+        setMsg(null);
       } else {
         setStatus("error");
         const message =
           err instanceof Error ? err.message : PROFORMA_PDF_STATUS_LABEL.error;
         setErr(message);
         setMsg(null);
+        window.alert("PDF 保存失败，请重试");
       }
     } finally {
       setBusy(false);
-    }
-  };
-
-  /**
-   * STRICT iOS share: call navigator.share on this click with no prior await/setState.
-   * Do not open Files, download anchors, or navigate.
-   */
-  async function handleShareOrSavePdf(event: MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const file = generatedPdfFileRef.current;
-
-    if (!file || file.size === 0) {
-      window.alert("请先生成 PDF");
-      return;
-    }
-
-    if (!file.name.includes(invoiceNumber)) {
-      window.alert(
-        `PDF 与当前发票不匹配（文件：${file.name}，发票：${invoiceNumber}）。请重新生成 PDF。`
-      );
-      clearGenerated();
-      setStatus("outdated");
-      return;
-    }
-
-    const nav = navigator as Navigator & {
-      canShare?: (data: ShareData) => boolean;
-    };
-
-    if (
-      typeof navigator.share !== "function" ||
-      typeof nav.canShare !== "function" ||
-      !nav.canShare({ files: [file] })
-    ) {
-      window.alert("当前浏览器不支持直接分享 PDF，请使用 Safari 打开。");
-      return;
-    }
-
-    // FIRST await must be navigator.share — preserve the user gesture.
-    try {
-      await navigator.share({
-        files: [file],
-        title: file.name,
-      });
-      // Resolves after the user finishes a share action (e.g. Save to Files + 存储).
-      // Do NOT claim "保存成功" — iOS does not tell us which target was used.
-      setStatus("shared");
-      setMsg(`系统分享已完成\n${file.name}`);
-    } catch (error) {
-      const err = error as { name?: string };
-      if (err?.name === "AbortError") {
-        // User dismissed the sheet or cancelled Save to Files — not a save success.
-        setMsg("已取消分享");
-        return;
-      }
-      console.error("[ProformaPdfActions] navigator.share failed", error);
-      window.alert("系统分享菜单打开失败");
-      setStatus("error");
-      setErr("系统分享菜单打开失败");
     }
   }
 
   const pad = compact
     ? "rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-white disabled:opacity-50"
     : buttonClassName;
-
-  const shareEnabled =
-    !!generatedPdfFile &&
-    !busy &&
-    !disabled &&
-    status !== "outdated" &&
-    generatedMeta?.invoiceId === invoiceId &&
-    generatedMeta?.invoiceNumber === invoiceNumber &&
-    generatedPdfFile.name.includes(invoiceNumber);
-
-  const canShareNow = (() => {
-    if (!generatedPdfFile || typeof navigator === "undefined") return false;
-    const nav = navigator as Navigator & {
-      canShare?: (data: ShareData) => boolean;
-    };
-    if (typeof navigator.share !== "function") return false;
-    if (typeof nav.canShare !== "function") return false;
-    try {
-      return nav.canShare({ files: [generatedPdfFile] });
-    } catch {
-      return false;
-    }
-  })();
 
   return (
     <span className={`inline-flex flex-wrap items-center gap-1 ${className}`}>
@@ -330,63 +215,26 @@ export default function ProformaPdfActions({
         预览 PDF
       </button>
 
-      {apple ? (
-        <>
-          <button
-            type="button"
-            disabled={busy || disabled}
-            onClick={(e) => void handleGeneratePdf(e)}
-            className={pad}
-          >
-            {busy && status === "generating"
-              ? PROFORMA_PDF_STATUS_LABEL.generating
-              : "生成 PDF"}
-          </button>
-          <button
-            type="button"
-            disabled={!shareEnabled}
-            onClick={(e) => void handleShareOrSavePdf(e)}
-            className={pad}
-          >
-            分享或保存 PDF
-          </button>
-        </>
-      ) : (
-        <button
-          type="button"
-          disabled={busy || disabled}
-          onClick={(e) => void handleDesktopDownload(e)}
-          className={pad}
-        >
-          {busy
-            ? PROFORMA_PDF_STATUS_LABEL[status] ||
-              PROFORMA_PDF_STATUS_LABEL.generating
-            : "下载 PDF"}
-        </button>
-      )}
+      <button
+        type="button"
+        disabled={busy || disabled}
+        onClick={(e) =>
+          void (apple ? handleDownloadPdf(e) : handleDesktopDownload(e))
+        }
+        className={pad}
+      >
+        {busy ? PROFORMA_PDF_STATUS_LABEL.generating : "下载 PDF"}
+      </button>
 
       {apple ? (
-        <span
-          className="mt-1 w-full basis-full rounded border border-dashed border-amber-300 bg-amber-50 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-amber-950"
-          data-pdf-share-debug="1"
-        >
-          [PDF debug]
-          <br />
-          file.name: {generatedPdfFile?.name ?? "(null)"}
-          <br />
-          file.type: {generatedPdfFile?.type ?? "(null)"}
-          <br />
-          file.size: {generatedPdfFile?.size ?? "(null)"}
-          <br />
-          navigator.share:{" "}
-          {typeof navigator !== "undefined" &&
-          typeof navigator.share === "function"
-            ? "yes"
-            : "no"}
-          <br />
-          canShare(files): {String(canShareNow)}
-          <br />
-          invoice: {invoiceNumber} / {invoiceId}
+        <span className="mt-1 w-full basis-full text-[11px] leading-snug text-slate-600 break-all">
+          点击「下载 PDF」后将打开系统分享菜单，请选择「存储到文件」，再点右上角「存储」。
+          {lastFilename ? (
+            <>
+              <br />
+              {lastFilename}
+            </>
+          ) : null}
         </span>
       ) : null}
     </span>

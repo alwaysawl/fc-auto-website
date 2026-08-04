@@ -634,7 +634,7 @@ export default function AdminProformaEditor({
           const fetched = await fetchProformaPdfFile(savedId, savedNumber);
           setPdfSeed(fetched);
           setMessage(
-            `已保存 ${savedNumber}。\n已生成：\n${fetched.file.name}\n请点「分享或保存 PDF」。`
+            `已保存 ${savedNumber}。\n已生成：\n${fetched.file.name}\n请点「下载 PDF」，并在系统菜单中选择「存储到文件」。`
           );
         } else {
           const { message: pdfMessage, filename } = await downloadProformaPdf(
