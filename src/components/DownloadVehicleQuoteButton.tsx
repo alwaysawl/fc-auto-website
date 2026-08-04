@@ -235,11 +235,13 @@ export default function DownloadVehicleQuoteButton({
         onClick={(e) => void handleDownload(e)}
         disabled={busy}
         aria-busy={busy}
-        className={`${btnBase} w-full min-h-[58px] h-auto max-h-[64px] self-center px-2 py-2.5 rounded-xl text-[11px] sm:text-xs font-semibold leading-tight text-center ${className}`}
+        className={
+          className.includes("vehicle-action-button")
+            ? className
+            : `${btnBase} w-full min-h-[58px] h-auto max-h-[64px] self-center px-2 py-2.5 rounded-xl text-[11px] font-semibold leading-tight text-center ${className}`
+        }
       >
-        <span className="text-center leading-tight line-clamp-2">
-          {downloadLabel}
-        </span>
+        <span className="vehicle-action-label">{downloadLabel}</span>
       </button>
     );
   }

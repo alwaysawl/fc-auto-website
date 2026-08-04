@@ -126,3 +126,94 @@ html.locale-zh .heading-section {
     sans-serif;
   letter-spacing: 0;
 }
+
+/* Vehicle detail — mobile sticky action bar (compact equal-height CTAs) */
+.vehicle-mobile-actions-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 4rem 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+}
+
+.vehicle-mobile-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: center;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.vehicle-action-button {
+  width: 100%;
+  min-height: 58px;
+  height: auto;
+  max-height: 64px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  align-self: center;
+  box-sizing: border-box;
+}
+
+.vehicle-action-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.vehicle-action-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.vehicle-action-label {
+  display: block;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vehicle-mobile-actions .vehicle-action-cart {
+  background: #facc15 !important;
+  color: #1e293b !important;
+  border: 1px solid transparent !important;
+}
+
+.vehicle-mobile-actions .vehicle-action-cart[aria-pressed="true"] {
+  background: #fff !important;
+  color: #dc2626 !important;
+  border-color: #fecaca !important;
+}
+
+.vehicle-mobile-actions .vehicle-action-pdf {
+  background: #facc15 !important;
+  color: #1e293b !important;
+  border: 1px solid transparent !important;
+}
+
+.vehicle-mobile-actions .vehicle-action-checkout {
+  background: #25d366 !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+}
+
+@media (min-width: 1024px) {
+  .vehicle-mobile-actions-bar {
+    display: none;
+  }
+}

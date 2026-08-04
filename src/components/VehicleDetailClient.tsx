@@ -555,29 +555,29 @@ export default function VehicleDetailClient({
         )}
       </div>
 
-      {/* Mobile sticky CTA bar — compact equal-height actions */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] pl-3 pr-16 safe-area-pb">
-        <div className="grid grid-cols-3 gap-2.5 max-w-lg mx-auto items-center">
+      {/* Mobile sticky CTA bar */}
+      <div className="vehicle-mobile-actions-bar lg:hidden">
+        <div className="vehicle-mobile-actions">
           <AddToCartButton
             vehicle={vehicle}
             addLabel={t.cart.addToCart}
             removeLabel={t.cart.removeFromCart}
             addToast={t.cart.addedToast}
             removeToast={t.cart.removedToast}
-            className="w-full min-h-[58px] h-auto max-h-[64px] self-center px-2 py-2.5 rounded-xl text-[11px] sm:text-xs leading-tight"
+            className="vehicle-action-button vehicle-action-cart !min-h-[58px] !max-h-[64px] !rounded-xl !px-2 !py-2.5 !text-[11px]"
           />
           <DownloadVehicleQuoteButton
             vehicle={vehicle}
             locale={locale}
             t={t}
             compact
-            className="bg-accent-yellow text-brand-slate hover:bg-accent-yellow-hover border border-transparent"
+            className="vehicle-action-button vehicle-action-pdf"
           />
           <CheckoutNowButton
             vehicle={vehicle}
             locale={locale}
             label={t.vehicleDetail.checkoutNow}
-            className="w-full min-h-[58px] h-auto max-h-[64px] self-center px-2 py-2.5 rounded-xl text-[11px] sm:text-xs leading-tight"
+            className="vehicle-action-button vehicle-action-checkout !min-h-[58px] !max-h-[64px] !rounded-xl !px-2 !py-2.5 !text-[11px]"
           />
         </div>
       </div>
