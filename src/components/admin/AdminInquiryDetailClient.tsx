@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import type { Locale, Vehicle } from "@/lib/types";
 import { downloadVehicleQuotePdf } from "@/lib/vehicleQuote/buildQuotePdf";
+import { shareOrSavePdfFile } from "@/lib/pdf/deliverPdfBlob";
 import {
   INQUIRY_PRIORITIES,
   INQUIRY_PRIORITY_LABELS,
@@ -75,6 +76,7 @@ export default function AdminInquiryDetailClient({
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [readyQuoteFile, setReadyQuoteFile] = useState<File | null>(null);
   const [note, setNote] = useState("");
   const [form, setForm] = useState({
     customerName: initialInquiry.customerName || "",
@@ -219,7 +221,9 @@ export default function AdminInquiryDetailClient({
     );
   }
 
-  async function createQuote() {
+  async function createQuote(event?: React.MouseEvent) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
     setBusy(true);
     setErr(null);
     try {
@@ -237,8 +241,9 @@ export default function AdminInquiryDetailClient({
       const delivery = await downloadVehicleQuotePdf(vehicle, locale, {
         contactName: json.contactName,
       });
-      if (delivery.deliveryMethod === "ios-fallback" && delivery.deliveryMessage) {
-        setMsg(delivery.deliveryMessage);
+      if (delivery.deliveryMethod === "ready") {
+        setReadyQuoteFile(delivery.file);
+        setMsg(delivery.deliveryMessage || "PDF 已生成，请点「分享或保存 PDF」");
       } else if (delivery.deliveryMethod === "share") {
         setMsg("已打开系统分享");
       } else {
@@ -250,6 +255,27 @@ export default function AdminInquiryDetailClient({
         setMsg("已取消分享");
       } else {
         setErr("创建报价失败，请稍后重试");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function shareReadyQuote(event: React.MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!readyQuoteFile || busy) return;
+    setBusy(true);
+    try {
+      const result = await shareOrSavePdfFile(readyQuoteFile);
+      setMsg(
+        result.method === "share" ? "已打开系统分享" : "报价已开始下载"
+      );
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setMsg("已取消分享");
+      } else {
+        setErr(err instanceof Error ? err.message : "分享失败，请重试");
       }
     } finally {
       setBusy(false);
@@ -316,11 +342,21 @@ export default function AdminInquiryDetailClient({
         <button
           type="button"
           disabled={busy}
-          onClick={() => void createQuote()}
+          onClick={(e) => void createQuote(e)}
           className="rounded-lg bg-[#FACC15] px-3 py-2 text-sm font-semibold text-[#1E293B]"
         >
           创建报价
         </button>
+        {readyQuoteFile ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={(e) => void shareReadyQuote(e)}
+            className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900"
+          >
+            分享或保存 PDF
+          </button>
+        ) : null}
         <button
           type="button"
           disabled={busy}

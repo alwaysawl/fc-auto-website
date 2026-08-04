@@ -25,11 +25,14 @@ import type {
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
 import {
+  fetchProformaPdfFile,
+  isAppleMobileBrowser,
+  shareOrSaveProformaPdfFile,
   downloadProformaPdf,
-  previewProformaPdf,
   PROFORMA_PDF_STATUS_LABEL,
   type ProformaPdfStatus,
 } from "@/lib/proforma/downloadProformaPdf";
+import ProformaPdfActions from "@/components/admin/ProformaPdfActions";
 import AdminProformaPreview, {
   type ProformaPreviewModel,
 } from "@/components/admin/AdminProformaPreview";
@@ -271,7 +274,7 @@ export default function AdminProformaEditor({
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
-  const [pdfStatusLabel, setPdfStatusLabel] = useState<string | null>(null);
+  const [readyPdfFile, setReadyPdfFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [depositWarning, setDepositWarning] = useState(false);
@@ -491,66 +494,28 @@ export default function AdminProformaEditor({
     idempotencyKey: uid(),
   });
 
-  const downloadSavedPdf = async () => {
-    if (!initial?.id) {
-      setError("请先保存发票后再下载 PDF");
-      return;
-    }
-    if (saving || pdfBusy) return;
-
-    const fit = checkProformaOnePageFit({
-      vehicleCount: items.length,
-      enabledTerms: terms
-        .filter((t) => t.enabled)
-        .map((t) => ({ textEn: t.textEn, textZh: t.textZh })),
-      notes,
-    });
-    if (!fit.ok) {
-      setError(fit.errorZh || fit.errorEn || "无法生成 PDF");
-      return;
-    }
-
+  const shareReadyPdf = async (
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!readyPdfFile || pdfBusy) return;
     setPdfBusy(true);
     setError(null);
-    setPdfStatusLabel(PROFORMA_PDF_STATUS_LABEL.generating);
-    setMessage(PROFORMA_PDF_STATUS_LABEL.generating);
+    setMessage(PROFORMA_PDF_STATUS_LABEL.sharing);
     try {
-      const result = await downloadProformaPdf(initial.id, {
-        invoiceNumber: initial.invoiceNumber || invoiceNumber,
-        onStatus: (status: ProformaPdfStatus, detail?: string) => {
-          const label = detail || PROFORMA_PDF_STATUS_LABEL[status];
-          setPdfStatusLabel(label);
-          setMessage(label);
-        },
-      });
+      const result = await shareOrSaveProformaPdfFile(readyPdfFile);
       setMessage(result.message);
-      setPdfStatusLabel(result.message);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         setMessage("已取消分享");
-        setPdfStatusLabel(null);
       } else {
         setError(
           err instanceof Error ? err.message : PROFORMA_PDF_STATUS_LABEL.error
         );
-        setMessage(null);
-        setPdfStatusLabel(PROFORMA_PDF_STATUS_LABEL.error);
       }
     } finally {
       setPdfBusy(false);
-    }
-  };
-
-  const previewSavedPdf = () => {
-    if (!initial?.id) {
-      setError("请先保存发票后再预览 PDF");
-      return;
-    }
-    setError(null);
-    try {
-      previewProformaPdf(initial.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "预览失败");
     }
   };
 
@@ -633,31 +598,36 @@ export default function AdminProformaEditor({
         if (!savedId) {
           throw new Error("发票已保存但缺少 ID，无法生成 PDF");
         }
-        const { filename, message: pdfMessage } = await downloadProformaPdf(
-          savedId,
-          {
+        setMessage(PROFORMA_PDF_STATUS_LABEL.generating);
+        if (isAppleMobileBrowser()) {
+          // Step 1 only: keep File in memory for a second direct-share tap.
+          const file = await fetchProformaPdfFile(savedId, savedNumber);
+          setReadyPdfFile(file);
+          setMessage(
+            `已保存 ${savedNumber}。${PROFORMA_PDF_STATUS_LABEL.ready}`
+          );
+        } else {
+          const { message: pdfMessage } = await downloadProformaPdf(savedId, {
             invoiceNumber: savedNumber,
-            onStatus: (status, detail) => {
+            onStatus: (status: ProformaPdfStatus, detail?: string) => {
               setMessage(detail || PROFORMA_PDF_STATUS_LABEL[status]);
             },
+          });
+          if (!opts.markIssued) {
+            const confirmIssued = window.confirm(
+              "PDF 已生成。是否将状态更新为「已开具」？"
+            );
+            if (confirmIssued) {
+              await fetch(`/api/admin/proforma-invoices/${savedId}/status`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "issued" }),
+              });
+            }
           }
-        );
-        if (!opts.markIssued) {
-          const confirmIssued = window.confirm(
-            "PDF 已生成。是否将状态更新为「已开具」？"
-          );
-          if (confirmIssued) {
-            await fetch(`/api/admin/proforma-invoices/${savedId}/status`, {
-              method: "POST",
-              credentials: "include",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "issued" }),
-            });
-          }
+          setMessage(`已保存 ${savedNumber}。${pdfMessage}`);
         }
-        setMessage(
-          `已保存 ${savedNumber}。${pdfMessage || `PDF：${filename}`}`
-        );
       } else {
         setMessage(`草稿已保存 ${savedNumber}`);
       }
@@ -741,24 +711,25 @@ export default function AdminProformaEditor({
           </button>
           {mode === "edit" && initial?.invoiceNumber ? (
             <>
-              <button
-                type="button"
-                className={btnGhost}
+              <ProformaPdfActions
+                invoiceId={initial.id}
+                invoiceNumber={initial.invoiceNumber || invoiceNumber}
                 disabled={saving || pdfBusy}
-                onClick={previewSavedPdf}
-              >
-                预览 PDF
-              </button>
-              <button
-                type="button"
-                className={btnGhost}
-                disabled={saving || pdfBusy}
-                onClick={() => void downloadSavedPdf()}
-              >
-                {pdfBusy
-                  ? pdfStatusLabel || PROFORMA_PDF_STATUS_LABEL.generating
-                  : "下载 PDF"}
-              </button>
+                onMessage={setMessage}
+                onError={setError}
+              />
+              {readyPdfFile ? (
+                <button
+                  type="button"
+                  className={btnGhost}
+                  disabled={saving || pdfBusy}
+                  onClick={(e) => void shareReadyPdf(e)}
+                >
+                  {pdfBusy
+                    ? PROFORMA_PDF_STATUS_LABEL.sharing
+                    : "分享或保存 PDF"}
+                </button>
+              ) : null}
             </>
           ) : null}
           <button

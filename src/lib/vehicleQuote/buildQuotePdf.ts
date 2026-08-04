@@ -18,7 +18,10 @@ import {
   renderTextBitmap,
   type QuoteImageAsset,
 } from "@/lib/vehicleQuote/images";
-import { deliverPdfBlob } from "@/lib/pdf/deliverPdfBlob";
+import {
+  isAppleMobileBrowser,
+  shareOrSavePdfFile,
+} from "@/lib/pdf/deliverPdfBlob";
 
 const NAVY: [number, number, number] = [26, 35, 50];
 const YELLOW: [number, number, number] = [245, 198, 54];
@@ -214,8 +217,21 @@ async function drawCoverImage(
 }
 
 /**
- * Generate and trigger download of a vehicle quotation PDF in the active locale.
- * Optional contactName locks Shawn/Miles to match an inquiry without changing RR default.
+ * Build a vehicle quotation PDF File in memory (no navigation / share).
+ */
+export async function buildVehicleQuotePdfFile(
+  vehicle: Vehicle,
+  locale: Locale,
+  options?: { contactName?: string | null }
+): Promise<{ file: File; contactName: string }> {
+  const result = await buildVehicleQuotePdfInternal(vehicle, locale, options);
+  return result;
+}
+
+/**
+ * Generate and deliver a vehicle quotation PDF.
+ * On Apple mobile, returns the File with deliveryMethod "ready" so the UI can
+ * call share from a second direct tap (user activation).
  */
 export async function downloadVehicleQuotePdf(
   vehicle: Vehicle,
@@ -224,9 +240,40 @@ export async function downloadVehicleQuotePdf(
 ): Promise<{
   contactName: string;
   filename: string;
-  deliveryMethod: "share" | "download" | "ios-fallback";
+  file: File;
+  deliveryMethod: "share" | "download" | "ready";
   deliveryMessage?: string;
 }> {
+  const { file, contactName } = await buildVehicleQuotePdfFile(
+    vehicle,
+    locale,
+    options
+  );
+
+  if (isAppleMobileBrowser()) {
+    return {
+      contactName,
+      filename: file.name,
+      file,
+      deliveryMethod: "ready",
+      deliveryMessage: "PDF 已生成，请点「分享或保存 PDF」",
+    };
+  }
+
+  const delivery = await shareOrSavePdfFile(file);
+  return {
+    contactName,
+    filename: file.name,
+    file,
+    deliveryMethod: delivery.method,
+  };
+}
+
+async function buildVehicleQuotePdfInternal(
+  vehicle: Vehicle,
+  locale: Locale,
+  options?: { contactName?: string | null }
+): Promise<{ file: File; contactName: string }> {
   const copy = getVehicleQuoteCopy(locale);
   const contact = await resolveQuoteContact(options?.contactName);
   const whatsappDisplay = contact.whatsappDisplay;
@@ -617,11 +664,13 @@ export async function downloadVehicleQuotePdf(
 
   const filename = buildQuoteFilename(vehicle);
   const blob = doc.output("blob") as Blob;
-  const delivery = await deliverPdfBlob(blob, filename);
-  return {
-    contactName: contact.name,
-    filename,
-    deliveryMethod: delivery.method,
-    deliveryMessage: delivery.message,
-  };
+  const pdfBlob =
+    blob.type === "application/pdf"
+      ? blob
+      : new Blob([blob], { type: "application/pdf" });
+  const file = new File([pdfBlob], filename, {
+    type: "application/pdf",
+    lastModified: Date.now(),
+  });
+  return { file, contactName: contact.name };
 }

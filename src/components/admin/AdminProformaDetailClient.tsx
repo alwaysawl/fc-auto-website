@@ -3,16 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProformaDetail } from "@/lib/admin/proforma/types";
-import {
-  PI_MAX_VEHICLES,
-  checkProformaOnePageFit,
-} from "@/lib/proforma/layout";
-import {
-  downloadProformaPdf,
-  previewProformaPdf,
-  PROFORMA_PDF_STATUS_LABEL,
-  type ProformaPdfStatus,
-} from "@/lib/proforma/downloadProformaPdf";
+import { PI_MAX_VEHICLES } from "@/lib/proforma/layout";
+import ProformaPdfActions from "@/components/admin/ProformaPdfActions";
 
 export default function AdminProformaDetailClient({
   invoice,
@@ -21,58 +13,16 @@ export default function AdminProformaDetailClient({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [statusLabel, setStatusLabel] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const overLimit = invoice.items.length > PI_MAX_VEHICLES;
 
-  const onStatus = (status: ProformaPdfStatus, detail?: string) => {
-    setStatusLabel(detail || PROFORMA_PDF_STATUS_LABEL[status]);
-  };
-
-  const preview = () => {
-    setMessage(null);
-    try {
-      previewProformaPdf(invoice.id);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "预览失败");
-    }
-  };
-
-  const download = async () => {
+  const duplicate = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
     setBusy(true);
-    setMessage(null);
-    setStatusLabel(PROFORMA_PDF_STATUS_LABEL.generating);
-    try {
-      const fit = checkProformaOnePageFit({
-        vehicleCount: invoice.items.length,
-        enabledTerms: invoice.termsSnapshot
-          .filter((t) => t.enabled)
-          .map((t) => ({ textEn: t.textEn, textZh: t.textZh })),
-        notes: invoice.notes,
-      });
-      if (!fit.ok) {
-        throw new Error(fit.errorZh || fit.errorEn || "无法生成 PDF");
-      }
-      const result = await downloadProformaPdf(invoice.id, {
-        invoiceNumber: invoice.invoiceNumber,
-        onStatus,
-      });
-      setMessage(result.message);
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setMessage("已取消分享");
-      } else {
-        setStatusLabel(PROFORMA_PDF_STATUS_LABEL.error);
-        setMessage(err instanceof Error ? err.message : PROFORMA_PDF_STATUS_LABEL.error);
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const duplicate = async () => {
-    setBusy(true);
+    setError(null);
     try {
       const res = await fetch(
         `/api/admin/proforma-invoices/${invoice.id}/duplicate`,
@@ -82,7 +32,7 @@ export default function AdminProformaDetailClient({
       if (!res.ok || !json.id) throw new Error(json.error || "复制失败");
       router.push(`/admin/proforma-invoices/${json.id}/edit`);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "复制失败");
+      setError(err instanceof Error ? err.message : "复制失败");
       setBusy(false);
     }
   };
@@ -95,30 +45,24 @@ export default function AdminProformaDetailClient({
           请编辑或复制后删至 8 台以内再生成 PDF。
         </span>
       ) : null}
-      <button
-        type="button"
+      <ProformaPdfActions
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.invoiceNumber}
         disabled={busy || overLimit}
-        onClick={preview}
-        className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-[#1E293B] hover:bg-slate-50 disabled:opacity-60"
-      >
-        预览 PDF
-      </button>
-      <button
-        type="button"
-        disabled={busy || overLimit}
-        onClick={() => void download()}
-        className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-[#1E293B] hover:bg-slate-50 disabled:opacity-60"
-      >
-        {busy ? statusLabel || PROFORMA_PDF_STATUS_LABEL.generating : "下载 PDF"}
-      </button>
+        onMessage={setMessage}
+        onError={setError}
+      />
       <button
         type="button"
         disabled={busy}
-        onClick={() => void duplicate()}
+        onClick={(e) => void duplicate(e)}
         className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-[#1E293B] hover:bg-slate-50 disabled:opacity-60"
       >
         复制为新发票
       </button>
+      {error ? (
+        <span className="self-center text-sm text-red-700">{error}</span>
+      ) : null}
       {message ? (
         <span className="self-center text-sm text-sky-800">{message}</span>
       ) : null}

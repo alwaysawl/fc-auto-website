@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import type { Locale, Vehicle } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { useCart } from "@/components/CartProvider";
-import { downloadVehicleQuotePdf } from "@/lib/vehicleQuote/buildQuotePdf";
+import {
+  buildVehicleQuotePdfFile,
+  downloadVehicleQuotePdf,
+} from "@/lib/vehicleQuote/buildQuotePdf";
+import {
+  isAppleMobileBrowser,
+  shareOrSavePdfFile,
+} from "@/lib/pdf/deliverPdfBlob";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 type DownloadVehicleQuoteButtonProps = {
@@ -22,27 +29,47 @@ export default function DownloadVehicleQuoteButton({
 }: DownloadVehicleQuoteButtonProps) {
   const { showToast } = useCart();
   const [busy, setBusy] = useState(false);
+  const [readyFile, setReadyFile] = useState<File | null>(null);
+  const apple = isAppleMobileBrowser();
 
-  async function handleClick() {
+  async function handleGenerate(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
     if (busy) return;
     setBusy(true);
     try {
-      const result = await downloadVehicleQuotePdf(vehicle, locale);
-      trackAnalyticsEvent("quote_download", {
-        vehicleId: vehicle.id,
-        locale,
-        metadata: {
-          assigned_contact_name: result.contactName.slice(0, 40),
-          quote_type: "vehicle",
-        },
-        dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
-      });
-      if (result.deliveryMethod === "ios-fallback" && result.deliveryMessage) {
-        showToast(result.deliveryMessage);
-      } else if (result.deliveryMethod === "share") {
-        showToast("已打开系统分享");
+      if (apple) {
+        const { file, contactName } = await buildVehicleQuotePdfFile(
+          vehicle,
+          locale
+        );
+        setReadyFile(file);
+        trackAnalyticsEvent("quote_download", {
+          vehicleId: vehicle.id,
+          locale,
+          metadata: {
+            assigned_contact_name: contactName.slice(0, 40),
+            quote_type: "vehicle",
+          },
+          dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
+        });
+        showToast("PDF 已生成，请点「分享或保存 PDF」");
       } else {
-        showToast(t.vehicleDetail.quoteDownloadSuccess);
+        const result = await downloadVehicleQuotePdf(vehicle, locale);
+        trackAnalyticsEvent("quote_download", {
+          vehicleId: vehicle.id,
+          locale,
+          metadata: {
+            assigned_contact_name: result.contactName.slice(0, 40),
+            quote_type: "vehicle",
+          },
+          dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
+        });
+        showToast(
+          result.deliveryMethod === "share"
+            ? "已打开系统分享"
+            : t.vehicleDetail.quoteDownloadSuccess
+        );
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -56,10 +83,60 @@ export default function DownloadVehicleQuoteButton({
     }
   }
 
+  async function handleShare(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!readyFile || busy) return;
+    setBusy(true);
+    try {
+      const result = await shareOrSavePdfFile(readyFile);
+      showToast(
+        result.method === "share" ? "已打开系统分享" : t.vehicleDetail.quoteDownloadSuccess
+      );
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        showToast("已取消分享");
+        return;
+      }
+      console.error("[DownloadVehicleQuote] share", err);
+      showToast(t.vehicleDetail.quoteDownloadError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (apple) {
+    return (
+      <span className={`inline-flex flex-col gap-2 w-full ${className}`}>
+        <button
+          type="button"
+          onClick={(e) => void handleGenerate(e)}
+          disabled={busy}
+          aria-busy={busy}
+          className="inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
+        >
+          <span className="text-center leading-tight">
+            {busy && !readyFile
+              ? t.vehicleDetail.quotePreparing
+              : "生成 PDF"}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={(e) => void handleShare(e)}
+          disabled={busy || !readyFile}
+          className="inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
+        >
+          <span className="text-center leading-tight">分享或保存 PDF</span>
+        </button>
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"
-      onClick={handleClick}
+      onClick={(e) => void handleGenerate(e)}
       disabled={busy}
       aria-busy={busy}
       className={`inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait ${className}`}

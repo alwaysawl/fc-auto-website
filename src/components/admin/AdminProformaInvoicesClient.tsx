@@ -12,11 +12,7 @@ import {
   type ProformaSort,
   type ProformaStatus,
 } from "@/lib/admin/proforma/types";
-import {
-  downloadProformaPdf,
-  previewProformaPdf,
-  PROFORMA_PDF_STATUS_LABEL,
-} from "@/lib/proforma/downloadProformaPdf";
+import ProformaPdfActions from "@/components/admin/ProformaPdfActions";
 
 const fieldCls =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/50";
@@ -211,25 +207,6 @@ export default function AdminProformaInvoicesClient({
         window.location.href = `/admin/proforma-invoices/${json.id}/edit`;
       }
     });
-
-  const downloadPdf = (row: ProformaListItem) =>
-    runAction(row.id, async () => {
-      const result = await downloadProformaPdf(row.id, {
-        invoiceNumber: row.invoiceNumber,
-        onStatus: (status, detail) => {
-          setMessage(detail || PROFORMA_PDF_STATUS_LABEL[status]);
-        },
-      });
-      setMessage(result.message);
-    });
-
-  const previewPdf = (row: ProformaListItem) => {
-    try {
-      previewProformaPdf(row.id);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "预览失败");
-    }
-  };
 
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
 
@@ -457,22 +434,14 @@ export default function AdminProformaInvoicesClient({
                         >
                           {row.status === "draft" ? "编辑草稿" : "编辑"}
                         </Link>
-                        <button
-                          type="button"
+                        <ProformaPdfActions
+                          invoiceId={row.id}
+                          invoiceNumber={row.invoiceNumber}
                           disabled={busyId === row.id}
-                          onClick={() => previewPdf(row)}
-                          className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-white disabled:opacity-50"
-                        >
-                          预览 PDF
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busyId === row.id}
-                          onClick={() => void downloadPdf(row)}
-                          className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-white disabled:opacity-50"
-                        >
-                          {busyId === row.id ? "处理中…" : "下载 PDF"}
-                        </button>
+                          compact
+                          onMessage={setMessage}
+                          onError={(err) => setMessage(err)}
+                        />
                         <button
                           type="button"
                           disabled={busyId === row.id}
