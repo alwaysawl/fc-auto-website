@@ -19,6 +19,20 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  /**
+   * Bundle Noto Sans SC into serverless functions that generate Proforma PDFs.
+   * public/ is served as static CDN assets and is NOT present under /var/task by default.
+   */
+  outputFileTracingIncludes: {
+    "/api/admin/proforma-invoices/*/pdf": [
+      "./public/fonts/NotoSansSC-Regular.ttf",
+      "./public/fonts/NotoSansSC-Bold.ttf",
+    ],
+    "/api/admin/proforma-invoices/[id]/pdf": [
+      "./public/fonts/NotoSansSC-Regular.ttf",
+      "./public/fonts/NotoSansSC-Bold.ttf",
+    ],
+  },
   images: {
     remotePatterns: [
       ...(supabaseHost
