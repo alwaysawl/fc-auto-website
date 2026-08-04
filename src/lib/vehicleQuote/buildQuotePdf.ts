@@ -256,7 +256,7 @@ export async function downloadVehicleQuotePdf(
       filename: file.name,
       file,
       deliveryMethod: "ready",
-      deliveryMessage: "PDF 已生成，请点「分享或保存 PDF」",
+      deliveryMessage: "PDF 已生成，请再次点击下载以保存到手机",
     };
   }
 
@@ -286,9 +286,10 @@ async function buildVehicleQuotePdfInternal(
   const footerSafe = 28;
 
   const imageUrls = collectQuoteImageUrls(vehicle);
-  const images = await loadQuoteImages(imageUrls, 4);
+  // Up to 6 images: page-1 hero uses the first; page-2 grid shows all (3×2).
+  const images = await loadQuoteImages(imageUrls, 6);
   const mainImage = images[0] ?? null;
-  const extraImages = images.slice(1, 4);
+  const gridImages = images.slice(0, 6);
   const qrDataUrl = await loadPngAsDataUrl(contact.qrPath);
 
   const vehicleName =
@@ -583,80 +584,122 @@ async function buildVehicleQuotePdfInternal(
     }
   }
 
-  if (extraImages.length > 0) {
-    y += 14;
-    if (y > pageH - footerSafe - 120) {
+  if (gridImages.length > 0) {
+    y += 12;
+    const thumbGap = 8;
+    const colW = (contentW - thumbGap * 2) / 3;
+    const thumbH = 102;
+    const rows = Math.ceil(gridImages.length / 3);
+    const gridBlockH =
+      20 /* title */ + rows * thumbH + Math.max(0, rows - 1) * thumbGap;
+
+    // Measure notice content height (auto — never stretch to fill the page).
+    const discPadTop = 12;
+    const discPadBottom = 12;
+    const discLineGap = 6;
+    let discContentH = 14; // title
+    for (const para of copy.disclaimerBody) {
+      if (useBitmap) {
+        const bmp = renderTextBitmap(para, {
+          fontSize: 16,
+          maxWidth: (contentW - 28) * 2,
+          locale: "zh",
+        });
+        discContentH += bmp.height / 2 + discLineGap;
+      } else {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        const lines = doc.splitTextToSize(para, contentW - 28) as string[];
+        discContentH += lines.length * 8 * 1.25 + discLineGap;
+      }
+    }
+    const discBoxH = discContentH + discPadTop + discPadBottom;
+    const blockNeed = gridBlockH + 10 + discBoxH + 8;
+
+    // Keep image grid + notice together on one page when possible.
+    if (y + blockNeed > pageH - footerSafe) {
       addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
       drawHeaderBar(doc, copy, whatsappDisplay);
       y = 42;
     }
+
     y += text(copy.vehicleImages, margin, y, 11, { bold: true });
     y += 8;
-    const thumbGap = 10;
-    const colW = (contentW - thumbGap * 2) / 3;
-    const thumbH = 118;
-    for (let i = 0; i < extraImages.length; i++) {
-      const asset = extraImages[i];
+    const gridTop = y;
+    for (let i = 0; i < gridImages.length; i++) {
+      const asset = gridImages[i];
       if (!asset) continue;
-      const x = margin + i * (colW + thumbGap);
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = margin + col * (colW + thumbGap);
+      const iy = gridTop + row * (thumbH + thumbGap);
       try {
-        await drawCoverImage(doc, asset, x, y, colW, thumbH, 4);
+        await drawCoverImage(doc, asset, x, iy, colW, thumbH, 4);
       } catch {
         // skip failed thumbnail
       }
     }
-    y += thumbH + 12;
-  }
+    y = gridTop + rows * thumbH + Math.max(0, rows - 1) * thumbGap + 10;
 
-  if (y > pageH - footerSafe - 100) {
-    addFooter(doc, copy, whatsappDisplay);
-    doc.addPage();
-    drawHeaderBar(doc, copy, whatsappDisplay);
-    y = 42;
-  }
-
-  // Expand notice vertically to balance remaining page 2 space (no new copy)
-  const discPadTop = 14;
-  const discPadBottom = 16;
-  const discLineGap = 8;
-  let discContentH = 14; // title
-  for (const para of copy.disclaimerBody) {
-    if (useBitmap) {
-      const bmp = renderTextBitmap(para, {
-        fontSize: 16,
-        maxWidth: (contentW - 28) * 2,
-        locale: "zh",
+    // Quotation Notice — height from content only (no page-filling stretch).
+    doc.setFillColor(255, 251, 235);
+    doc.setDrawColor(253, 224, 71);
+    const discStart = y;
+    doc.roundedRect(margin, discStart, contentW, discBoxH, 4, 4, "FD");
+    let dy = discStart + discPadTop;
+    dy += text(copy.disclaimerTitle, margin + 14, dy, 11, { bold: true });
+    dy += 6;
+    for (const para of copy.disclaimerBody) {
+      dy += text(para, margin + 14, dy, 8, {
+        color: SLATE,
+        maxWidth: contentW - 28,
       });
-      discContentH += bmp.height / 2 + discLineGap;
-    } else {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      const lines = doc.splitTextToSize(para, contentW - 28) as string[];
-      discContentH += lines.length * 8 * 1.25 + discLineGap;
+      dy += discLineGap;
     }
-  }
-  const minDiscBottom = pageH - footerSafe - 8;
-  const idealDiscH = Math.max(
-    discContentH + discPadTop + discPadBottom,
-    minDiscBottom - y - 6
-  );
-
-  y += 6;
-  doc.setFillColor(255, 251, 235);
-  doc.setDrawColor(253, 224, 71);
-  const discStart = y;
-  const discBoxH = Math.min(idealDiscH, minDiscBottom - discStart);
-  doc.roundedRect(margin, discStart, contentW, discBoxH, 4, 4, "FD");
-  let dy = discStart + discPadTop;
-  dy += text(copy.disclaimerTitle, margin + 14, dy, 11, { bold: true });
-  dy += 8;
-  for (const para of copy.disclaimerBody) {
-    dy += text(para, margin + 14, dy, 8, {
-      color: SLATE,
-      maxWidth: contentW - 28,
-    });
-    dy += discLineGap;
+    y = discStart + discBoxH + 6;
+  } else {
+    // No images — still show notice with auto height.
+    if (y > pageH - footerSafe - 100) {
+      addFooter(doc, copy, whatsappDisplay);
+      doc.addPage();
+      drawHeaderBar(doc, copy, whatsappDisplay);
+      y = 42;
+    }
+    const discPadTop = 12;
+    const discPadBottom = 12;
+    const discLineGap = 6;
+    let discContentH = 14;
+    for (const para of copy.disclaimerBody) {
+      if (useBitmap) {
+        const bmp = renderTextBitmap(para, {
+          fontSize: 16,
+          maxWidth: (contentW - 28) * 2,
+          locale: "zh",
+        });
+        discContentH += bmp.height / 2 + discLineGap;
+      } else {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        const lines = doc.splitTextToSize(para, contentW - 28) as string[];
+        discContentH += lines.length * 8 * 1.25 + discLineGap;
+      }
+    }
+    const discBoxH = discContentH + discPadTop + discPadBottom;
+    doc.setFillColor(255, 251, 235);
+    doc.setDrawColor(253, 224, 71);
+    const discStart = y + 6;
+    doc.roundedRect(margin, discStart, contentW, discBoxH, 4, 4, "FD");
+    let dy = discStart + discPadTop;
+    dy += text(copy.disclaimerTitle, margin + 14, dy, 11, { bold: true });
+    dy += 6;
+    for (const para of copy.disclaimerBody) {
+      dy += text(para, margin + 14, dy, 8, {
+        color: SLATE,
+        maxWidth: contentW - 28,
+      });
+      dy += discLineGap;
+    }
   }
 
   addFooter(doc, copy, whatsappDisplay);

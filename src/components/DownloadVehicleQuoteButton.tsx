@@ -4,11 +4,14 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { Locale, Vehicle } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { useCart } from "@/components/CartProvider";
+import { buildVehicleQuotePdfFile } from "@/lib/vehicleQuote/buildQuotePdf";
 import {
-  buildVehicleQuotePdfFile,
-  downloadVehicleQuotePdf,
-} from "@/lib/vehicleQuote/buildQuotePdf";
-import { isAppleMobileBrowser } from "@/lib/pdf/deliverPdfBlob";
+  canSharePdfFile,
+  isAppleMobileBrowser,
+  openPdfFilePreview,
+  supportsFileWebShare,
+  triggerAnchorDownload,
+} from "@/lib/pdf/deliverPdfBlob";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 
 type DownloadVehicleQuoteButtonProps = {
@@ -16,235 +19,251 @@ type DownloadVehicleQuoteButtonProps = {
   locale: Locale;
   t: Translations;
   className?: string;
+  /** Sticky/mobile slot: download only (two-stage on iOS). */
+  compact?: boolean;
 };
 
+/**
+ * Customer vehicle quotation PDF:
+ * - Preview PDF → new tab (blob URL), does not navigate away
+ * - Download PDF → Blob/File + Web Share (iOS) or <a download> (desktop/Android)
+ *
+ * On iOS, Download is two-stage so navigator.share keeps user activation.
+ */
 export default function DownloadVehicleQuoteButton({
   vehicle,
   locale,
   t,
   className = "",
+  compact = false,
 }: DownloadVehicleQuoteButtonProps) {
   const { showToast } = useCart();
   const [busy, setBusy] = useState(false);
   const [generatedPdfFile, setGeneratedPdfFile] = useState<File | null>(null);
-  const [generatedVehicleId, setGeneratedVehicleId] = useState<string | null>(
-    null
-  );
-  const [outdated, setOutdated] = useState(false);
   const generatedPdfFileRef = useRef<File | null>(null);
   const apple = isAppleMobileBrowser();
+  const fileShareSupported = supportsFileWebShare();
 
   useEffect(() => {
     generatedPdfFileRef.current = null;
     setGeneratedPdfFile(null);
-    setGeneratedVehicleId(null);
-    setOutdated(false);
     setBusy(false);
   }, [vehicle.id]);
 
-  async function handleGenerate(event: MouseEvent<HTMLButtonElement>) {
+  function trackQuote(contactName: string) {
+    trackAnalyticsEvent("quote_download", {
+      vehicleId: vehicle.id,
+      locale,
+      metadata: {
+        assigned_contact_name: contactName.slice(0, 40),
+        quote_type: "vehicle",
+      },
+      dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
+    });
+  }
+
+  async function ensurePdfFile(): Promise<{ file: File; contactName: string }> {
+    const existing = generatedPdfFileRef.current;
+    if (existing && existing.size > 0 && existing.type === "application/pdf") {
+      return { file: existing, contactName: "" };
+    }
+    const built = await buildVehicleQuotePdfFile(vehicle, locale);
+    generatedPdfFileRef.current = built.file;
+    setGeneratedPdfFile(built.file);
+    return built;
+  }
+
+  async function handlePreview(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
     if (busy) return;
     setBusy(true);
-    generatedPdfFileRef.current = null;
-    setGeneratedPdfFile(null);
-    setGeneratedVehicleId(null);
-    setOutdated(false);
     try {
-      if (apple) {
-        const { file, contactName } = await buildVehicleQuotePdfFile(
-          vehicle,
-          locale
-        );
-        generatedPdfFileRef.current = file;
-        setGeneratedPdfFile(file);
-        setGeneratedVehicleId(vehicle.id);
-        trackAnalyticsEvent("quote_download", {
-          vehicleId: vehicle.id,
-          locale,
-          metadata: {
-            assigned_contact_name: contactName.slice(0, 40),
-            quote_type: "vehicle",
-          },
-          dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
-        });
-        showToast(`已生成：${file.name}，请点「分享或保存 PDF」`);
-      } else {
-        const result = await downloadVehicleQuotePdf(vehicle, locale);
-        trackAnalyticsEvent("quote_download", {
-          vehicleId: vehicle.id,
-          locale,
-          metadata: {
-            assigned_contact_name: result.contactName.slice(0, 40),
-            quote_type: "vehicle",
-          },
-          dedupeKey: `quote_download|${vehicle.id}|${Date.now()}`,
-        });
-        showToast(
-          result.deliveryMethod === "share"
-            ? "系统分享已完成"
-            : t.vehicleDetail.quoteDownloadSuccess
-        );
-      }
+      showToast(t.vehicleDetail.quotePreparing);
+      const { file, contactName } = await ensurePdfFile();
+      if (contactName) trackQuote(contactName);
+      openPdfFilePreview(file);
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        showToast("已取消分享");
-        return;
-      }
-      console.error("[DownloadVehicleQuote]", err);
+      console.error("[DownloadVehicleQuote] preview", err);
       showToast(t.vehicleDetail.quoteDownloadError);
     } finally {
       setBusy(false);
     }
   }
 
-  /** STRICT: navigator.share as first await — no setState before share. */
-  async function handleShareOrSavePdf(event: MouseEvent<HTMLButtonElement>) {
+  async function handleShareReadyFile(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
 
     const file = generatedPdfFileRef.current;
-
     if (!file || file.size === 0) {
-      window.alert("请先生成 PDF");
+      showToast(locale === "zh" ? "PDF 尚未生成" : "PDF is not ready yet");
       return;
     }
 
-    if (generatedVehicleId !== vehicle.id) {
-      generatedPdfFileRef.current = null;
-      setGeneratedPdfFile(null);
-      setOutdated(true);
-      window.alert("报价内容已更改，请重新生成 PDF");
-      return;
-    }
-
-    const nav = navigator as Navigator & {
-      canShare?: (data: ShareData) => boolean;
-    };
-
-    if (
-      typeof navigator.share !== "function" ||
-      typeof nav.canShare !== "function" ||
-      !nav.canShare({ files: [file] })
-    ) {
-      window.alert("当前浏览器不支持直接分享 PDF，请使用 Safari 打开。");
+    if (!canSharePdfFile(file)) {
+      showToast(
+        locale === "zh"
+          ? "请点「预览 PDF」，再在 Safari 中选择分享 → 存储到文件"
+          : "Use Preview PDF, then Safari Share → Save to Files"
+      );
       return;
     }
 
     try {
-      await navigator.share({
-        files: [file],
-      });
-      showToast(`系统分享已完成\n${file.name}`);
+      await navigator.share({ files: [file] });
+      showToast(
+        locale === "zh" ? "PDF 已生成" : "PDF generated successfully"
+      );
     } catch (error) {
       const err = error as { name?: string };
-      if (err?.name === "AbortError") {
-        showToast("已取消分享");
+      if (err?.name === "AbortError") return;
+      if (err?.name === "NotAllowedError") {
+        showToast(
+          locale === "zh"
+            ? "请再次点击下载按钮以打开系统分享菜单"
+            : "Please tap Download PDF again to open the share sheet"
+        );
         return;
       }
-      console.error("[DownloadVehicleQuote] navigator.share failed", error);
-      window.alert("系统分享菜单打开失败");
+      console.error("[DownloadVehicleQuote] share", error);
+      showToast(t.vehicleDetail.quoteDownloadError);
     }
   }
 
-  const shareEnabled =
-    !!generatedPdfFile &&
-    !busy &&
-    !outdated &&
-    generatedVehicleId === vehicle.id;
+  async function handleDownload(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (busy) return;
 
-  const canShareNow = (() => {
-    if (!generatedPdfFile || typeof navigator === "undefined") return false;
-    const nav = navigator as Navigator & {
-      canShare?: (data: ShareData) => boolean;
-    };
-    if (typeof navigator.share !== "function") return false;
-    if (typeof nav.canShare !== "function") return false;
-    try {
-      return nav.canShare({ files: [generatedPdfFile] });
-    } catch {
-      return false;
+    if (
+      apple &&
+      generatedPdfFileRef.current &&
+      canSharePdfFile(generatedPdfFileRef.current)
+    ) {
+      await handleShareReadyFile(event);
+      return;
     }
+
+    setBusy(true);
+    try {
+      showToast(t.vehicleDetail.quotePreparing);
+      const { file, contactName } = await buildVehicleQuotePdfFile(
+        vehicle,
+        locale
+      );
+      generatedPdfFileRef.current = file;
+      setGeneratedPdfFile(file);
+      if (contactName) trackQuote(contactName);
+
+      if (apple) {
+        showToast(
+          locale === "zh"
+            ? "PDF 已生成，请再次点击下载以保存到手机"
+            : "PDF generated successfully — tap Download again to save"
+        );
+        return;
+      }
+
+      if (fileShareSupported && canSharePdfFile(file)) {
+        try {
+          await navigator.share({ files: [file] });
+          showToast(
+            locale === "zh" ? "PDF 已生成" : "PDF generated successfully"
+          );
+          return;
+        } catch (error) {
+          const err = error as { name?: string };
+          if (err?.name === "AbortError") return;
+        }
+      }
+
+      triggerAnchorDownload(file, file.name);
+      showToast(t.vehicleDetail.quoteDownloadSuccess);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      console.error("[DownloadVehicleQuote] download", err);
+      showToast(t.vehicleDetail.quoteDownloadError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const previewLabel = locale === "zh" ? "预览 PDF" : "Preview PDF";
+  const downloadLabel = (() => {
+    if (busy) return t.vehicleDetail.quotePreparing;
+    if (apple && generatedPdfFile) {
+      return locale === "zh" ? "下载 PDF" : "Download PDF";
+    }
+    return t.vehicleDetail.downloadVehicleQuote;
   })();
 
-  if (apple) {
+  const btnBase =
+    "inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait";
+
+  if (compact) {
     return (
-      <span className={`inline-flex flex-col gap-2 w-full ${className}`}>
-        <button
-          type="button"
-          onClick={(e) => void handleGenerate(e)}
-          disabled={busy}
-          aria-busy={busy}
-          className="inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
-        >
-          <span className="text-center leading-tight">
-            {busy && !generatedPdfFile
-              ? t.vehicleDetail.quotePreparing
-              : "生成 PDF"}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={(e) => void handleShareOrSavePdf(e)}
-          disabled={!shareEnabled}
-          className="inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
-        >
-          <span className="text-center leading-tight">分享或保存 PDF</span>
-        </button>
-        {outdated ? (
-          <span className="text-xs text-amber-700">
-            报价内容已更改，请重新生成 PDF
-          </span>
-        ) : null}
-        <span className="rounded border border-dashed border-amber-300 bg-amber-50 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-amber-950">
-          [PDF debug]
-          <br />
-          file.name: {generatedPdfFile?.name ?? "(null)"}
-          <br />
-          file.type: {generatedPdfFile?.type ?? "(null)"}
-          <br />
-          file.size: {generatedPdfFile?.size ?? "(null)"}
-          <br />
-          navigator.share:{" "}
-          {typeof navigator !== "undefined" &&
-          typeof navigator.share === "function"
-            ? "yes"
-            : "no"}
-          <br />
-          canShare(files): {String(canShareNow)}
-        </span>
-      </span>
+      <button
+        type="button"
+        onClick={(e) => void handleDownload(e)}
+        disabled={busy}
+        aria-busy={busy}
+        className={`${btnBase} ${className}`}
+      >
+        <span className="text-center leading-tight">{downloadLabel}</span>
+      </button>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={(e) => void handleGenerate(e)}
-      disabled={busy}
-      aria-busy={busy}
-      className={`inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait ${className}`}
-    >
-      <svg
-        className="w-4 h-4 flex-shrink-0"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        aria-hidden
+    <span className="inline-flex flex-col gap-2 w-full">
+      <button
+        type="button"
+        onClick={(e) => void handlePreview(e)}
+        disabled={busy}
+        aria-busy={busy}
+        className={`${btnBase} h-11 w-full px-4 border border-slate-300 bg-white text-brand-slate text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors`}
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-        />
-      </svg>
-      <span className="text-center leading-tight">
-        {busy
-          ? t.vehicleDetail.quotePreparing
-          : t.vehicleDetail.downloadVehicleQuote}
-      </span>
-    </button>
+        <span className="text-center leading-tight">{previewLabel}</span>
+      </button>
+      <button
+        type="button"
+        onClick={(e) => void handleDownload(e)}
+        disabled={busy}
+        aria-busy={busy}
+        className={`${btnBase} ${className}`}
+      >
+        <svg
+          className="w-4 h-4 flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+        <span className="text-center leading-tight">{downloadLabel}</span>
+      </button>
+      {apple && generatedPdfFile ? (
+        <span className="text-xs text-slate-600 text-center">
+          {locale === "zh"
+            ? "PDF 已生成，请再次点击「下载 PDF」打开系统分享菜单并存储到文件。"
+            : "PDF generated successfully. Tap Download PDF again to open the share sheet and Save to Files."}
+          {!fileShareSupported ? (
+            <>
+              <br />
+              {locale === "zh"
+                ? "若无法分享，请点「预览 PDF」，再使用 Safari 分享 → 存储到文件。"
+                : "If sharing is unavailable, use Preview PDF, then Safari Share → Save to Files."}
+            </>
+          ) : null}
+        </span>
+      ) : null}
+    </span>
   );
 }

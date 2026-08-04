@@ -570,6 +570,7 @@ export default function VehicleDetailClient({
             vehicle={vehicle}
             locale={locale}
             t={t}
+            compact
             className="min-h-11 bg-accent-yellow text-brand-slate text-[11px] sm:text-sm font-semibold rounded-lg px-1 text-center"
           />
           <CheckoutNowButton

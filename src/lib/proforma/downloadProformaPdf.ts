@@ -24,13 +24,13 @@ export type ProformaPdfStatus =
 
 export const PROFORMA_PDF_STATUS_LABEL: Record<ProformaPdfStatus, string> = {
   idle: "",
-  generating: "正在生成 PDF…",
-  ready: "发票已保存，PDF 已生成，请在系统菜单中选择「存储到文件」。",
+  generating: "Generating PDF…",
+  ready: "PDF 已生成，请再次点击「下载 PDF」以保存到手机。",
   outdated: "发票内容已更改，请重新下载 PDF",
   sharing: "正在打开系统分享…",
-  shared: "发票已保存，PDF 已生成，请在系统菜单中选择「存储到文件」。",
-  downloaded: "PDF 已开始下载",
-  error: "下载失败，请重试",
+  shared: "PDF generated successfully",
+  downloaded: "PDF generated successfully",
+  error: "Download failed, please try again",
 };
 
 async function readErrorMessage(res: Response): Promise<string> {

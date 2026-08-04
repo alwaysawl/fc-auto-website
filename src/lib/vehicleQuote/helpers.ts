@@ -17,8 +17,11 @@ export function buildQuoteFilename(vehicle: Vehicle): string {
   const name =
     vehicle.titleEn?.trim() || `${vehicle.brand} ${vehicle.model}`;
   const safeName = sanitizeFilenamePart(name);
-  const safeId = sanitizeFilenamePart(vehicle.id);
-  return `FC-Auto-Export-${safeName}-${safeId}-Quote.pdf`;
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `FC-Auto-Quotation-${safeName}-${yyyy}-${mm}-${dd}.pdf`;
 }
 
 export function formatQuoteDate(locale: Locale, date = new Date()): string {

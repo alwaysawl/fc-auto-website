@@ -95,7 +95,7 @@ export async function loadPngAsDataUrl(url: string): Promise<string | null> {
 
 export async function loadQuoteImages(
   urls: string[],
-  maxImages = 4
+  maxImages = 6
 ): Promise<QuoteImageAsset[]> {
   const selected = urls.slice(0, maxImages);
   if (selected.length === 0) {

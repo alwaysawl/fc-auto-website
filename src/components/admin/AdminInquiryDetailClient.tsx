@@ -250,11 +250,11 @@ export default function AdminInquiryDetailClient({
       if (delivery.deliveryMethod === "ready") {
         readyQuoteFileRef.current = delivery.file;
         setReadyQuoteFile(delivery.file);
-        setMsg(delivery.deliveryMessage || "PDF 已生成，请点「分享或保存 PDF」");
+        setMsg(delivery.deliveryMessage || "PDF 已生成，请再次点击下载以保存");
       } else if (delivery.deliveryMethod === "share") {
-        setMsg("系统分享已完成");
+        setMsg("PDF generated successfully");
       } else {
-        setMsg("报价已生成并下载");
+        setMsg("PDF generated successfully");
       }
       await reload();
     } catch (err) {
