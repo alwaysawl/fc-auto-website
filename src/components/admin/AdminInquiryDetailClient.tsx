@@ -15,10 +15,6 @@ import {
   type InquiryActivity,
   type InquiryDetail,
 } from "@/lib/admin/inquiries/types";
-import {
-  formatBudgetUsdDisplay,
-  parseBudgetUsd,
-} from "@/lib/car-sourcing";
 
 const fieldCls =
   "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/50";
@@ -99,11 +95,7 @@ export default function AdminInquiryDetailClient({
         : "",
     customerBudgetUsd:
       initialInquiry.customerBudgetUsd != null
-        ? formatBudgetUsdDisplay(initialInquiry.customerBudgetUsd)
-        : "",
-    customerBudgetMaxUsd:
-      initialInquiry.customerBudgetMaxUsd != null
-        ? formatBudgetUsdDisplay(initialInquiry.customerBudgetMaxUsd)
+        ? String(initialInquiry.customerBudgetUsd)
         : "",
     destinationCountryId: initialInquiry.destinationCountryId || "",
     destinationPortId: initialInquiry.destinationPortId || "",
@@ -150,10 +142,7 @@ export default function AdminInquiryDetailClient({
           ? Number(form.requestedQuantity)
           : null,
         customerBudgetUsd: form.customerBudgetUsd
-          ? parseBudgetUsd(form.customerBudgetUsd)
-          : null,
-        customerBudgetMaxUsd: form.customerBudgetMaxUsd
-          ? parseBudgetUsd(form.customerBudgetMaxUsd)
+          ? Number(form.customerBudgetUsd)
           : null,
         destinationCountryId: form.destinationCountryId || null,
         destinationPortId: form.destinationPortId || null,
@@ -529,25 +518,13 @@ export default function AdminInquiryDetailClient({
             />
           </label>
           <label className="block text-sm">
-            <span className="text-slate-600">最低预算（USD）</span>
+            <span className="text-slate-600">预算 USD</span>
             <input
               className={fieldCls}
               value={form.customerBudgetUsd}
               onChange={(e) =>
                 setForm({ ...form, customerBudgetUsd: e.target.value })
               }
-              placeholder="USD 8,000"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="text-slate-600">最高预算（USD）</span>
-            <input
-              className={fieldCls}
-              value={form.customerBudgetMaxUsd}
-              onChange={(e) =>
-                setForm({ ...form, customerBudgetMaxUsd: e.target.value })
-              }
-              placeholder="USD 10,000"
             />
           </label>
           <label className="block text-sm">
