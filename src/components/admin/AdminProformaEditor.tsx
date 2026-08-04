@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DEFAULT_CHARGE_TEMPLATES,
@@ -26,8 +26,13 @@ import type {
 } from "@/lib/admin/proforma/types";
 import {
   fetchProformaPdfFile,
-  exportProformaPdfFile,
+  isAppleMobileBrowser,
 } from "@/lib/proforma/downloadProformaPdf";
+import {
+  clearPendingProformaPdf,
+  stashPendingProformaPdf,
+  takePendingProformaPdf,
+} from "@/lib/proforma/pendingProformaPdf";
 import AdminProformaPreview, {
   type ProformaPreviewModel,
 } from "@/components/admin/AdminProformaPreview";
@@ -271,6 +276,99 @@ export default function AdminProformaEditor({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [depositWarning, setDepositWarning] = useState(false);
+  /** Stage-1 PDF ready for a fresh Stage-2 user gesture (Web Share). */
+  const [generatedPdfFile, setGeneratedPdfFile] = useState<File | null>(null);
+  const generatedPdfFileRef = useRef<File | null>(null);
+  const signatureAtGeneration = useRef<string>("");
+
+  const contentSignature = useMemo(
+    () =>
+      JSON.stringify({
+        contractNumber,
+        offerDate,
+        validityText,
+        customerName,
+        customerCompany,
+        customerCountry,
+        customerAddress,
+        customerWhatsapp,
+        customerEmail,
+        destinationCountry,
+        destinationPort,
+        salespersonName,
+        salespersonPhone,
+        salespersonEmail,
+        company,
+        payment,
+        depositUsd,
+        notes,
+        terms,
+        items,
+        charges,
+      }),
+    [
+      contractNumber,
+      offerDate,
+      validityText,
+      customerName,
+      customerCompany,
+      customerCountry,
+      customerAddress,
+      customerWhatsapp,
+      customerEmail,
+      destinationCountry,
+      destinationPort,
+      salespersonName,
+      salespersonPhone,
+      salespersonEmail,
+      company,
+      payment,
+      depositUsd,
+      notes,
+      terms,
+      items,
+      charges,
+    ]
+  );
+
+  const clearGeneratedPdf = () => {
+    generatedPdfFileRef.current = null;
+    setGeneratedPdfFile(null);
+    signatureAtGeneration.current = "";
+    clearPendingProformaPdf();
+  };
+
+  // Restore PDF after create→edit navigation (File cannot survive router.push).
+  useEffect(() => {
+    if (!initial?.id) return;
+    const pending = takePendingProformaPdf(initial.id);
+    if (!pending) return;
+    generatedPdfFileRef.current = pending.file;
+    setGeneratedPdfFile(pending.file);
+    // Bind signature on next render to the restored page's form fingerprint.
+    signatureAtGeneration.current = "";
+    setMessage("PDF 已生成，请点击「保存 PDF 到手机」。");
+  }, [initial?.id]);
+
+  // After restore/generate, lock the current form fingerprint.
+  useEffect(() => {
+    if (generatedPdfFile && !signatureAtGeneration.current) {
+      signatureAtGeneration.current = contentSignature;
+    }
+  }, [generatedPdfFile, contentSignature]);
+
+  // Form edits after generation → must regenerate.
+  useEffect(() => {
+    if (!generatedPdfFile) return;
+    if (
+      signatureAtGeneration.current &&
+      contentSignature !== signatureAtGeneration.current
+    ) {
+      clearGeneratedPdf();
+      setMessage("发票内容已更改，请重新生成 PDF。");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clear only on signature drift
+  }, [contentSignature, generatedPdfFile]);
 
   const totals = useMemo(() => {
     const itemTotals = items.map((item) =>
@@ -512,6 +610,7 @@ export default function AdminProformaEditor({
         setError(fit.errorZh || fit.errorEn || "无法生成 PDF");
         return;
       }
+      clearGeneratedPdf();
     }
 
     setSaving(true);
@@ -567,36 +666,26 @@ export default function AdminProformaEditor({
           throw new Error("发票已保存但缺少 ID，无法生成 PDF");
         }
 
-        // 1) Fetch a real application/pdf File for THIS invoice only.
+        // Stage 1 only: fetch PDF File into memory. NEVER call navigator.share here.
         const { file: pdfFile } = await fetchProformaPdfFile(
           savedId,
           savedNumber
         );
-
-        // 2) Export once: Web Share (files only) or desktop <a.download>.
-        //    Never share text/url/title (creates iOS「文本 N」junk files).
-        //    Never run download fallback after a successful share.
-        const exported = await exportProformaPdfFile(pdfFile);
-
-        if (!opts.markIssued && exported.method === "download") {
-          const confirmIssued = window.confirm(
-            "PDF 已生成。是否将状态更新为「已开具」？"
-          );
-          if (confirmIssued) {
-            await fetch(`/api/admin/proforma-invoices/${savedId}/status`, {
-              method: "POST",
-              credentials: "include",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "issued" }),
-            });
-          }
+        if (pdfFile.type !== "application/pdf" || !pdfFile.size) {
+          throw new Error("服务器返回的不是有效 PDF");
         }
 
-        setMessage(
-          exported.method === "share"
-            ? `发票已保存，PDF 已生成，请在系统菜单中选择「存储到文件」。\n${pdfFile.name}`
-            : `发票已保存，PDF 已下载。\n${pdfFile.name}`
-        );
+        generatedPdfFileRef.current = pdfFile;
+        setGeneratedPdfFile(pdfFile);
+        signatureAtGeneration.current = contentSignature;
+        stashPendingProformaPdf({
+          invoiceId: savedId,
+          invoiceNumber: savedNumber,
+          file: pdfFile,
+          contentSignature,
+        });
+
+        setMessage("PDF 已生成，请点击「保存 PDF 到手机」。");
       } else {
         setMessage(`草稿已保存 ${savedNumber}`);
       }
@@ -607,15 +696,81 @@ export default function AdminProformaEditor({
       }
       router.refresh();
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setMessage("已取消分享（发票已保存）");
-      } else {
-        setError(err instanceof Error ? err.message : "保存失败");
-      }
+      setError(err instanceof Error ? err.message : "保存失败");
     } finally {
       setSaving(false);
     }
   };
+
+  /**
+   * Stage 2: must call navigator.share as the first await on this click.
+   * No save/fetch/setState before share — user activation is required on iOS.
+   */
+  async function handleSavePdfToPhone(
+    event: React.MouseEvent<HTMLButtonElement>
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const file = generatedPdfFileRef.current;
+    if (!file || file.size === 0 || file.type !== "application/pdf") {
+      setError("PDF 尚未生成");
+      return;
+    }
+
+    const nav = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+    };
+
+    if (
+      typeof navigator.share === "function" &&
+      typeof nav.canShare === "function" &&
+      nav.canShare({ files: [file] })
+    ) {
+      try {
+        // files only — title/text create iOS「文本 N」junk files.
+        await navigator.share({
+          files: [file],
+        });
+        clearPendingProformaPdf();
+        setMessage(
+          `PDF 已生成，请在系统菜单中选择「存储到文件」。\n${file.name}`
+        );
+        setError(null);
+      } catch (error) {
+        const err = error as { name?: string };
+        if (err?.name === "AbortError") {
+          return;
+        }
+        if (err?.name === "NotAllowedError") {
+          setError("请再次点击「保存 PDF 到手机」。");
+          return;
+        }
+        console.error("[AdminProformaEditor] navigator.share", error);
+        setError("PDF 保存失败，请重试。");
+      }
+      return;
+    }
+
+    // Desktop only: <a download> (never on iPhone — opens Files Recents).
+    if (!isAppleMobileBrowser()) {
+      const blobUrl = URL.createObjectURL(file);
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = file.name;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+      clearPendingProformaPdf();
+      setMessage(`PDF 已开始下载。\n${file.name}`);
+      setError(null);
+      return;
+    }
+
+    setError("请再次点击「保存 PDF 到手机」。");
+  }
 
   const importFreight = () => {
     const country = shipping.find((c) => c.id === freightCountryId);
@@ -685,10 +840,18 @@ export default function AdminProformaEditor({
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              void save({ generatePdf: true });
+              if (generatedPdfFile) {
+                void handleSavePdfToPhone(event);
+              } else {
+                void save({ generatePdf: true });
+              }
             }}
           >
-            {saving ? "保存中…" : "保存并生成 PDF"}
+            {saving
+              ? "保存中…"
+              : generatedPdfFile
+                ? "保存 PDF 到手机"
+                : "保存并生成 PDF"}
           </button>
           <Link href="/admin/proforma-invoices" className={btnGhost}>
             取消
