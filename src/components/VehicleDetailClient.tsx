@@ -240,7 +240,7 @@ export default function VehicleDetailClient({
   const statusAvailable = vehicle.status === "在售" || !vehicle.status;
 
   return (
-    <div className="bg-white min-h-screen pb-24 lg:pb-0">
+    <div className="bg-white min-h-screen pb-28 lg:pb-0">
       <div className="container-max px-4 sm:px-6 lg:px-8 py-6 md:py-10">
         <Link
           href={getLocalizedPath("/inventory", locale)}
@@ -555,29 +555,29 @@ export default function VehicleDetailClient({
         )}
       </div>
 
-      {/* Mobile sticky CTA bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-3 safe-area-pb">
-        <div className="grid grid-cols-3 gap-2 max-w-lg mx-auto">
+      {/* Mobile sticky CTA bar — compact equal-height actions */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] pl-3 pr-16 safe-area-pb">
+        <div className="grid grid-cols-3 gap-2.5 max-w-lg mx-auto items-center">
           <AddToCartButton
             vehicle={vehicle}
             addLabel={t.cart.addToCart}
             removeLabel={t.cart.removeFromCart}
             addToast={t.cart.addedToast}
             removeToast={t.cart.removedToast}
-            className="text-[11px] sm:text-sm px-1"
+            className="w-full min-h-[58px] h-auto max-h-[64px] self-center px-2 py-2.5 rounded-xl text-[11px] sm:text-xs leading-tight"
           />
           <DownloadVehicleQuoteButton
             vehicle={vehicle}
             locale={locale}
             t={t}
             compact
-            className="min-h-11 bg-accent-yellow text-brand-slate text-[11px] sm:text-sm font-semibold rounded-lg px-1 text-center"
+            className="bg-accent-yellow text-brand-slate hover:bg-accent-yellow-hover border border-transparent"
           />
           <CheckoutNowButton
             vehicle={vehicle}
             locale={locale}
             label={t.vehicleDetail.checkoutNow}
-            className="text-[11px] sm:text-sm px-1"
+            className="w-full min-h-[58px] h-auto max-h-[64px] self-center px-2 py-2.5 rounded-xl text-[11px] sm:text-xs leading-tight"
           />
         </div>
       </div>

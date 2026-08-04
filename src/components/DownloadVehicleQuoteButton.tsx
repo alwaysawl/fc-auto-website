@@ -156,6 +156,15 @@ export default function DownloadVehicleQuoteButton({
       setGeneratedPdfFile(file);
       if (contactName) trackQuote(contactName);
 
+      console.info("[DownloadVehicleQuote] generated", {
+        vehicleId: vehicle.id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        share: typeof navigator.share === "function",
+        canShareFiles: canSharePdfFile(file),
+      });
+
       if (apple) {
         showToast(
           locale === "zh"
@@ -191,15 +200,33 @@ export default function DownloadVehicleQuoteButton({
 
   const previewLabel = locale === "zh" ? "预览 PDF" : "Preview PDF";
   const downloadLabel = (() => {
-    if (busy) return t.vehicleDetail.quotePreparing;
+    if (busy) {
+      return locale === "zh"
+        ? "生成中…"
+        : locale === "fr"
+          ? "Génération…"
+          : "Generating…";
+    }
     if (apple && generatedPdfFile) {
-      return locale === "zh" ? "下载 PDF" : "Download PDF";
+      return locale === "zh"
+        ? "分享或保存 PDF"
+        : locale === "fr"
+          ? "Partager / Enregistrer"
+          : "Share or Save PDF";
+    }
+    // Compact mobile CTA: short label. Desktop keeps the full product string.
+    if (compact) {
+      return locale === "zh"
+        ? "生成 PDF"
+        : locale === "fr"
+          ? "Générer PDF"
+          : "Generate PDF";
     }
     return t.vehicleDetail.downloadVehicleQuote;
   })();
 
   const btnBase =
-    "inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait";
+    "inline-flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-wait";
 
   if (compact) {
     return (
@@ -208,9 +235,11 @@ export default function DownloadVehicleQuoteButton({
         onClick={(e) => void handleDownload(e)}
         disabled={busy}
         aria-busy={busy}
-        className={`${btnBase} ${className}`}
+        className={`${btnBase} w-full min-h-[58px] h-auto max-h-[64px] self-center px-2 py-2.5 rounded-xl text-[11px] sm:text-xs font-semibold leading-tight text-center ${className}`}
       >
-        <span className="text-center leading-tight">{downloadLabel}</span>
+        <span className="text-center leading-tight line-clamp-2">
+          {downloadLabel}
+        </span>
       </button>
     );
   }
@@ -249,21 +278,6 @@ export default function DownloadVehicleQuoteButton({
         </svg>
         <span className="text-center leading-tight">{downloadLabel}</span>
       </button>
-      {apple && generatedPdfFile ? (
-        <span className="text-xs text-slate-600 text-center">
-          {locale === "zh"
-            ? "PDF 已生成，请再次点击「下载 PDF」打开系统分享菜单并存储到文件。"
-            : "PDF generated successfully. Tap Download PDF again to open the share sheet and Save to Files."}
-          {!fileShareSupported ? (
-            <>
-              <br />
-              {locale === "zh"
-                ? "若无法分享，请点「预览 PDF」，再使用 Safari 分享 → 存储到文件。"
-                : "If sharing is unavailable, use Preview PDF, then Safari Share → Save to Files."}
-            </>
-          ) : null}
-        </span>
-      ) : null}
     </span>
   );
 }
