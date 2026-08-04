@@ -195,24 +195,6 @@ export function buildProformaPdfFilename(invoiceNumber: string): string {
   return `${safe || "proforma"}.pdf`;
 }
 
-function triggerPdfFileDownload(doc: Pdf, filename: string): void {
-  const blob = doc.output("blob") as Blob;
-  const pdfBlob =
-    blob.type === "application/pdf"
-      ? blob
-      : new Blob([blob], { type: "application/pdf" });
-  const url = URL.createObjectURL(pdfBlob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
-}
-
 function drawGoldRule(doc: Pdf, y: number) {
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.9);
@@ -657,12 +639,15 @@ export function detailToPdfSource(detail: ProformaDetail): ProformaPdfSource {
   };
 }
 
+import { PROFORMA_PDF_DOWNLOAD_FILENAME } from "@/lib/proforma/pdfDownloadName";
+
+export { PROFORMA_PDF_DOWNLOAD_FILENAME };
 /**
- * Build and download a real single-page A4 PDF from the shared coordinate map.
+ * Build a real single-page A4 PDF (server or client). Returns raw bytes.
  */
-export async function downloadProformaPdf(
+export async function buildProformaPdfBytes(
   source: ProformaPdfSource
-): Promise<{ filename: string }> {
+): Promise<{ bytes: Uint8Array; filename: string }> {
   if (!source.invoiceNumber?.trim()) {
     throw new Error("缺少发票编号，无法生成 PDF");
   }
@@ -681,7 +666,7 @@ export async function downloadProformaPdf(
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   await ensureProformaFonts(doc);
 
-  // Non-visual deploy diagnostic (browser console only — not drawn on PDF)
+  // Non-visual deploy diagnostic (not drawn on PDF)
   console.info("[proforma-layout]", PROFORMA_LAYOUT_VERSION);
 
   drawHeader(doc, source);
@@ -717,7 +702,9 @@ export async function downloadProformaPdf(
     doc.deletePage(doc.getNumberOfPages());
   }
 
-  const filename = buildProformaPdfFilename(source.invoiceNumber);
-  triggerPdfFileDownload(doc, filename);
-  return { filename };
+  const arrayBuffer = doc.output("arraybuffer") as ArrayBuffer;
+  return {
+    bytes: new Uint8Array(arrayBuffer),
+    filename: PROFORMA_PDF_DOWNLOAD_FILENAME,
+  };
 }

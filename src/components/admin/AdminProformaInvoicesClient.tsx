@@ -12,10 +12,7 @@ import {
   type ProformaSort,
   type ProformaStatus,
 } from "@/lib/admin/proforma/types";
-import {
-  detailToPdfSource,
-  downloadProformaPdf,
-} from "@/lib/proforma/buildProformaPdf";
+import { downloadProformaPdf } from "@/lib/proforma/downloadProformaPdf";
 
 const fieldCls =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/50";
@@ -209,26 +206,7 @@ export default function AdminProformaInvoicesClient({
 
   const downloadPdf = (row: ProformaListItem) =>
     runAction(row.id, async () => {
-      const res = await fetch(`/api/admin/proforma-invoices/${row.id}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const json = (await res.json()) as {
-        error?: string;
-        invoice?: Parameters<typeof detailToPdfSource>[0];
-      };
-      if (!res.ok || !json.invoice) {
-        throw new Error(json.error || "无法加载发票");
-      }
-      const { filename } = await downloadProformaPdf(
-        detailToPdfSource(json.invoice)
-      );
-      await fetch(`/api/admin/proforma-invoices/${row.id}/status`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pdfGenerated: true }),
-      });
+      const { filename } = await downloadProformaPdf(row.id);
       setMessage(`已下载 PDF：${filename}`);
     });
 

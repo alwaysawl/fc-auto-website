@@ -26,6 +26,18 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 async function fetchFontBase64(path: string): Promise<string> {
+  // Node (API routes): read from public/ so PDF generation works without a browser.
+  if (typeof window === "undefined") {
+    const [{ readFile }, { join }] = await Promise.all([
+      import("fs/promises"),
+      import("path"),
+    ]);
+    const relative = path.replace(/^\//, "");
+    const filePath = join(process.cwd(), "public", relative);
+    const buf = await readFile(filePath);
+    return buf.toString("base64");
+  }
+
   const res = await fetch(path, { cache: "force-cache" });
   if (!res.ok) {
     throw new Error(`无法加载字体文件：${path}`);

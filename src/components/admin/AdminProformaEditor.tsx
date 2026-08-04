@@ -24,11 +24,7 @@ import type {
   ProformaSettings,
   TermSnapshot,
 } from "@/lib/admin/proforma/types";
-import {
-  detailToPdfSource,
-  downloadProformaPdf,
-  type ProformaPdfSource,
-} from "@/lib/proforma/buildProformaPdf";
+import { downloadProformaPdf } from "@/lib/proforma/downloadProformaPdf";
 import AdminProformaPreview, {
   type ProformaPreviewModel,
 } from "@/components/admin/AdminProformaPreview";
@@ -488,40 +484,6 @@ export default function AdminProformaEditor({
     idempotencyKey: uid(),
   });
 
-  const toPdfSource = (number: string, contract: string): ProformaPdfSource => ({
-    invoiceNumber: number,
-    contractNumber: contract || number,
-    offerDate,
-    validityText,
-    customerName,
-    customerCompany,
-    customerCountry,
-    customerAddress,
-    customerWhatsapp,
-    customerEmail,
-    destinationCountry,
-    destinationPort,
-    salespersonName,
-    salespersonPhone,
-    salespersonEmail,
-    companySnapshot: company,
-    paymentSnapshot: payment,
-    vehicleSubtotalUsd: totals.vehicleSubtotalUsd,
-    chargesTotalUsd: totals.chargesTotalUsd,
-    totalUsd: totals.totalUsd,
-    depositUsd: totals.depositUsd,
-    balanceUsd: totals.balanceUsd,
-    termsSnapshot: terms,
-    notes,
-    items: previewModel.items,
-    charges: charges.map((c) => ({
-      nameZh: c.nameZh,
-      nameEn: c.nameEn,
-      amountUsd: parseMoney(c.amountUsd),
-      note: c.note || null,
-    })),
-  });
-
   const downloadSavedPdf = async () => {
     if (!initial?.id) {
       setError("请先保存发票后再下载 PDF");
@@ -545,27 +507,7 @@ export default function AdminProformaEditor({
     setError(null);
     setMessage(null);
     try {
-      // Always reload the saved snapshot so the PDF matches the database.
-      const res = await fetch(`/api/admin/proforma-invoices/${initial.id}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const json = (await res.json()) as {
-        error?: string;
-        invoice?: ProformaDetail;
-      };
-      if (!res.ok || !json.invoice) {
-        throw new Error(json.error || "无法加载已保存发票");
-      }
-      const { filename } = await downloadProformaPdf(
-        detailToPdfSource(json.invoice)
-      );
-      await fetch(`/api/admin/proforma-invoices/${initial.id}/status`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pdfGenerated: true }),
-      });
+      const { filename } = await downloadProformaPdf(initial.id);
       setMessage(`已下载真实 A4 PDF：${filename}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "PDF 下载失败");
@@ -648,33 +590,13 @@ export default function AdminProformaEditor({
 
       const savedId = json.id || initial?.id;
       const savedNumber = json.invoiceNumber || initial?.invoiceNumber || "";
-      const savedContract = contractNumber || savedNumber;
 
       if (opts.generatePdf && savedNumber) {
-        // Prefer reloading the saved record so the PDF uses exact DB values.
-        let pdfSource = toPdfSource(savedNumber, savedContract);
-        if (savedId) {
-          const reload = await fetch(
-            `/api/admin/proforma-invoices/${savedId}`,
-            { credentials: "include", cache: "no-store" }
-          );
-          const reloadJson = (await reload.json()) as {
-            invoice?: ProformaDetail;
-          };
-          if (reload.ok && reloadJson.invoice) {
-            pdfSource = detailToPdfSource(reloadJson.invoice);
-          }
+        if (!savedId) {
+          throw new Error("发票已保存但缺少 ID，无法生成 PDF");
         }
-        const { filename } = await downloadProformaPdf(pdfSource);
-        if (savedId) {
-          await fetch(`/api/admin/proforma-invoices/${savedId}/status`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pdfGenerated: true }),
-          });
-        }
-        if (!opts.markIssued && savedId) {
+        const { filename } = await downloadProformaPdf(savedId);
+        if (!opts.markIssued) {
           const confirmIssued = window.confirm(
             "PDF 已生成。是否将状态更新为「已开具」？"
           );

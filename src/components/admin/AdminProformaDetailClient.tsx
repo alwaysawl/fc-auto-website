@@ -4,13 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProformaDetail } from "@/lib/admin/proforma/types";
 import {
-  detailToPdfSource,
-  downloadProformaPdf,
-} from "@/lib/proforma/buildProformaPdf";
-import {
   PI_MAX_VEHICLES,
   checkProformaOnePageFit,
 } from "@/lib/proforma/layout";
+import { downloadProformaPdf } from "@/lib/proforma/downloadProformaPdf";
 
 export default function AdminProformaDetailClient({
   invoice,
@@ -37,13 +34,7 @@ export default function AdminProformaDetailClient({
       if (!fit.ok) {
         throw new Error(fit.errorZh || fit.errorEn || "无法生成 PDF");
       }
-      const { filename } = await downloadProformaPdf(detailToPdfSource(invoice));
-      await fetch(`/api/admin/proforma-invoices/${invoice.id}/status`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pdfGenerated: true }),
-      });
+      const { filename } = await downloadProformaPdf(invoice.id);
       setMessage(`已下载 PDF：${filename}`);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "PDF 下载失败");
