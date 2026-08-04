@@ -74,15 +74,6 @@ export function resolveProformaFontPath(filename: string): {
 function readFontFileBase64(filename: string): string {
   const resolved = resolveProformaFontPath(filename);
 
-  // Temporary diagnostics for Vercel (cwd + path + exists).
-  console.info("[proforma-fonts]", {
-    cwd: resolved.cwd,
-    filename,
-    resolvedPath: resolved.path,
-    exists: resolved.exists,
-    candidates: resolved.candidates,
-  });
-
   if (!resolved.exists) {
     throw new Error(
       `中文字体文件缺失，无法生成 PDF。` +
