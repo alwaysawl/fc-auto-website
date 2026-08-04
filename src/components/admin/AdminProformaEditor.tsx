@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DEFAULT_CHARGE_TEMPLATES,
@@ -26,12 +26,8 @@ import type {
 } from "@/lib/admin/proforma/types";
 import {
   fetchProformaPdfFile,
-  isAppleMobileBrowser,
-  downloadProformaPdf,
-  PROFORMA_PDF_STATUS_LABEL,
-  type ProformaPdfStatus,
+  exportProformaPdfFile,
 } from "@/lib/proforma/downloadProformaPdf";
-import ProformaPdfActions from "@/components/admin/ProformaPdfActions";
 import AdminProformaPreview, {
   type ProformaPreviewModel,
 } from "@/components/admin/AdminProformaPreview";
@@ -272,68 +268,9 @@ export default function AdminProformaEditor({
   const [freightPortId, setFreightPortId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [pdfSeed, setPdfSeed] = useState<
-    import("@/lib/proforma/downloadProformaPdf").FetchedProformaPdf | null
-  >(null);
-
-  // New invoice edit page → discard any seeded PDF from a previous invoice.
-  useEffect(() => {
-    setPdfSeed(null);
-  }, [initial?.id]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [depositWarning, setDepositWarning] = useState(false);
-
-  /** Fingerprint of editable fields — used to invalidate a generated PDF. */
-  const contentSignature = useMemo(
-    () =>
-      JSON.stringify({
-        contractNumber,
-        offerDate,
-        validityText,
-        customerName,
-        customerCompany,
-        customerCountry,
-        customerAddress,
-        customerWhatsapp,
-        customerEmail,
-        destinationCountry,
-        destinationPort,
-        salespersonName,
-        salespersonPhone,
-        salespersonEmail,
-        company,
-        payment,
-        depositUsd,
-        notes,
-        terms,
-        items,
-        charges,
-      }),
-    [
-      contractNumber,
-      offerDate,
-      validityText,
-      customerName,
-      customerCompany,
-      customerCountry,
-      customerAddress,
-      customerWhatsapp,
-      customerEmail,
-      destinationCountry,
-      destinationPort,
-      salespersonName,
-      salespersonPhone,
-      salespersonEmail,
-      company,
-      payment,
-      depositUsd,
-      notes,
-      terms,
-      items,
-      charges,
-    ]
-  );
 
   const totals = useMemo(() => {
     const itemTotals = items.map((item) =>
@@ -629,38 +566,37 @@ export default function AdminProformaEditor({
         if (!savedId) {
           throw new Error("发票已保存但缺少 ID，无法生成 PDF");
         }
-        setMessage(PROFORMA_PDF_STATUS_LABEL.generating);
-        if (isAppleMobileBrowser()) {
-          const fetched = await fetchProformaPdfFile(savedId, savedNumber);
-          setPdfSeed(fetched);
-          setMessage(
-            `已保存 ${savedNumber}。\n已生成：\n${fetched.file.name}\n请点「下载 PDF」，并在系统菜单中选择「存储到文件」。`
+
+        // 1) Fetch a real application/pdf File for THIS invoice only.
+        const { file: pdfFile } = await fetchProformaPdfFile(
+          savedId,
+          savedNumber
+        );
+
+        // 2) Export once: Web Share (files only) or desktop <a.download>.
+        //    Never share text/url/title (creates iOS「文本 N」junk files).
+        //    Never run download fallback after a successful share.
+        const exported = await exportProformaPdfFile(pdfFile);
+
+        if (!opts.markIssued && exported.method === "download") {
+          const confirmIssued = window.confirm(
+            "PDF 已生成。是否将状态更新为「已开具」？"
           );
-        } else {
-          const { message: pdfMessage, filename } = await downloadProformaPdf(
-            savedId,
-            {
-              invoiceNumber: savedNumber,
-              onStatus: (status: ProformaPdfStatus, detail?: string) => {
-                setMessage(detail || PROFORMA_PDF_STATUS_LABEL[status]);
-              },
-            }
-          );
-          if (!opts.markIssued) {
-            const confirmIssued = window.confirm(
-              "PDF 已生成。是否将状态更新为「已开具」？"
-            );
-            if (confirmIssued) {
-              await fetch(`/api/admin/proforma-invoices/${savedId}/status`, {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "issued" }),
-              });
-            }
+          if (confirmIssued) {
+            await fetch(`/api/admin/proforma-invoices/${savedId}/status`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "issued" }),
+            });
           }
-          setMessage(`已保存 ${savedNumber}。${pdfMessage}\n${filename}`);
         }
+
+        setMessage(
+          exported.method === "share"
+            ? `发票已保存，PDF 已生成，请在系统菜单中选择「存储到文件」。\n${pdfFile.name}`
+            : `发票已保存，PDF 已下载。\n${pdfFile.name}`
+        );
       } else {
         setMessage(`草稿已保存 ${savedNumber}`);
       }
@@ -742,24 +678,15 @@ export default function AdminProformaEditor({
           >
             保存草稿
           </button>
-          {mode === "edit" && initial?.invoiceNumber ? (
-            <ProformaPdfActions
-              key={initial.id}
-              invoiceId={initial.id}
-              invoiceNumber={initial.invoiceNumber || invoiceNumber}
-              contentSignature={contentSignature}
-              seedReady={pdfSeed}
-              onSeedConsumed={() => setPdfSeed(null)}
-              disabled={saving}
-              onMessage={setMessage}
-              onError={setError}
-            />
-          ) : null}
           <button
             type="button"
             className={btnGold}
             disabled={saving}
-            onClick={() => void save({ generatePdf: true })}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              void save({ generatePdf: true });
+            }}
           >
             {saving ? "保存中…" : "保存并生成 PDF"}
           </button>

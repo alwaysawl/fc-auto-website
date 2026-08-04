@@ -135,7 +135,6 @@ export default function DownloadVehicleQuoteButton({
     try {
       await navigator.share({
         files: [file],
-        title: file.name,
       });
       showToast(`系统分享已完成\n${file.name}`);
     } catch (error) {

@@ -25,10 +25,10 @@ export type ProformaPdfStatus =
 export const PROFORMA_PDF_STATUS_LABEL: Record<ProformaPdfStatus, string> = {
   idle: "",
   generating: "正在生成 PDF…",
-  ready: "PDF 已生成，请在系统菜单中选择「存储到文件」",
+  ready: "发票已保存，PDF 已生成，请在系统菜单中选择「存储到文件」。",
   outdated: "发票内容已更改，请重新下载 PDF",
   sharing: "正在打开系统分享…",
-  shared: "PDF 已生成，请在系统菜单中选择「存储到文件」",
+  shared: "发票已保存，PDF 已生成，请在系统菜单中选择「存储到文件」。",
   downloaded: "PDF 已开始下载",
   error: "下载失败，请重试",
 };
@@ -57,8 +57,8 @@ export type FetchedProformaPdf = {
 };
 
 /**
- * Fetch the server PDF as a fresh File for the CURRENT invoice.
- * Never reuses prior Files. Cache-busts the request.
+ * Fetch the server PDF as a fresh application/pdf File for the CURRENT invoice.
+ * Rejects non-PDF responses (JSON/HTML/text) so they are never shared as files.
  */
 export async function fetchProformaPdfFile(
   invoiceId: string,
@@ -71,7 +71,7 @@ export async function fetchProformaPdfFile(
     throw new Error("缺少发票编号，无法生成 PDF");
   }
 
-  const expectedFilename = buildProformaDownloadFilename(number);
+  const filename = buildProformaDownloadFilename(number);
   const t = Date.now();
   const url =
     `/api/admin/proforma-invoices/${encodeURIComponent(id)}/pdf` +
@@ -82,7 +82,7 @@ export async function fetchProformaPdfFile(
   dbg("fetch start", {
     invoiceId: id,
     invoiceNumber: number,
-    expectedFilename,
+    filename,
     url,
     t,
   });
@@ -101,48 +101,55 @@ export async function fetchProformaPdfFile(
 
   dbg("fetch response", {
     status: res.status,
-    redirected: res.redirected,
     responseUrl: res.url,
     contentType: res.headers.get("content-type"),
     contentDisposition: res.headers.get("content-disposition"),
-    cacheControl: res.headers.get("cache-control"),
   });
 
   if (!res.ok) {
-    throw new Error(await readErrorMessage(res));
+    throw new Error(
+      (await readErrorMessage(res)) || `PDF request failed: ${res.status}`
+    );
   }
 
-  const blob = await res.blob();
-  dbg("blob", { type: blob.type, size: blob.size });
-
-  if (!blob.size) {
-    throw new Error("Generated PDF is empty");
+  const contentType = (res.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/pdf")) {
+    const errorText = await res.text();
+    console.error("Expected PDF but received:", { contentType, errorText });
+    throw new Error("服务器返回的不是 PDF");
   }
 
-  const pdfBlob =
-    blob.type === "application/pdf"
-      ? blob
-      : new Blob([blob], { type: "application/pdf" });
+  const pdfBlob = await res.blob();
+  dbg("blob", { type: pdfBlob.type, size: pdfBlob.size });
 
-  // Filename from CURRENT invoice number only — never from stale closures / old CD header alone.
-  const filename = buildProformaDownloadFilename(number);
-  const file = new File([pdfBlob], filename, {
+  if (!pdfBlob.size) {
+    throw new Error("PDF 文件为空");
+  }
+
+  // Force application/pdf — never trust an empty/mismatched blob.type.
+  const typedBlob =
+    pdfBlob.type === "application/pdf"
+      ? pdfBlob
+      : new Blob([pdfBlob], { type: "application/pdf" });
+
+  const file = new File([typedBlob], filename, {
     type: "application/pdf",
     lastModified: Date.now(),
   });
 
-  if (!file.name.includes(number)) {
-    throw new Error(
-      `生成的文件名与当前发票号不一致：${file.name} / ${number}`
-    );
+  if (file.type !== "application/pdf") {
+    throw new Error("创建的 File 不是 application/pdf");
+  }
+  if (!file.name.includes(number) || !file.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error(`生成的文件名无效：${file.name}`);
   }
 
   dbg("file ready", {
     invoiceId: id,
     invoiceNumber: number,
     filename: file.name,
+    type: file.type,
     blobSize: file.size,
-    generatedAt: file.lastModified,
   });
 
   return {
@@ -156,8 +163,44 @@ export async function fetchProformaPdfFile(
 }
 
 /**
- * Share/save an already-generated File from a direct user gesture.
- * Verifies the File still matches the expected invoice number.
+ * Share exactly one PDF File via Web Share (files only — no text/url/title),
+ * or desktop <a download>. Never both.
+ */
+export async function exportProformaPdfFile(file: File): Promise<{
+  method: "share" | "download";
+  filename: string;
+}> {
+  if (file.type !== "application/pdf" || !file.size) {
+    throw new Error("只能导出有效的 PDF 文件");
+  }
+
+  const nav = navigator as Navigator & {
+    canShare?: (data: ShareData) => boolean;
+  };
+
+  if (
+    typeof navigator.share === "function" &&
+    typeof nav.canShare === "function" &&
+    nav.canShare({ files: [file] })
+  ) {
+    // CRITICAL: files only. title/text/url can create iOS「文本 N」junk files.
+    await navigator.share({
+      files: [file],
+    });
+    return { method: "share", filename: file.name };
+  }
+
+  if (isAppleMobileBrowser()) {
+    throw new Error("当前浏览器不支持直接分享 PDF，请使用 Safari 打开。");
+  }
+
+  // Desktop only — never run this after a successful share.
+  const result = await shareOrSavePdfFile(file);
+  return { method: result.method, filename: result.filename };
+}
+
+/**
+ * @deprecated Prefer exportProformaPdfFile — kept for call-site migration.
  */
 export async function shareOrSaveProformaPdfFile(
   file: File,
@@ -167,22 +210,13 @@ export async function shareOrSaveProformaPdfFile(
   message: string;
 }> {
   const number = expectedInvoiceNumber.trim();
-  dbg("shareOrSave verify", {
-    filename: file.name,
-    expectedInvoiceNumber: number,
-    size: file.size,
-    shareAvailable: typeof navigator.share === "function",
-    canShare: canSharePdfFile(file),
-    isApple: isAppleMobileBrowser(),
-  });
-
   if (!number || !file.name.includes(number)) {
     throw new Error(
       `PDF 与当前发票不匹配（文件：${file.name}，发票：${number}）。请重新生成 PDF。`
     );
   }
 
-  const result = await shareOrSavePdfFile(file);
+  const result = await exportProformaPdfFile(file);
   return {
     method: result.method,
     message:
@@ -193,8 +227,8 @@ export async function shareOrSaveProformaPdfFile(
 }
 
 /**
- * Desktop / Android one-shot: fetch then download.
- * On Apple mobile returns "ready" without sharing (use two-step UI).
+ * Desktop one-shot: fetch then download/share.
+ * On Apple mobile returns "ready" without sharing (caller must export on gesture).
  */
 export async function downloadProformaPdf(
   invoiceId: string,
@@ -202,7 +236,12 @@ export async function downloadProformaPdf(
     invoiceNumber: string;
     onStatus?: (status: ProformaPdfStatus, detail?: string) => void;
   }
-): Promise<{ filename: string; status: ProformaPdfStatus; message: string; file?: File }> {
+): Promise<{
+  filename: string;
+  status: ProformaPdfStatus;
+  message: string;
+  file?: File;
+}> {
   options.onStatus?.("generating");
   const fetched = await fetchProformaPdfFile(
     invoiceId,
@@ -210,28 +249,26 @@ export async function downloadProformaPdf(
   );
 
   if (isAppleMobileBrowser()) {
-    options.onStatus?.(
-      "ready",
-      `已生成：\n${fetched.file.name}`
-    );
+    options.onStatus?.("ready", PROFORMA_PDF_STATUS_LABEL.ready);
     return {
       filename: fetched.file.name,
       status: "ready",
-      message: `已生成：\n${fetched.file.name}`,
+      message: PROFORMA_PDF_STATUS_LABEL.ready,
       file: fetched.file,
     };
   }
 
   options.onStatus?.("sharing");
   try {
-    const result = await shareOrSaveProformaPdfFile(
-      fetched.file,
-      options.invoiceNumber
-    );
+    const result = await exportProformaPdfFile(fetched.file);
     const status: ProformaPdfStatus =
       result.method === "share" ? "shared" : "downloaded";
-    options.onStatus?.(status, result.message);
-    return { filename: fetched.file.name, status, message: result.message };
+    const message =
+      result.method === "share"
+        ? PROFORMA_PDF_STATUS_LABEL.shared
+        : PROFORMA_PDF_STATUS_LABEL.downloaded;
+    options.onStatus?.(status, message);
+    return { filename: fetched.file.name, status, message };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") throw err;
     options.onStatus?.("error");
@@ -243,7 +280,7 @@ export async function downloadProformaPdf(
 
 /**
  * Preview only — may open Safari PDF viewer in a new tab.
- * Cache-busted so it never shows another invoice's PDF.
+ * Not used by the editor「保存并生成 PDF」button.
  */
 export function previewProformaPdf(
   invoiceId: string,

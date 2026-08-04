@@ -296,7 +296,6 @@ export default function AdminInquiryDetailClient({
     try {
       await navigator.share({
         files: [file],
-        title: file.name,
       });
       setMsg(`系统分享已完成\n${file.name}`);
     } catch (error) {
