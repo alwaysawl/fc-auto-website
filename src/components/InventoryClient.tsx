@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Vehicle, Locale } from "@/lib/types";
 import { Translations } from "@/lib/translations";
@@ -60,6 +60,9 @@ export default function InventoryClient({
   const [filters, setFilters] = useState(emptyFilters);
   const [page, setPage] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const inventoryTopRef = useRef<HTMLDivElement>(null);
+  /** Only scroll on pagination clicks — not filter/clamp page resets. */
+  const shouldScrollOnPageChangeRef = useRef(false);
 
   const options = useMemo(() => {
     const brands = [...new Set(vehicles.map((v) => v.brand))].sort();
@@ -115,6 +118,19 @@ export default function InventoryClient({
     };
   }, [mobileFiltersOpen]);
 
+  useEffect(() => {
+    if (!shouldScrollOnPageChangeRef.current) return;
+    shouldScrollOnPageChangeRef.current = false;
+    // Wait until the new page's vehicle list has painted before scrolling.
+    const frameId = window.requestAnimationFrame(() => {
+      inventoryTopRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [page]);
+
   const paged = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
@@ -126,6 +142,18 @@ export default function InventoryClient({
 
   function clearFilters() {
     setFilters(emptyFilters);
+  }
+
+  function goToPage(nextPage: number) {
+    if (nextPage === page) {
+      inventoryTopRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      return;
+    }
+    shouldScrollOnPageChangeRef.current = true;
+    setPage(nextPage);
   }
 
   const selectClass =
@@ -312,7 +340,10 @@ export default function InventoryClient({
   );
 
   return (
-    <div className="lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-7 xl:gap-8">
+    <div
+      ref={inventoryTopRef}
+      className="scroll-mt-24 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-7 xl:gap-8"
+    >
       {/* Desktop fixed-width sticky sidebar */}
       <aside className="hidden lg:block">
         <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-1">
@@ -411,7 +442,7 @@ export default function InventoryClient({
                   <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
                     <button
                       type="button"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      onClick={() => goToPage(Math.max(1, page - 1))}
                       disabled={page === 1}
                       className="min-h-11 px-3 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-brand-slate disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
                     >
@@ -423,7 +454,7 @@ export default function InventoryClient({
                         <button
                           key={pageNumber}
                           type="button"
-                          onClick={() => setPage(pageNumber)}
+                          onClick={() => goToPage(pageNumber)}
                           className={`min-h-11 min-w-11 text-sm font-semibold rounded-lg transition-colors ${
                             page === pageNumber
                               ? "bg-accent-yellow text-brand-slate"
@@ -436,7 +467,7 @@ export default function InventoryClient({
                     })}
                     <button
                       type="button"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      onClick={() => goToPage(Math.min(totalPages, page + 1))}
                       disabled={page === totalPages}
                       className="min-h-11 px-3 py-2 text-sm font-semibold rounded-lg border border-slate-200 text-brand-slate disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
                     >
