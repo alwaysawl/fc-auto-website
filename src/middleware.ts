@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { locales, defaultLocale, Locale } from "@/lib/types";
 
+const PERMANENT = 308;
+
 function withLocaleHeader(response: NextResponse, locale: string) {
   response.headers.set("x-locale", locale);
   return response;
+}
+
+function permanentRedirect(url: URL, locale: string) {
+  return withLocaleHeader(NextResponse.redirect(url, PERMANENT), locale);
 }
 
 export function middleware(request: NextRequest) {
@@ -28,6 +34,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /en/ → /en (avoid duplicate locale home URLs)
+  for (const locale of locales) {
+    if (pathname === `/${locale}/`) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${locale}`;
+      return permanentRedirect(url, locale);
+    }
+  }
+
   const pathnameHasLocale = locales.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
@@ -41,8 +56,13 @@ export function middleware(request: NextRequest) {
   }
 
   const locale = defaultLocale;
-  request.nextUrl.pathname = `/${locale}${pathname}`;
-  return withLocaleHeader(NextResponse.redirect(request.nextUrl), locale);
+  const url = request.nextUrl.clone();
+  // Apex / must 308 to /en — never leave / and /en as duplicate indexable homes
+  url.pathname =
+    pathname === "/" || pathname === ""
+      ? `/${locale}`
+      : `/${locale}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+  return permanentRedirect(url, locale);
 }
 
 export const config = {

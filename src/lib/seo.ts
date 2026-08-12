@@ -4,6 +4,7 @@ import { getLocalizedPath } from "@/lib/i18n";
 
 export const SITE_NAME = "FC Auto Export";
 export const SITE_URL = "https://fcautoexport.com";
+export const DEFAULT_LOCALE: Locale = "en";
 
 /** Canonical production origin (no trailing slash). */
 export function getSiteUrl(): string {
@@ -17,6 +18,11 @@ export function absoluteUrl(path: string): string {
   if (!path || path === "/") return base;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${base}${normalized}`;
+}
+
+/** Absolute URL for a locale-prefixed public path (never apex-only for page content). */
+export function localeAbsoluteUrl(pathWithoutLocale: string, locale: Locale): string {
+  return absoluteUrl(getLocalizedPath(pathWithoutLocale, locale));
 }
 
 export function absoluteImageUrl(src: string | null | undefined): string | undefined {
@@ -44,15 +50,16 @@ export function buildAlternates(
   pathWithoutLocale: string,
   locale: Locale
 ): NonNullable<Metadata["alternates"]> {
+  const canonical = localeAbsoluteUrl(pathWithoutLocale, locale);
   const languages: Record<string, string> = {
-    en: absoluteUrl(getLocalizedPath(pathWithoutLocale, "en")),
-    fr: absoluteUrl(getLocalizedPath(pathWithoutLocale, "fr")),
-    "zh-CN": absoluteUrl(getLocalizedPath(pathWithoutLocale, "zh")),
-    "x-default": absoluteUrl(getLocalizedPath(pathWithoutLocale, "en")),
+    en: localeAbsoluteUrl(pathWithoutLocale, "en"),
+    fr: localeAbsoluteUrl(pathWithoutLocale, "fr"),
+    "zh-CN": localeAbsoluteUrl(pathWithoutLocale, "zh"),
+    "x-default": localeAbsoluteUrl(pathWithoutLocale, DEFAULT_LOCALE),
   };
 
   return {
-    canonical: absoluteUrl(getLocalizedPath(pathWithoutLocale, locale)),
+    canonical,
     languages,
   };
 }
@@ -78,13 +85,15 @@ export function buildPageMetadata({
   noIndex = false,
   type = "website",
 }: BuildPageMetadataInput): Metadata {
-  const url = absoluteUrl(getLocalizedPath(path, locale));
+  const url = localeAbsoluteUrl(path, locale);
   const ogImage = absoluteImageUrl(image ?? undefined);
+  const alternates = buildAlternates(path, locale);
 
   return {
+    metadataBase: new URL(getSiteUrl()),
     title: { absolute: title },
     description,
-    alternates: buildAlternates(path, locale),
+    alternates,
     robots: noIndex
       ? { index: false, follow: false, googleBot: { index: false, follow: false } }
       : { index: true, follow: true },
@@ -192,22 +201,25 @@ export function vehicleImageAlt(
 }
 
 export function homeGraphJsonLd() {
+  const enHome = localeAbsoluteUrl("/", DEFAULT_LOCALE);
+  const site = getSiteUrl();
+
   return {
     "@context": "https://schema.org",
     "@graph": [
       {
         "@type": "Organization",
-        "@id": `${getSiteUrl()}/#organization`,
+        "@id": `${site}/#organization`,
         name: SITE_NAME,
-        url: getSiteUrl(),
+        url: site,
       },
       {
         "@type": "WebSite",
-        "@id": `${getSiteUrl()}/#website`,
+        "@id": `${enHome}#website`,
         name: SITE_NAME,
-        url: getSiteUrl(),
+        url: enHome,
         inLanguage: ["en", "fr", "zh-CN"],
-        publisher: { "@id": `${getSiteUrl()}/#organization` },
+        publisher: { "@id": `${site}/#organization` },
       },
     ],
   };
@@ -237,7 +249,7 @@ export function vehicleJsonLd(
   locale: Locale
 ) {
   const { description } = buildVehicleSeoCopy(vehicle, locale);
-  const url = absoluteUrl(getLocalizedPath(`/inventory/${vehicle.id}`, locale));
+  const url = localeAbsoluteUrl(`/inventory/${vehicle.id}`, locale);
   const image = absoluteImageUrl(vehicleCoverImage(vehicle));
   const currency = (vehicle.currency || "USD").toUpperCase();
 
