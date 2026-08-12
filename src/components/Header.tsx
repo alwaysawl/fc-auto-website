@@ -9,6 +9,7 @@ import { Translations } from "@/lib/translations";
 import LanguageSwitcher from "./LanguageSwitcher";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import { useCart } from "@/components/CartProvider";
+import BrandLogo from "@/components/BrandLogo";
 
 interface HeaderProps {
   locale: Locale;
@@ -123,21 +124,7 @@ export default function Header({ locale, t, variant = "dark" }: HeaderProps) {
             href={getLocalizedPath("/", locale)}
             className="flex items-center gap-1.5 md:gap-3 flex-shrink-0 min-w-0"
           >
-            <div
-              className={`flex items-center justify-center flex-shrink-0 ${
-                isHero
-                  ? "w-9 h-9 sm:w-10 sm:h-10 bg-accent-yellow rounded-md"
-                  : isLight
-                    ? "w-9 h-9 bg-brand-slate text-white rounded-lg"
-                    : "w-9 h-9 bg-accent-yellow rounded-md text-brand-slate"
-              }`}
-            >
-              <span
-                className={`font-bold text-sm ${isHero || !isLight ? "text-brand-slate" : ""}`}
-              >
-                FC
-              </span>
-            </div>
+            <BrandLogo variant="header" priority />
             <div className="min-w-0">
               <span
                 className={`block font-bold leading-tight whitespace-nowrap truncate max-w-[7.5rem] min-[380px]:max-w-[9.5rem] sm:max-w-none ${

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 
 const navItems = [
   {
@@ -104,9 +105,7 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
       {/* Brand */}
       <div className="px-6 py-5 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#FACC15] rounded flex items-center justify-center flex-shrink-0">
-            <span className="text-[#1E293B] font-bold text-xs">FC</span>
-          </div>
+          <BrandLogo variant="admin" />
           <div>
             <p className="text-white font-bold text-sm leading-tight">FC Auto Export</p>
             <p className="text-slate-400 text-xs leading-tight mt-0.5">管理后台</p>

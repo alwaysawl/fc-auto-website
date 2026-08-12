@@ -3,6 +3,7 @@ import { Locale } from "@/lib/types";
 import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import BrandLogo from "@/components/BrandLogo";
 
 interface FooterProps {
   locale: Locale;
@@ -25,9 +26,7 @@ export default function Footer({ locale, t }: FooterProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
           <div className="min-w-0">
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 bg-gold rounded-sm flex items-center justify-center shadow-gold flex-shrink-0">
-                <span className="text-charcoal font-bold text-lg">FC</span>
-              </div>
+              <BrandLogo variant="footer" />
               <div className="min-w-0">
                 <span className="text-white font-display font-bold text-xl block truncate">
                   {t.footer.company}
