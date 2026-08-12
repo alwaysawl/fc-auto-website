@@ -248,7 +248,18 @@ export default function VehicleDetailClient({
     },
   ]);
 
-  const featureLines = (vehicle.features ?? "")
+  const featuresRaw =
+    locale === "zh"
+      ? vehicle.featuresZh?.trim()
+        ? vehicle.featuresZh
+        : vehicle.features ?? ""
+      : locale === "fr"
+        ? vehicle.featuresFr?.trim()
+          ? vehicle.featuresFr
+          : vehicle.features ?? ""
+        : vehicle.features ?? "";
+
+  const featureLines = (featuresRaw ?? "")
     .split(/\r?\n|,/)
     .map((s) => s.trim())
     .filter(Boolean);

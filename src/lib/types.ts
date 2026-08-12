@@ -38,7 +38,9 @@ export interface Vehicle {
   location?: string;          // e.g. "广州"
   titleEn?: string;           // English title for listing
   descriptionEn?: string;     // English description
-  features?: string;          // Key features, newline-separated
+  features?: string;          // Key features (main config) from admin, newline-separated
+  featuresFr?: string;       // Auto-generated French version (fallback to `features`)
+  featuresZh?: string;       // Auto-generated Chinese version (fallback to `features`)
   /** Admin-only internal notes. Never select/return on public paths. */
   notes?: string;             // Internal notes
   updatedAt?: string;         // ISO timestamp

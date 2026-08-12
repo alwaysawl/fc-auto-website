@@ -127,6 +127,8 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
     titleEn: "",
     descriptionEn: "",
     features: "",
+    featuresFr: "",
+    featuresZh: "",
     notes: "",
     photos: [],
     shippingTiers: [],
@@ -614,10 +616,36 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
               placeholder="英文描述，将显示在前台车辆详情页" />
           </div>
           <div>
-            <label className={labelCls}>主要配置（每行一项）</label>
-            <textarea rows={4} className={fieldCls} value={form.features ?? ""}
+            <label className={labelCls}>主要配置（英文） / Main Configuration (English)</label>
+            <textarea
+              rows={4}
+              className={fieldCls}
+              value={form.features ?? ""}
               onChange={(e) => set("features", e.target.value)}
-              placeholder={"例：\nLeather seats\nSunroof\nBackup camera"} />
+              placeholder={"例：\nLeather seats\nSunroof\nBackup camera"}
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>主要配置（法文） / Main Configuration (French)</label>
+            <textarea
+              rows={4}
+              className={fieldCls}
+              value={form.featuresFr ?? ""}
+              onChange={(e) => set("featuresFr", e.target.value)}
+              placeholder={"例：\nSièges en cuir\nToit ouvrant panoramique\nCaméra de recul"}
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>主要配置（中文） / Main Configuration (Chinese)</label>
+            <textarea
+              rows={4}
+              className={fieldCls}
+              value={form.featuresZh ?? ""}
+              onChange={(e) => set("featuresZh", e.target.value)}
+              placeholder={"例：\n真皮座椅\n全景天窗\n倒车影像"}
+            />
           </div>
           <div>
             <label className={labelCls}>备注（仅内部可见）</label>

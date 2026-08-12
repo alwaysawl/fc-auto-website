@@ -96,6 +96,8 @@ interface VehicleRow {
   title_en: string | null;
   description_en: string | null;
   features: string | null;
+  features_fr: string | null;
+  features_zh: string | null;
   notes: string | null;
   // Structured image fields (added in Phase 2B)
   main_image_url: string | null;
@@ -134,6 +136,8 @@ function rowToVehicle(row: VehicleRow): Vehicle {
     titleEn: row.title_en ?? undefined,
     descriptionEn: row.description_en ?? undefined,
     features: row.features ?? undefined,
+    featuresFr: row.features_fr ?? undefined,
+    featuresZh: row.features_zh ?? undefined,
     notes: row.notes ?? undefined,
     mainImageUrl: row.main_image_url ?? undefined,
     galleryImageUrls: row.gallery_image_urls ?? undefined,
@@ -172,6 +176,8 @@ function vehicleToInsertRow(v: Vehicle): Omit<VehicleRow, "created_at" | "update
     main_image_url: v.mainImageUrl ?? null,
     gallery_image_urls: v.galleryImageUrls ?? null,
     features: v.features ?? null,
+    features_fr: (v.featuresFr ?? null) as string | null,
+    features_zh: (v.featuresZh ?? null) as string | null,
     notes: v.notes ?? null,
   };
 }
@@ -203,6 +209,8 @@ function vehicleToUpdateRow(updates: Partial<Vehicle>): Partial<VehicleRow> {
   if (updates.titleEn !== undefined)      row.title_en = updates.titleEn;
   if (updates.descriptionEn !== undefined) row.description_en = updates.descriptionEn;
   if (updates.features !== undefined)     row.features = updates.features;
+  if (updates.featuresFr !== undefined)  row.features_fr = updates.featuresFr ?? null;
+  if (updates.featuresZh !== undefined)  row.features_zh = updates.featuresZh ?? null;
   if (updates.notes !== undefined)        row.notes = updates.notes;
   if (updates.mainImageUrl !== undefined) row.main_image_url = updates.mainImageUrl ?? null;
   if (updates.galleryImageUrls !== undefined) {
@@ -241,11 +249,55 @@ export const PUBLIC_VEHICLE_SELECT = [
   "title_en",
   "description_en",
   "features",
+  "features_fr",
+  "features_zh",
   "main_image_url",
   "gallery_image_urls",
   "created_at",
   "updated_at",
 ].join(", ");
+
+/** Fallback select when translation columns don't exist yet. */
+export const PUBLIC_VEHICLE_SELECT_FALLBACK = [
+  "id",
+  "brand",
+  "model",
+  "year",
+  "mileage",
+  "fuel",
+  "transmission",
+  "steering",
+  "fob_price",
+  "photos",
+  "shipping_tiers",
+  "featured",
+  "homepage_rank",
+  "status",
+  "currency",
+  "body_type",
+  "drive_type",
+  "displacement",
+  "color",
+  "seats",
+  "export_port",
+  "location",
+  "title_en",
+  "description_en",
+  "features",
+  "main_image_url",
+  "gallery_image_urls",
+  "created_at",
+  "updated_at",
+].join(", ");
+
+function isMissingTranslationColumnsError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  // Supabase error shape
+  const e = err as { code?: string; message?: string };
+  if (e.code !== "42703") return false;
+  const msg = String(e.message ?? "");
+  return msg.includes("features_fr") || msg.includes("features_zh") || msg.includes("column vehicles.features");
+}
 
 type PublicVehicleRow = Omit<VehicleRow, "vin" | "notes">;
 
@@ -279,6 +331,8 @@ function rowToPublicVehicle(row: PublicVehicleRow): PublicVehicle {
     titleEn: row.title_en ?? undefined,
     descriptionEn: row.description_en ?? undefined,
     features: row.features ?? undefined,
+    featuresFr: row.features_fr ?? undefined,
+    featuresZh: row.features_zh ?? undefined,
     mainImageUrl: row.main_image_url ?? undefined,
     galleryImageUrls: row.gallery_image_urls ?? undefined,
     createdAt: row.created_at,
@@ -304,13 +358,25 @@ export async function dbGetAllVehicles(): Promise<Vehicle[]> {
  */
 export async function dbGetPublicVehicles(): Promise<PublicVehicle[]> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("vehicles")
     .select(PUBLIC_VEHICLE_SELECT)
     .eq("status", "在售")
     .order("featured", { ascending: false })
     .order("updated_at", { ascending: false })
     .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingTranslationColumnsError(error)) {
+      ({ data, error } = await supabase
+        .from("vehicles")
+        .select(PUBLIC_VEHICLE_SELECT_FALLBACK)
+        .eq("status", "在售")
+        .order("featured", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .order("created_at", { ascending: false }));
+    }
+  }
 
   if (error) {
     const code = error.code ? ` [code: ${error.code}]` : "";
@@ -329,13 +395,25 @@ export async function dbGetHomepageShowcaseVehicles(
   limit = HOMEPAGE_SHOWCASE_LIMIT
 ): Promise<PublicVehicle[]> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("vehicles")
     .select(PUBLIC_VEHICLE_SELECT)
     .eq("status", "在售")
     .eq("featured", true)
     .order("homepage_rank", { ascending: true, nullsFirst: false })
     .limit(limit);
+
+  if (error) {
+    if (isMissingTranslationColumnsError(error)) {
+      ({ data, error } = await supabase
+        .from("vehicles")
+        .select(PUBLIC_VEHICLE_SELECT_FALLBACK)
+        .eq("status", "在售")
+        .eq("featured", true)
+        .order("homepage_rank", { ascending: true, nullsFirst: false })
+        .limit(limit));
+    }
+  }
 
   if (error) {
     const code = error.code ? ` [code: ${error.code}]` : "";
@@ -354,12 +432,23 @@ export async function dbGetLatestPublicVehicles(
   limit = HOMEPAGE_LATEST_LIMIT
 ): Promise<PublicVehicle[]> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("vehicles")
     .select(PUBLIC_VEHICLE_SELECT)
     .eq("status", "在售")
     .order("created_at", { ascending: false })
     .limit(limit);
+
+  if (error) {
+    if (isMissingTranslationColumnsError(error)) {
+      ({ data, error } = await supabase
+        .from("vehicles")
+        .select(PUBLIC_VEHICLE_SELECT_FALLBACK)
+        .eq("status", "在售")
+        .order("created_at", { ascending: false })
+        .limit(limit));
+    }
+  }
 
   if (error) {
     const code = error.code ? ` [code: ${error.code}]` : "";
@@ -534,12 +623,23 @@ export async function dbGetVehicleById(id: string): Promise<Vehicle | null> {
  */
 export async function dbGetPublicVehicleById(id: string): Promise<PublicVehicle | null> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("vehicles")
     .select(PUBLIC_VEHICLE_SELECT)
     .eq("id", id)
     .eq("status", "在售")
     .maybeSingle();
+
+  if (error) {
+    if (isMissingTranslationColumnsError(error)) {
+      ({ data, error } = await supabase
+        .from("vehicles")
+        .select(PUBLIC_VEHICLE_SELECT_FALLBACK)
+        .eq("id", id)
+        .eq("status", "在售")
+        .maybeSingle());
+    }
+  }
 
   if (error) {
     const code = error.code ? ` [code: ${error.code}]` : "";
