@@ -7,6 +7,7 @@ import {
   listShippingCountriesWithPorts,
   toCartShippingDestinations,
 } from "@/lib/shippingDestinations/queries";
+import { buildPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,11 +19,15 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale: localeParam } = await params;
-  const t = getTranslations(localeParam as Locale);
-  return {
-    title: t.cart.pageTitle,
+  const locale = localeParam as Locale;
+  const t = getTranslations(locale);
+  return buildPageMetadata({
+    locale,
+    path: "/cart",
+    title: `${t.cart.pageTitle} | FC Auto Export`,
     description: t.cart.pageDescription,
-  };
+    noIndex: true,
+  });
 }
 
 export default async function CartPage({

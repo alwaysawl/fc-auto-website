@@ -11,6 +11,7 @@ import VehicleCardGallery, {
   collectVehicleCardImages,
 } from "@/components/VehicleCardGallery";
 import VehicleCardFobPrice from "@/components/VehicleCardFobPrice";
+import { vehicleImageAlt } from "@/lib/seo";
 
 const PAGE_SIZE = 9;
 
@@ -512,7 +513,7 @@ function InventoryVehicleCard({
       <VehicleCardGallery
         key={vehicle.id}
         images={galleryImages}
-        alt={`${vehicle.brand} ${vehicle.model}`}
+        alt={vehicleImageAlt(vehicle, locale)}
         priority={priority}
         labels={{
           previousImage: t.inventory.galleryPrevious,

@@ -3,6 +3,7 @@ import { getTranslations } from "@/lib/translations";
 import ContactForm from "@/components/ContactForm";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -10,11 +11,14 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale: localeParam } = await params;
-  const t = getTranslations(localeParam as Locale);
-  return {
+  const locale = localeParam as Locale;
+  const t = getTranslations(locale);
+  return buildPageMetadata({
+    locale,
+    path: "/contact",
     title: t.seo.contactTitle,
     description: t.seo.contactDescription,
-  };
+  });
 }
 
 export default async function ContactPage({

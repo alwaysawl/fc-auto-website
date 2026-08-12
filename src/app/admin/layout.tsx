@@ -7,9 +7,15 @@ import {
   isAdminAuthConfigured,
   isAdminSessionActive,
 } from "@/lib/admin/auth";
+import type { Metadata } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Admin | FC Auto Export",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
+  },
 };
 
 /** Always evaluate auth against runtime env + cookies (never bake login state at build). */

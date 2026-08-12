@@ -1,6 +1,7 @@
 import { Locale } from "@/lib/types";
 import { getTranslations } from "@/lib/translations";
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -8,11 +9,14 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale: localeParam } = await params;
-  const t = getTranslations(localeParam as Locale);
-  return {
+  const locale = localeParam as Locale;
+  const t = getTranslations(locale);
+  return buildPageMetadata({
+    locale,
+    path: "/about",
     title: t.seo.aboutTitle,
     description: t.seo.aboutDescription,
-  };
+  });
 }
 
 export default async function AboutPage({

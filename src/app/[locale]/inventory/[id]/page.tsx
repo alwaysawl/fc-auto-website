@@ -5,10 +5,20 @@ import {
   dbGetSimilarPublicVehicles,
 } from "@/lib/supabase/vehicle-queries";
 import VehicleDetailClient from "@/components/VehicleDetailClient";
+import JsonLd from "@/components/JsonLd";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getLocalizedPath } from "@/lib/i18n";
 import type { Metadata } from "next";
+import {
+  buildPageMetadata,
+  buildVehicleSeoCopy,
+  vehicleCoverImage,
+  vehicleJsonLd,
+} from "@/lib/seo";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function generateMetadata({
   params,
@@ -18,23 +28,30 @@ export async function generateMetadata({
   const { locale: localeParam, id } = await params;
   const locale = localeParam as Locale;
   const t = getTranslations(locale);
+
   try {
     const vehicle = await dbGetPublicVehicleById(id);
     if (vehicle) {
-      const name =
-        vehicle.titleEn?.trim() || `${vehicle.brand} ${vehicle.model}`;
-      return {
-        title: `${name} | ${t.vehicleDetail.pageTitle}`,
-        description: `${name} — ${t.inventory.fobChina}`,
-      };
+      const { title, description } = buildVehicleSeoCopy(vehicle, locale);
+      return buildPageMetadata({
+        locale,
+        path: `/inventory/${vehicle.id}`,
+        title,
+        description,
+        image: vehicleCoverImage(vehicle),
+      });
     }
   } catch {
     // fall through
   }
-  return {
-    title: t.vehicleDetail.pageTitle,
+
+  return buildPageMetadata({
+    locale,
+    path: `/inventory/${id}`,
+    title: `${t.vehicleDetail.pageTitle} | FC Auto Export`,
     description: t.seo.inventoryDescription,
-  };
+    noIndex: true,
+  });
 }
 
 export default async function VehicleDetailPage({
@@ -89,12 +106,15 @@ export default async function VehicleDetailPage({
   }
 
   return (
-    <VehicleDetailClient
-      key={vehicle.id}
-      vehicle={vehicle}
-      similarVehicles={similarVehicles}
-      locale={locale}
-      t={t}
-    />
+    <>
+      <JsonLd data={vehicleJsonLd(vehicle, locale)} />
+      <VehicleDetailClient
+        key={vehicle.id}
+        vehicle={vehicle}
+        similarVehicles={similarVehicles}
+        locale={locale}
+        t={t}
+      />
+    </>
   );
 }

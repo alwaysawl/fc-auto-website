@@ -11,9 +11,11 @@ import HomeVehicleShowcase from "@/components/HomeVehicleShowcase";
 import HomeWhyChooseTrust from "@/components/HomeWhyChooseTrust";
 import VehicleCard from "@/components/VehicleCard";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import JsonLd from "@/components/JsonLd";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
+import { buildPageMetadata, homeGraphJsonLd } from "@/lib/seo";
 
 /** Always fetch live featured vehicles — do not serve a build-time snapshot. */
 export const dynamic = "force-dynamic";
@@ -25,11 +27,14 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale: localeParam } = await params;
-  const t = getTranslations(localeParam as Locale);
-  return {
+  const locale = localeParam as Locale;
+  const t = getTranslations(locale);
+  return buildPageMetadata({
+    locale,
+    path: "/",
     title: t.seo.homeTitle,
     description: t.seo.homeDescription,
-  };
+  });
 }
 
 export default async function HomePage({
@@ -62,6 +67,7 @@ export default async function HomePage({
 
   return (
     <>
+      <JsonLd data={homeGraphJsonLd()} />
       <HeroBanner locale={locale} t={t} />
       <HomeVehicleShowcase vehicles={showcaseVehicles} locale={locale} t={t} />
 

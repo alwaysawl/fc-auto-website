@@ -388,18 +388,18 @@
     "close": "Fermer"
   },
   "seo": {
-    "homeTitle": "FC Auto Export | Voitures d'occasion exportées de Chine vers l'Afrique",
-    "homeDescription": "FC Auto Export — Votre exportateur automobile international de confiance. Véhicules d'occasion premium depuis la Chine, expédiés vers l'Afrique.",
-    "inventoryTitle": "Véhicules disponibles | FC Auto Export",
-    "inventoryDescription": "Parcourez des véhicules inspectés prêts à l'exportation depuis la Chine.",
+    "homeTitle": "Voitures d'occasion de Chine | Exportateur Chine | FC Auto Export",
+    "homeDescription": "FC Auto Export fournit des voitures d'occasion de qualité depuis la Chine pour les concessionnaires et acheteurs internationaux, notamment Toyota, Honda, Jetour, Changan, Landwind et d'autres modèles populaires.",
+    "inventoryTitle": "Voitures d'occasion à l'export depuis la Chine | Stock | FC Auto Export",
+    "inventoryDescription": "Parcourez des voitures d'occasion inspectées, prêtes à l'exportation depuis la Chine, y compris des SUV et modèles populaires pour l'Afrique et l'étranger.",
     "shippingTitle": "Calculateur d'expédition | FC Auto Export",
     "shippingDescription": "Estimez le fret maritime de la Chine vers les principaux ports africains.",
-    "aboutTitle": "À propos | FC Auto Export",
-    "aboutDescription": "Découvrez FC Auto Export — votre partenaire de confiance pour l'export de voitures d'occasion vers l'Afrique.",
-    "contactTitle": "Contact | FC Auto Export",
-    "contactDescription": "Contactez FC Auto Export par WhatsApp ou formulaire pour un devis véhicule et expédition.",
-    "carSourcingTitle": "Recherche personnalisée | FC Auto Export",
-    "carSourcingDescription": "Indiquez vos besoins et FC Auto Export trouvera un véhicule adapté en Chine."
+    "aboutTitle": "À propos de FC Auto Export | Exportateur de voitures d'occasion",
+    "aboutDescription": "Découvrez FC Auto Export — exportateur de voitures d'occasion depuis la Chine pour les marchés internationaux.",
+    "contactTitle": "Contact FC Auto Export | Voitures d'occasion de Chine",
+    "contactDescription": "Contactez FC Auto Export par WhatsApp ou formulaire pour un devis d'export de voitures d'occasion.",
+    "carSourcingTitle": "Recherche personnalisée en Chine | FC Auto Export",
+    "carSourcingDescription": "Indiquez vos besoins et FC Auto Export trouvera un véhicule d'occasion adapté en Chine."
   },
   "carSourcing": {
     "title": "Recherche personnalisée",

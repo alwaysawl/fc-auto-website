@@ -3,18 +3,24 @@ import { getTranslations } from "@/lib/translations";
 import { dbGetPublicVehicles } from "@/lib/supabase/vehicle-queries";
 import InventoryClient from "@/components/InventoryClient";
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
+
 export const dynamic = "force-dynamic";
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale: localeParam } = await params;
-  const t = getTranslations(localeParam as Locale);
-  return {
+  const locale = localeParam as Locale;
+  const t = getTranslations(locale);
+  return buildPageMetadata({
+    locale,
+    path: "/inventory",
     title: t.seo.inventoryTitle,
     description: t.seo.inventoryDescription,
-  };
+  });
 }
 
 export default async function InventoryPage({

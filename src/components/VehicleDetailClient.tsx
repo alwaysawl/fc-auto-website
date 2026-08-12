@@ -10,6 +10,7 @@ import { driveTypeLabel } from "@/lib/drive-type";
 import AddToCartButton from "@/components/AddToCartButton";
 import CheckoutNowButton from "@/components/CheckoutNowButton";
 import DownloadVehicleQuoteButton from "@/components/DownloadVehicleQuoteButton";
+import { vehicleImageAlt } from "@/lib/seo";
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle;
@@ -256,7 +257,7 @@ export default function VehicleDetailClient({
             <div className="relative aspect-[4/3] bg-slate-100 rounded-xl overflow-hidden border border-slate-100">
               <Image
                 src={photos[activePhoto] ?? coverSrc(vehicle)}
-                alt={vehicleName}
+                alt={vehicleImageAlt(vehicle, locale, activePhoto + 1)}
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 65vw"
@@ -300,7 +301,7 @@ export default function VehicleDetailClient({
                   >
                     <Image
                       src={photo}
-                      alt={`${vehicleName} photo ${index + 1}`}
+                      alt={vehicleImageAlt(vehicle, locale, index + 1)}
                       fill
                       className="object-cover"
                       sizes="80px"
@@ -531,7 +532,7 @@ export default function VehicleDetailClient({
                   <div className="relative aspect-[4/3] bg-slate-100">
                     <Image
                       src={coverSrc(item)}
-                      alt={`${item.brand} ${item.model}`}
+                      alt={vehicleImageAlt(item, locale)}
                       fill
                       className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
                       sizes="(max-width: 768px) 100vw, 33vw"

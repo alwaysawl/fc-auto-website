@@ -4,6 +4,7 @@ import { Vehicle, Locale } from "@/lib/types";
 import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
 import VehicleCardFobPrice from "@/components/VehicleCardFobPrice";
+import { vehicleImageAlt } from "@/lib/seo";
 
 interface VehicleCardProps {
   vehicle: Vehicle;
@@ -50,7 +51,7 @@ export default function VehicleCard({
       >
         <Image
           src={coverSrc}
-          alt={`${vehicle.brand} ${vehicle.model}`}
+          alt={vehicleImageAlt(vehicle, locale)}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-700"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

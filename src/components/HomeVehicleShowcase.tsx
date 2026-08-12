@@ -4,6 +4,7 @@ import { Locale, Vehicle } from "@/lib/types";
 import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import { vehicleImageAlt } from "@/lib/seo";
 
 interface HomeVehicleShowcaseProps {
   vehicles: Vehicle[];
@@ -101,7 +102,7 @@ function ShowcaseCard({
         <div className="relative aspect-[4/3] bg-slate-50">
           <Image
             src={coverImageSrc(vehicle)}
-            alt={`${vehicle.brand} ${modelName}`}
+            alt={vehicleImageAlt({ ...vehicle, model: modelName }, locale)}
             fill
             className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
             sizes="(max-width: 1024px) 240px, 25vw"

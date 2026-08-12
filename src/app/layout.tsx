@@ -1,4 +1,8 @@
 import { Inter, Playfair_Display, Noto_Sans_SC } from "next/font/google";
+import { headers } from "next/headers";
+import type { Metadata } from "next";
+import { Locale, locales } from "@/lib/types";
+import { getSiteUrl, htmlLang, SITE_NAME } from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,21 +22,32 @@ const notoSansSc = Noto_Sans_SC({
   display: "swap",
 });
 
-export const metadata = {
-  title: "FC Auto Export | International Premium Auto Trading",
+export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: SITE_NAME,
+    template: `%s | ${SITE_NAME}`,
+  },
   description:
-    "FC Auto Export — Your trusted international automobile exporter. Premium pre-owned vehicles from China, shipped worldwide to Africa. Browse inventory, calculate shipping, and get instant quotes on WhatsApp.",
+    "FC Auto Export supplies quality used cars from China for overseas dealers and buyers.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headerStore = await headers();
+  const raw = headerStore.get("x-locale") ?? "en";
+  const locale = (locales.includes(raw as Locale) ? raw : "en") as Locale;
+  const lang = htmlLang(locale);
+
   return (
     <html
-      lang="en"
-      className={`${inter.variable} ${playfair.variable} ${notoSansSc.variable}`}
+      lang={lang}
+      className={`${inter.variable} ${playfair.variable} ${notoSansSc.variable}${
+        locale === "zh" ? " locale-zh" : ""
+      }`}
     >
       <body className="font-sans">{children}</body>
     </html>

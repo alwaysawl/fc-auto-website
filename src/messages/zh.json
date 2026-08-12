@@ -388,18 +388,18 @@
     "close": "关闭"
   },
   "seo": {
-    "homeTitle": "FC Auto Export｜中国二手车出口非洲",
-    "homeDescription": "FC Auto Export —— 值得信赖的国际二手车出口商。提供中国优质二手车出口非洲服务，支持浏览库存、运费估算与 WhatsApp 快速询价。",
-    "inventoryTitle": "车辆库存｜FC Auto Export",
-    "inventoryDescription": "浏览经过检查、可从中国出口的优质二手车库存。",
+    "homeTitle": "中国二手车出口｜中国二手车出口商｜FC Auto Export",
+    "homeDescription": "FC Auto Export 为中国二手车出口商与海外买家提供优质车源，涵盖丰田、本田、捷途、长安、陆风等热门车型，支持出口非洲及海外市场。",
+    "inventoryTitle": "中国出口二手车库存｜FC Auto Export",
+    "inventoryDescription": "浏览经过检查、可从中国出口的优质二手车，包括 SUV 及面向海外与非洲市场的热门车型。",
     "shippingTitle": "运费计算器｜FC Auto Export",
     "shippingDescription": "估算车辆从中国运往非洲主要港口的海运费用。",
-    "aboutTitle": "关于我们｜FC Auto Export",
-    "aboutDescription": "了解 FC Auto Export —— 专注中国二手车出口非洲的专业出口团队。",
-    "contactTitle": "联系我们｜FC Auto Export",
-    "contactDescription": "通过 WhatsApp 或表单联系 FC Auto Export，获取车辆与运费报价。",
-    "carSourcingTitle": "自定义寻车服务｜FC Auto Export",
-    "carSourcingDescription": "告诉我们您的需求，FC Auto Export 将在中国为您寻找合适车源。"
+    "aboutTitle": "关于 FC Auto Export｜中国二手车出口商",
+    "aboutDescription": "了解 FC Auto Export——专注中国二手车出口、服务海外经销商与买家的出口团队。",
+    "contactTitle": "联系 FC Auto Export｜中国二手车出口",
+    "contactDescription": "通过 WhatsApp 或表单联系 FC Auto Export，获取中国二手车出口报价。",
+    "carSourcingTitle": "中国定制寻车｜FC Auto Export",
+    "carSourcingDescription": "告诉我们您的需求，FC Auto Export 将在中国为您寻找合适的出口车源。"
   },
   "carSourcing": {
     "title": "自定义寻车服务",

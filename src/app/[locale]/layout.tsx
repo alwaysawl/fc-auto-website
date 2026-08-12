@@ -10,6 +10,7 @@ import FloatingActionStack from "@/components/FloatingActionStack";
 import AnalyticsPageTracker from "@/components/AnalyticsPageTracker";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { buildPageMetadata, getSiteUrl } from "@/lib/seo";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -26,11 +27,13 @@ export async function generateMetadata({
     : "en") as Locale;
   const t = getTranslations(locale);
   return {
-    title: {
-      default: t.seo.homeTitle,
-      template: `%s | FC Auto Export`,
-    },
-    description: t.seo.homeDescription,
+    metadataBase: new URL(getSiteUrl()),
+    ...buildPageMetadata({
+      locale,
+      path: "/",
+      title: t.seo.homeTitle,
+      description: t.seo.homeDescription,
+    }),
   };
 }
 
