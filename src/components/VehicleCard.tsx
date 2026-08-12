@@ -97,6 +97,7 @@ export default function VehicleCard({
             label={t.inventory.fobChina}
             price={formatPrice(vehicle.fobPrice)}
             variant={isLight ? "light" : "dark"}
+            priceSize="2xl"
           />
         </div>
 
