@@ -30,6 +30,7 @@ import {
   type ValidatedInquiryWrite,
 } from "@/lib/admin/inquiries/validate";
 import { isInquiryStatus } from "@/lib/admin/inquiries/types";
+import { formatBudgetUsdDisplay } from "@/lib/car-sourcing";
 
 const PAGE_SIZE_DEFAULT = 20;
 
@@ -49,6 +50,7 @@ type DbInquiryRow = {
   destination_country_id: string | null;
   destination_port_id: string | null;
   customer_budget_usd: number | string | null;
+  customer_budget_max_usd: number | string | null;
   customer_message: string | null;
   status: string | null;
   priority: string | null;
@@ -76,6 +78,29 @@ function logSafe(scope: string, err: unknown) {
         ? err.message
         : String(err);
   console.error(`[inquiries.${scope}]`, message.slice(0, 200));
+}
+
+function errorMessage(err: unknown): string {
+  if (err && typeof err === "object" && "message" in err) {
+    return String((err as { message: string }).message);
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
+/** True when production DB has not yet applied budget-max migration. */
+function isMissingBudgetMaxColumn(err: unknown): boolean {
+  const msg = errorMessage(err);
+  return (
+    /customer_budget_max_usd/i.test(msg) &&
+    /(does not exist|schema cache|Could not find)/i.test(msg)
+  );
+}
+
+function stripBudgetMax<T extends Record<string, unknown>>(row: T): T {
+  const next = { ...row };
+  delete (next as { customer_budget_max_usd?: unknown }).customer_budget_max_usd;
+  return next;
 }
 
 function isMissingTable(err: unknown): boolean {
@@ -137,6 +162,12 @@ function mapListItem(row: DbInquiryRow): InquiryListItem {
     createdAt: row.created_at,
     archivedAt: row.archived_at,
     isOverdue: isOverdue(row.next_follow_up_at, status),
+    customerBudgetUsd:
+      row.customer_budget_usd == null ? null : Number(row.customer_budget_usd),
+    customerBudgetMaxUsd:
+      row.customer_budget_max_usd == null
+        ? null
+        : Number(row.customer_budget_max_usd),
     hasWhatsApp: Boolean(row.whatsapp_number || row.whatsapp_normalized),
     hasEmail: Boolean(row.email || row.email_normalized),
   };
@@ -396,97 +427,122 @@ export async function listInquiries(
 
   try {
     const supabase = getSupabaseAdmin();
-    let query = supabase.from("inquiries").select(
-      "id, inquiry_number, customer_name, whatsapp_number, email, customer_country, source, vehicle_id, vehicle_title_snapshot, requested_quantity, status, priority, intent_score, assigned_contact_name, next_follow_up_at, last_contacted_at, archived_at, created_at, updated_at, whatsapp_normalized, email_normalized, tags, internal_summary",
-      { count: "exact" }
-    );
+    const LIST_SELECT_WITH_BUDGET_MAX =
+      "id, inquiry_number, customer_name, whatsapp_number, email, customer_country, source, vehicle_id, vehicle_title_snapshot, requested_quantity, customer_budget_usd, customer_budget_max_usd, status, priority, intent_score, assigned_contact_name, next_follow_up_at, last_contacted_at, archived_at, created_at, updated_at, whatsapp_normalized, email_normalized, tags, internal_summary";
+    const LIST_SELECT_WITHOUT_BUDGET_MAX =
+      "id, inquiry_number, customer_name, whatsapp_number, email, customer_country, source, vehicle_id, vehicle_title_snapshot, requested_quantity, customer_budget_usd, status, priority, intent_score, assigned_contact_name, next_follow_up_at, last_contacted_at, archived_at, created_at, updated_at, whatsapp_normalized, email_normalized, tags, internal_summary";
 
-    if (filters.archived) {
-      query = query.not("archived_at", "is", null);
-    } else {
-      query = query.is("archived_at", null);
-    }
+    const buildListQuery = (selectCols: string) => {
+      let query = supabase.from("inquiries").select(selectCols, { count: "exact" });
 
-    if (filters.status && isInquiryStatus(filters.status)) {
-      query = query.eq("status", filters.status);
-    }
-    if (filters.priority) query = query.eq("priority", filters.priority);
-    if (filters.assigned) {
-      query = query.eq("assigned_contact_name", filters.assigned);
-    }
-    if (filters.source) query = query.eq("source", filters.source);
-    if (filters.country) {
-      query = query.ilike("customer_country", `%${filters.country.trim()}%`);
-    }
-    if (filters.vehicleId) query = query.eq("vehicle_id", filters.vehicleId);
-    if (filters.tag) query = query.contains("tags", [filters.tag]);
+      if (filters.archived) {
+        query = query.not("archived_at", "is", null);
+      } else {
+        query = query.is("archived_at", null);
+      }
 
-    if (filters.createdFrom) {
-      query = query.gte("created_at", new Date(filters.createdFrom).toISOString());
-    }
-    if (filters.createdTo) {
-      const end = new Date(filters.createdTo);
-      end.setUTCDate(end.getUTCDate() + 1);
-      query = query.lt("created_at", end.toISOString());
-    }
-    if (filters.updatedFrom) {
-      query = query.gte("updated_at", new Date(filters.updatedFrom).toISOString());
-    }
-    if (filters.updatedTo) {
-      const end = new Date(filters.updatedTo);
-      end.setUTCDate(end.getUTCDate() + 1);
-      query = query.lt("updated_at", end.toISOString());
-    }
+      if (filters.status && isInquiryStatus(filters.status)) {
+        query = query.eq("status", filters.status);
+      }
+      if (filters.priority) query = query.eq("priority", filters.priority);
+      if (filters.assigned) {
+        query = query.eq("assigned_contact_name", filters.assigned);
+      }
+      if (filters.source) query = query.eq("source", filters.source);
+      if (filters.country) {
+        query = query.ilike("customer_country", `%${filters.country.trim()}%`);
+      }
+      if (filters.vehicleId) query = query.eq("vehicle_id", filters.vehicleId);
+      if (filters.tag) query = query.contains("tags", [filters.tag]);
 
-    const followUp = filters.followUp;
-    const today = shanghaiYmd();
-    const { start: todayStart, end: todayEnd } = shanghaiDayBounds(today);
-    if (followUp === "today") {
-      query = query
-        .gte("next_follow_up_at", todayStart)
-        .lt("next_follow_up_at", todayEnd);
-    } else if (followUp === "overdue") {
-      query = query
-        .lt("next_follow_up_at", new Date().toISOString())
-        .not("status", "in", '("won","lost","invalid")');
-    } else if (followUp === "next_7_days") {
-      const weekEnd = new Date(todayStart);
-      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
-      query = query
-        .gte("next_follow_up_at", new Date().toISOString())
-        .lt("next_follow_up_at", weekEnd.toISOString());
-    } else if (followUp === "unset") {
-      query = query.is("next_follow_up_at", null);
-    } else if (followUp === "done") {
-      query = query.in("status", ["won", "lost", "invalid"]);
-    }
+      if (filters.createdFrom) {
+        query = query.gte(
+          "created_at",
+          new Date(filters.createdFrom).toISOString()
+        );
+      }
+      if (filters.createdTo) {
+        const end = new Date(filters.createdTo);
+        end.setUTCDate(end.getUTCDate() + 1);
+        query = query.lt("created_at", end.toISOString());
+      }
+      if (filters.updatedFrom) {
+        query = query.gte(
+          "updated_at",
+          new Date(filters.updatedFrom).toISOString()
+        );
+      }
+      if (filters.updatedTo) {
+        const end = new Date(filters.updatedTo);
+        end.setUTCDate(end.getUTCDate() + 1);
+        query = query.lt("updated_at", end.toISOString());
+      }
 
-    const sort = (filters.sort as InquirySort) || "attention";
-    if (sort === "newest") query = query.order("created_at", { ascending: false });
-    else if (sort === "oldest") query = query.order("created_at", { ascending: true });
-    else if (sort === "intent") query = query.order("intent_score", { ascending: false });
-    else if (sort === "follow_up") {
-      query = query.order("next_follow_up_at", { ascending: true, nullsFirst: false });
-    } else if (sort === "updated") {
-      query = query.order("updated_at", { ascending: false });
-    } else {
-      query = query.order("updated_at", { ascending: false });
-    }
+      const followUp = filters.followUp;
+      const today = shanghaiYmd();
+      const { start: todayStart, end: todayEnd } = shanghaiDayBounds(today);
+      if (followUp === "today") {
+        query = query
+          .gte("next_follow_up_at", todayStart)
+          .lt("next_follow_up_at", todayEnd);
+      } else if (followUp === "overdue") {
+        query = query
+          .lt("next_follow_up_at", new Date().toISOString())
+          .not("status", "in", '("won","lost","invalid")');
+      } else if (followUp === "next_7_days") {
+        const weekEnd = new Date(todayStart);
+        weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+        query = query
+          .gte("next_follow_up_at", new Date().toISOString())
+          .lt("next_follow_up_at", weekEnd.toISOString());
+      } else if (followUp === "unset") {
+        query = query.is("next_follow_up_at", null);
+      } else if (followUp === "done") {
+        query = query.in("status", ["won", "lost", "invalid"]);
+      }
 
-    // Fetch a wider window for attention sort + text search, then page in memory
-    const needMemory =
-      sort === "attention" || Boolean(filters.q && filters.q.trim());
-    if (needMemory) {
-      query = query.limit(500);
-    } else {
-      const from = (page - 1) * pageSize;
-      query = query.range(from, from + pageSize - 1);
-    }
+      const sort = (filters.sort as InquirySort) || "attention";
+      if (sort === "newest")
+        query = query.order("created_at", { ascending: false });
+      else if (sort === "oldest")
+        query = query.order("created_at", { ascending: true });
+      else if (sort === "intent")
+        query = query.order("intent_score", { ascending: false });
+      else if (sort === "follow_up") {
+        query = query.order("next_follow_up_at", {
+          ascending: true,
+          nullsFirst: false,
+        });
+      } else if (sort === "updated") {
+        query = query.order("updated_at", { ascending: false });
+      } else {
+        query = query.order("updated_at", { ascending: false });
+      }
 
-    const { data, error, count } = await query;
+      const needMemory =
+        sort === "attention" || Boolean(filters.q && filters.q.trim());
+      if (needMemory) {
+        query = query.limit(500);
+      } else {
+        const from = (page - 1) * pageSize;
+        query = query.range(from, from + pageSize - 1);
+      }
+      return { query, sort, needMemory };
+    };
+
+    let built = buildListQuery(LIST_SELECT_WITH_BUDGET_MAX);
+    let { data, error, count } = await built.query;
+    if (error && isMissingBudgetMaxColumn(error)) {
+      logSafe("listInquiries", "budget max column missing; falling back");
+      built = buildListQuery(LIST_SELECT_WITHOUT_BUDGET_MAX);
+      ({ data, error, count } = await built.query);
+    }
     if (error) throw error;
 
-    let items = ((data ?? []) as DbInquiryRow[]).map(mapListItem);
+    const sort = built.sort;
+    const needMemory = built.needMemory;
+
+    let items = ((data ?? []) as unknown as DbInquiryRow[]).map(mapListItem);
 
     const q = filters.q?.trim().toLowerCase();
     if (q) {
@@ -502,7 +558,9 @@ export async function listInquiries(
           .join(" ")
           .toLowerCase();
         // Also search phone/email via raw rows
-        const raw = (data as DbInquiryRow[]).find((r) => r.id === item.id);
+        const raw = (data as unknown as DbInquiryRow[] | null)?.find(
+          (r) => r.id === item.id
+        );
         const extra = [
           raw?.whatsapp_number,
           raw?.email,
@@ -618,8 +676,6 @@ export async function getInquiryDetail(
       preferredLanguage: row.preferred_language,
       destinationCountryId: row.destination_country_id,
       destinationPortId: row.destination_port_id,
-      customerBudgetUsd:
-        row.customer_budget_usd == null ? null : Number(row.customer_budget_usd),
       customerMessage: row.customer_message,
       assignedSalesAgentId: row.assigned_sales_agent_id,
       closedAt: row.closed_at,
@@ -678,6 +734,7 @@ function rowFromValidated(data: ValidatedInquiryWrite, extras?: Record<string, u
     destination_country_id: data.destination_country_id,
     destination_port_id: data.destination_port_id,
     customer_budget_usd: data.customer_budget_usd,
+    customer_budget_max_usd: data.customer_budget_max_usd,
     customer_message: data.customer_message,
     status: data.status,
     priority: data.priority,
@@ -777,19 +834,28 @@ export async function createInquiry(
   try {
     const supabase = getSupabaseAdmin();
     const inquiryNumber = await generateInquiryNumber();
-    const { data: inserted, error } = await supabase
+    const insertRow = rowFromValidated(data, {
+      inquiry_number: inquiryNumber,
+      closed_at: closed,
+      metadata: {},
+    });
+    let { data: inserted, error } = await supabase
       .from("inquiries")
-      .insert({
-        ...rowFromValidated(data, {
-          inquiry_number: inquiryNumber,
-          closed_at: closed,
-          metadata: {},
-        }),
-      })
+      .insert(insertRow)
       .select("id, inquiry_number")
       .single();
 
+    if (error && isMissingBudgetMaxColumn(error)) {
+      logSafe("createInquiry", "budget max column missing; retrying without max");
+      ({ data: inserted, error } = await supabase
+        .from("inquiries")
+        .insert(stripBudgetMax(insertRow))
+        .select("id, inquiry_number")
+        .single());
+    }
+
     if (error) throw error;
+    if (!inserted) throw new Error("询盘创建失败");
 
     await addActivity({
       inquiryId: inserted.id,
@@ -886,6 +952,8 @@ export async function updateInquiry(
           input.destinationPortId ?? existing.destination_port_id,
         customerBudgetUsd:
           input.customerBudgetUsd ?? existing.customer_budget_usd,
+        customerBudgetMaxUsd:
+          input.customerBudgetMaxUsd ?? existing.customer_budget_max_usd,
         customerMessage: input.customerMessage ?? existing.customer_message,
         status: input.status ?? existing.status,
         priority: input.priority ?? existing.priority,
@@ -927,10 +995,18 @@ export async function updateInquiry(
       return { ok: false, error: "请填写流失或无效原因" };
     }
 
-    const { error } = await supabase
+    const updateRow = rowFromValidated(data, { closed_at });
+    let { error } = await supabase
       .from("inquiries")
-      .update(rowFromValidated(data, { closed_at }))
+      .update(updateRow)
       .eq("id", id);
+    if (error && isMissingBudgetMaxColumn(error)) {
+      logSafe("updateInquiry", "budget max column missing; retrying without max");
+      ({ error } = await supabase
+        .from("inquiries")
+        .update(stripBudgetMax(updateRow))
+        .eq("id", id));
+    }
     if (error) throw error;
 
     if (existing.status !== data.status) {
@@ -1049,6 +1125,8 @@ export function buildInquiryCsv(
     "source",
     "vehicle_title",
     "quantity",
+    "budget_min_usd",
+    "budget_max_usd",
     "status",
     "priority",
     "intent_score",
@@ -1074,6 +1152,8 @@ export function buildInquiryCsv(
       item.source,
       item.vehicleTitleSnapshot,
       item.requestedQuantity,
+      formatBudgetUsdDisplay(item.customerBudgetUsd) || "",
+      formatBudgetUsdDisplay(item.customerBudgetMaxUsd) || "",
       item.status,
       item.priority,
       item.intentScore,

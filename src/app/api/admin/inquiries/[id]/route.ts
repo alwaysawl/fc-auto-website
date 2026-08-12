@@ -62,6 +62,7 @@ export async function PATCH(
       destinationCountryId: body.destinationCountryId as string | null | undefined,
       destinationPortId: body.destinationPortId as string | null | undefined,
       customerBudgetUsd: body.customerBudgetUsd as number | null | undefined,
+      customerBudgetMaxUsd: body.customerBudgetMaxUsd as number | null | undefined,
       customerMessage: body.customerMessage as string | null | undefined,
       status: body.status as string | null | undefined,
       priority: body.priority as string | null | undefined,

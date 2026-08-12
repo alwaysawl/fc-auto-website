@@ -9,7 +9,8 @@ export type CarSourcingFormValues = {
   country: string;
   brand: string;
   model: string;
-  budget: string;
+  budgetMin: string;
+  budgetMax: string;
   quantity: string;
   year: string;
   transmission: string;
@@ -32,7 +33,7 @@ const REQUIRED: Array<keyof CarSourcingFormValues> = [
   "country",
   "brand",
   "model",
-  "budget",
+  "budgetMin",
   "quantity",
 ];
 
@@ -44,13 +45,20 @@ function clean(value: unknown, max = 500): string {
 export function normalizeCarSourcingInput(
   raw: Record<string, unknown>
 ): CarSourcingFormValues {
+  // Accept legacy `budget` as minimum for older clients
+  const budgetMin =
+    clean(raw.budgetMin, 80) || clean(raw.budget, 80) || clean(raw.minimumBudget, 80);
+  const budgetMax =
+    clean(raw.budgetMax, 80) || clean(raw.maximumBudget, 80);
+
   return {
     customerName: clean(raw.customerName, 120),
     whatsapp: clean(raw.whatsapp, 40),
     country: clean(raw.country, 80),
     brand: clean(raw.brand, 80),
     model: clean(raw.model, 80),
-    budget: clean(raw.budget, 80),
+    budgetMin,
+    budgetMax,
     quantity: clean(raw.quantity, 20),
     year: clean(raw.year, 20),
     transmission: clean(raw.transmission, 40),
@@ -77,6 +85,12 @@ export function validateCarSourcingValues(
   if (!Number.isFinite(qty) || qty < 1 || qty > 999) {
     return { ok: false, error: requiredMessage, field: "quantity" };
   }
+  if (parseBudgetUsd(values.budgetMin) == null) {
+    return { ok: false, error: requiredMessage, field: "budgetMin" };
+  }
+  if (values.budgetMax && parseBudgetUsd(values.budgetMax) == null) {
+    return { ok: false, error: requiredMessage, field: "budgetMax" };
+  }
   return { ok: true, values };
 }
 
@@ -97,7 +111,8 @@ export function buildCarSourcingInquiryNote(values: CarSourcingFormValues): stri
     line("Brand", values.brand),
     line("Model", values.model),
     line("Year", values.year),
-    line("Budget", values.budget),
+    line("Minimum Budget", formatBudgetUsdDisplay(values.budgetMin)),
+    line("Maximum Budget", formatBudgetUsdDisplay(values.budgetMax)),
     line("Quantity", values.quantity),
     line("Transmission", values.transmission),
     line("Fuel", values.fuel),
@@ -118,6 +133,32 @@ export function parseBudgetUsd(budget: string): number | null {
   const n = Number(digits);
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.min(n, 10_000_000);
+}
+
+/** Display-only USD formatting, e.g. 8000 → "USD 8,000". */
+export function formatBudgetUsdDisplay(
+  budget: string | number | null | undefined
+): string {
+  if (budget == null) return "";
+  if (typeof budget === "number") {
+    if (!Number.isFinite(budget) || budget < 0) return "";
+    return `USD ${new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 0,
+    }).format(budget)}`;
+  }
+
+  const raw = budget.trim();
+  if (!raw) return "";
+
+  const parsed = parseBudgetUsd(raw);
+  if (parsed != null) {
+    return `USD ${new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 0,
+    }).format(parsed)}`;
+  }
+
+  if (/usd/i.test(raw)) return raw;
+  return `USD ${raw}`;
 }
 
 export function parseQuantity(quantity: string): number | null {

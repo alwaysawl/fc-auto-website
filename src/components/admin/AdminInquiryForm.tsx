@@ -10,6 +10,7 @@ import {
   INQUIRY_SOURCE_LABELS,
   type InquiryDuplicateMatch,
 } from "@/lib/admin/inquiries/types";
+import { parseBudgetUsd } from "@/lib/car-sourcing";
 
 const fieldCls =
   "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/50";
@@ -36,6 +37,7 @@ export default function AdminInquiryForm() {
     requestedQuantity: "",
     destinationPortId: "",
     customerBudgetUsd: "",
+    customerBudgetMaxUsd: "",
     priority: "medium",
     intentScore: "",
     tags: "",
@@ -104,7 +106,10 @@ export default function AdminInquiryForm() {
           : null,
         destinationPortId: form.destinationPortId || null,
         customerBudgetUsd: form.customerBudgetUsd
-          ? Number(form.customerBudgetUsd)
+          ? parseBudgetUsd(form.customerBudgetUsd)
+          : null,
+        customerBudgetMaxUsd: form.customerBudgetMaxUsd
+          ? parseBudgetUsd(form.customerBudgetMaxUsd)
           : null,
         priority: form.priority,
         intentScore: form.intentScore ? Number(form.intentScore) : 0,
@@ -327,12 +332,23 @@ export default function AdminInquiryForm() {
             />
           </label>
           <label className="block text-sm">
-            <span className="text-slate-600">预算 USD（可选）</span>
+            <span className="text-slate-600">最低预算（USD，可选）</span>
             <input
               className={fieldCls}
               inputMode="decimal"
               value={form.customerBudgetUsd}
               onChange={(e) => setField("customerBudgetUsd", e.target.value)}
+              placeholder="USD 8,000"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-slate-600">最高预算（USD，可选）</span>
+            <input
+              className={fieldCls}
+              inputMode="decimal"
+              value={form.customerBudgetMaxUsd}
+              onChange={(e) => setField("customerBudgetMaxUsd", e.target.value)}
+              placeholder="USD 10,000"
             />
           </label>
           <label className="block text-sm">

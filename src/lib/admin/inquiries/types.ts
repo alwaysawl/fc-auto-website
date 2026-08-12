@@ -131,6 +131,10 @@ export type InquiryListItem = {
   createdAt: string;
   archivedAt: string | null;
   isOverdue: boolean;
+  /** Minimum / primary budget (USD) */
+  customerBudgetUsd: number | null;
+  /** Optional maximum budget (USD) */
+  customerBudgetMaxUsd: number | null;
   /** List views hide phone/email by default */
   hasWhatsApp: boolean;
   hasEmail: boolean;
@@ -143,7 +147,6 @@ export type InquiryDetail = InquiryListItem & {
   preferredLanguage: string | null;
   destinationCountryId: string | null;
   destinationPortId: string | null;
-  customerBudgetUsd: number | null;
   customerMessage: string | null;
   assignedSalesAgentId: string | null;
   closedAt: string | null;

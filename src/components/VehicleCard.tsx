@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Vehicle, Locale } from "@/lib/types";
 import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
+import VehicleCardFobPrice from "@/components/VehicleCardFobPrice";
 
 interface VehicleCardProps {
   vehicle: Vehicle;
@@ -88,22 +89,15 @@ export default function VehicleCard({
         </div>
 
         <div
-          className={`flex items-center justify-between pb-5 border-b ${
+          className={`pb-5 border-b ${
             isLight ? "border-slate-100" : "border-white/5"
           }`}
         >
-          <div>
-            <span className="text-xs text-slate-400 uppercase tracking-wider">
-              {t.inventory.fobPrice}
-            </span>
-            <p
-              className={`text-2xl font-bold ${
-                isLight ? "text-brand-slate" : "text-gold font-display"
-              }`}
-            >
-              {formatPrice(vehicle.fobPrice)}
-            </p>
-          </div>
+          <VehicleCardFobPrice
+            label={t.inventory.fobChina}
+            price={formatPrice(vehicle.fobPrice)}
+            variant={isLight ? "light" : "dark"}
+          />
         </div>
 
         <div className="mt-5">

@@ -26,6 +26,7 @@ export type InquiryWriteInput = {
   destinationCountryId?: string | null;
   destinationPortId?: string | null;
   customerBudgetUsd?: number | null;
+  customerBudgetMaxUsd?: number | null;
   customerMessage?: string | null;
   status?: string | null;
   priority?: string | null;
@@ -94,6 +95,7 @@ export type ValidatedInquiryWrite = {
   destination_country_id: string | null;
   destination_port_id: string | null;
   customer_budget_usd: number | null;
+  customer_budget_max_usd: number | null;
   customer_message: string | null;
   status: InquiryStatus;
   priority: InquiryPriority;
@@ -141,6 +143,14 @@ export function validateInquiryWrite(
     return { ok: false, error: "预算无效" };
   }
 
+  const budgetMax = cleanNumber(raw.customerBudgetMaxUsd, {
+    min: 0,
+    max: 50_000_000,
+  });
+  if (raw.customerBudgetMaxUsd != null && budgetMax == null) {
+    return { ok: false, error: "最高预算无效" };
+  }
+
   let assigned = cleanText(raw.assignedContactName, 40);
   if (assigned && !isAssignableContact(assigned)) {
     // Allow only Shawn / Miles for consistency
@@ -176,6 +186,7 @@ export function validateInquiryWrite(
       destination_country_id: cleanText(raw.destinationCountryId, 16),
       destination_port_id: cleanText(raw.destinationPortId, 64),
       customer_budget_usd: budget,
+      customer_budget_max_usd: budgetMax,
       customer_message: cleanText(raw.customerMessage, 4000),
       status,
       priority: (priorityRaw as InquiryPriority | undefined) ?? "medium",

@@ -10,6 +10,7 @@ import AddToCartButton from "@/components/AddToCartButton";
 import VehicleCardGallery, {
   collectVehicleCardImages,
 } from "@/components/VehicleCardGallery";
+import VehicleCardFobPrice from "@/components/VehicleCardFobPrice";
 
 const PAGE_SIZE = 9;
 
@@ -551,12 +552,11 @@ function InventoryVehicleCard({
         </dl>
 
         <div className="mt-auto pt-3 border-t border-slate-100">
-          <p className="text-[11px] text-slate-400 uppercase tracking-wide mb-0.5">
-            {t.inventory.fobChina}
-          </p>
-          <p className="text-xl font-bold text-brand-slate mb-3">
-            {formatPrice(vehicle.fobPrice)}
-          </p>
+          <VehicleCardFobPrice
+            label={t.inventory.fobChina}
+            price={formatPrice(vehicle.fobPrice)}
+            className="mb-3"
+          />
 
           <div className="grid grid-cols-1 gap-2">
             <AddToCartButton

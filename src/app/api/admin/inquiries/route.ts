@@ -69,6 +69,7 @@ export async function POST(request: Request) {
       destinationCountryId: body.destinationCountryId as string | null,
       destinationPortId: body.destinationPortId as string | null,
       customerBudgetUsd: body.customerBudgetUsd as number | null,
+      customerBudgetMaxUsd: body.customerBudgetMaxUsd as number | null,
       customerMessage: body.customerMessage as string | null,
       status: body.status as string | null,
       priority: body.priority as string | null,

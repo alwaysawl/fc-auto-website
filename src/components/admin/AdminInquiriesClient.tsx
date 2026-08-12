@@ -14,6 +14,19 @@ import {
   type InquiryListResult,
   type InquirySort,
 } from "@/lib/admin/inquiries/types";
+import { formatBudgetUsdDisplay } from "@/lib/car-sourcing";
+
+function budgetCell(
+  min: number | null | undefined,
+  max: number | null | undefined
+): string {
+  const minLabel = formatBudgetUsdDisplay(min);
+  const maxLabel = formatBudgetUsdDisplay(max);
+  if (minLabel && maxLabel) return `${minLabel} – ${maxLabel}`;
+  if (minLabel) return minLabel;
+  if (maxLabel) return `– ${maxLabel}`;
+  return "—";
+}
 
 const fieldCls =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-[#1E293B] [color-scheme:light] [-webkit-text-fill-color:#1E293B] opacity-100 placeholder:text-slate-400 placeholder:[-webkit-text-fill-color:#94a3b8] outline-none focus:border-[#FACC15] focus:ring-2 focus:ring-[#FACC15]/50";
@@ -542,6 +555,7 @@ export default function AdminInquiriesClient({
                       "来源",
                       "感兴趣车辆",
                       "数量",
+                      "预算",
                       "状态",
                       "优先级",
                       "意向评分",
@@ -586,6 +600,9 @@ export default function AdminInquiriesClient({
                       </td>
                       <td className="px-3 py-2.5 tabular-nums">
                         {item.requestedQuantity ?? "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap text-xs">
+                        {budgetCell(item.customerBudgetUsd, item.customerBudgetMaxUsd)}
                       </td>
                       <td className="px-3 py-2.5">{statusBadge(item.status)}</td>
                       <td className="px-3 py-2.5">{priorityBadge(item.priority)}</td>
@@ -690,6 +707,13 @@ export default function AdminInquiriesClient({
                   <p className="text-sm text-slate-600">
                     {item.customerCountry || "国家未填"} ·{" "}
                     {item.vehicleTitleSnapshot || "未指定车辆"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    预算{" "}
+                    {budgetCell(
+                      item.customerBudgetUsd,
+                      item.customerBudgetMaxUsd
+                    )}
                   </p>
                   <p className="text-xs text-slate-500">
                     负责人 {item.assignedContactName || "—"} · 意向{" "}

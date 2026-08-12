@@ -27,7 +27,8 @@ const EMPTY: CarSourcingFormValues = {
   country: "",
   brand: "",
   model: "",
-  budget: "",
+  budgetMin: "",
+  budgetMax: "",
   quantity: "1",
   year: "",
   transmission: "",
@@ -244,17 +245,31 @@ export default function CarSourcingForm({ locale, t }: Props) {
             />
           </div>
           <div className="min-w-0">
-            <label className={labelCls} htmlFor="cs-budget">
-              {copy.budget} *
+            <label className={labelCls} htmlFor="cs-budget-min">
+              {copy.budgetMin} *
             </label>
             <input
-              id="cs-budget"
-              name="budget"
-              value={values.budget}
-              onChange={setField("budget")}
+              id="cs-budget-min"
+              name="budgetMin"
+              value={values.budgetMin}
+              onChange={setField("budgetMin")}
               className={inputCls}
-              placeholder={copy.budgetPlaceholder}
+              placeholder={copy.budgetMinPlaceholder}
               required
+            />
+          </div>
+          <div className="min-w-0">
+            <label className={labelCls} htmlFor="cs-budget-max">
+              {copy.budgetMax}
+              {optionalMark}
+            </label>
+            <input
+              id="cs-budget-max"
+              name="budgetMax"
+              value={values.budgetMax}
+              onChange={setField("budgetMax")}
+              className={inputCls}
+              placeholder={copy.budgetMaxPlaceholder}
             />
           </div>
           <div className="min-w-0">
