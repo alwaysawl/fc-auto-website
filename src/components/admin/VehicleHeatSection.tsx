@@ -95,8 +95,8 @@ function LeaderCard({
   if (!row) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-        <p className="text-xs font-medium text-slate-500">{label}</p>
-        <p className="mt-2 text-sm text-slate-500">所选时间范围内暂无车辆互动数据</p>
+        <p className="text-xs font-medium text-slate-700">{label}</p>
+        <p className="mt-2 text-sm text-slate-600">所选时间范围内暂无车辆互动数据</p>
       </div>
     );
   }
@@ -110,7 +110,7 @@ function LeaderCard({
           : row.quoteDownloads;
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="text-xs font-medium text-slate-700">{label}</p>
       <div className="mt-2 flex gap-3">
         {row.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -123,13 +123,13 @@ function LeaderCard({
           <div className="h-14 w-20 rounded bg-slate-100 flex-shrink-0" />
         )}
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-[#1E293B] line-clamp-2">
+          <p className="text-sm font-semibold text-slate-700 line-clamp-2">
             {row.title}
           </p>
-          <p className="text-lg font-bold text-[#1E293B] tabular-nums mt-0.5">
+          <p className="text-lg font-bold text-slate-800 tabular-nums mt-0.5">
             {count}
           </p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-700">
             {row.status || "—"} · {row.priceLabel || "价格未填"}
           </p>
         </div>
@@ -149,8 +149,8 @@ function MiniBars({
       {items.map((item) => (
         <div key={item.label} className="min-w-0">
           <div className="mb-0.5 flex justify-between text-xs">
-            <span className="text-slate-600 truncate">{item.label}</span>
-            <span className="tabular-nums text-[#1E293B] font-semibold">
+            <span className="text-slate-700 truncate">{item.label}</span>
+            <span className="tabular-nums text-slate-800 font-semibold">
               {item.value}
             </span>
           </div>
@@ -250,8 +250,8 @@ export default function VehicleHeatSection({
   if (!data) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-base font-semibold text-[#1E293B]">车辆热度分析</h2>
-        <p className="text-sm text-slate-500 mt-2">车辆热度数据加载失败，请稍后重试</p>
+        <h2 className="text-base font-semibold text-slate-900">车辆热度分析</h2>
+        <p className="text-sm text-slate-600 mt-2">车辆热度数据加载失败，请稍后重试</p>
       </section>
     );
   }
@@ -259,8 +259,8 @@ export default function VehicleHeatSection({
   if (!data.available) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-base font-semibold text-[#1E293B]">车辆热度分析</h2>
-        <p className="text-sm text-slate-500 mt-2">
+        <h2 className="text-base font-semibold text-slate-900">车辆热度分析</h2>
+        <p className="text-sm text-slate-600 mt-2">
           {data.error || "车辆热度数据加载失败，请稍后重试"}
         </p>
       </section>
@@ -270,11 +270,11 @@ export default function VehicleHeatSection({
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-base font-semibold text-[#1E293B]">车辆热度分析</h2>
-        <p className="text-sm text-slate-500 mt-1">
+        <h2 className="text-base font-semibold text-slate-900">车辆热度分析</h2>
+        <p className="text-sm text-slate-600 mt-1">
           查看哪些车辆最受关注，以及哪些车辆带来更多 WhatsApp 咨询。
         </p>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-slate-600 mt-1">
           WhatsApp 咨询率 = 点击该车辆 WhatsApp 的访客数 ÷ 浏览该车辆的访客数 ·
           互动热度仅用于帮助排序，不代表最终成交结果。
         </p>
@@ -332,7 +332,7 @@ export default function VehicleHeatSection({
               <h3 className="text-sm font-semibold text-slate-900">车辆热度排行</h3>
             </div>
             {ranking.length === 0 ? (
-              <p className="px-4 py-8 text-sm text-slate-500 text-center">
+              <p className="px-4 py-8 text-sm text-slate-600 text-center">
                 所选时间范围内暂无车辆互动数据
               </p>
             ) : (
@@ -499,20 +499,20 @@ export default function VehicleHeatSection({
           {selectedId && (
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="text-sm font-semibold text-[#1E293B]">
+                <h3 className="text-sm font-semibold text-slate-800">
                   车辆互动详情
                   {selected ? ` · ${selected.title}` : ""}
                 </h3>
                 <button
                   type="button"
-                  className="text-xs text-slate-500"
+                  className="text-xs font-medium text-slate-700"
                   onClick={() => setSelectedId(null)}
                 >
                   关闭
                 </button>
               </div>
               {detailLoading && (
-                <p className="text-sm text-slate-500">加载中…</p>
+                <p className="text-sm text-slate-600">加载中…</p>
               )}
               {detailError && (
                 <p className="text-sm text-red-700">{detailError}</p>
@@ -521,32 +521,32 @@ export default function VehicleHeatSection({
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
                     <div className="rounded-lg bg-slate-50 p-2">
-                      <p className="text-lg font-bold tabular-nums">{selected.detailViews}</p>
-                      <p className="text-[11px] text-slate-500">详情浏览</p>
+                      <p className="text-lg font-bold tabular-nums text-slate-800">{selected.detailViews}</p>
+                      <p className="text-[11px] text-slate-700">详情浏览</p>
                     </div>
                     <div className="rounded-lg bg-slate-50 p-2">
-                      <p className="text-lg font-bold tabular-nums">{selected.uniqueViewers}</p>
-                      <p className="text-[11px] text-slate-500">独立访客</p>
+                      <p className="text-lg font-bold tabular-nums text-slate-800">{selected.uniqueViewers}</p>
+                      <p className="text-[11px] text-slate-700">独立访客</p>
                     </div>
                     <div className="rounded-lg bg-slate-50 p-2">
-                      <p className="text-lg font-bold tabular-nums">{selected.whatsappClicks}</p>
-                      <p className="text-[11px] text-slate-500">WhatsApp</p>
+                      <p className="text-lg font-bold tabular-nums text-slate-800">{selected.whatsappClicks}</p>
+                      <p className="text-[11px] text-slate-700">WhatsApp</p>
                     </div>
                     <div className="rounded-lg bg-slate-50 p-2">
-                      <p className="text-lg font-bold tabular-nums">
+                      <p className="text-lg font-bold tabular-nums text-slate-800">
                         {selected.inquiryRate == null
                           ? "暂无数据"
                           : `${selected.inquiryRate}%`}
                       </p>
-                      <p className="text-[11px] text-slate-500">咨询率</p>
+                      <p className="text-[11px] text-slate-700">咨询率</p>
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-600 mb-2">
+                    <h4 className="text-xs font-semibold text-slate-800 mb-2">
                       点击来源
                     </h4>
                     {selected.waSources.length === 0 ? (
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-slate-600">
                         所选时间范围内暂无车辆 WhatsApp 咨询点击
                       </p>
                     ) : (
@@ -556,8 +556,8 @@ export default function VehicleHeatSection({
                             key={s.source}
                             className="flex justify-between border-b border-slate-50 pb-1"
                           >
-                            <span>{sourceLabel(s.source)}</span>
-                            <span className="tabular-nums">{s.count}</span>
+                            <span className="text-slate-700">{sourceLabel(s.source)}</span>
+                            <span className="tabular-nums text-slate-800">{s.count}</span>
                           </li>
                         ))}
                       </ul>
@@ -565,7 +565,7 @@ export default function VehicleHeatSection({
                   </div>
                   {trend.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-semibold text-slate-600 mb-2">
+                      <h4 className="text-xs font-semibold text-slate-800 mb-2">
                         所选时段趋势
                       </h4>
                       <MiniBars
@@ -577,7 +577,7 @@ export default function VehicleHeatSection({
                       <div className="mt-2 overflow-x-auto">
                         <table className="w-full min-w-[28rem] text-xs">
                           <thead>
-                            <tr className="text-slate-500 border-b">
+                            <tr className="text-slate-700 border-b">
                               <th className="py-1 text-left font-medium">日期</th>
                               <th className="py-1 text-right font-medium">浏览</th>
                               <th className="py-1 text-right font-medium">访客</th>
@@ -588,8 +588,8 @@ export default function VehicleHeatSection({
                           </thead>
                           <tbody>
                             {trend.map((t) => (
-                              <tr key={t.key} className="border-b border-slate-50">
-                                <td className="py-1">{t.label}</td>
+                              <tr key={t.key} className="border-b border-slate-50 text-slate-800">
+                                <td className="py-1 text-slate-700">{t.label}</td>
                                 <td className="py-1 text-right tabular-nums">{t.views}</td>
                                 <td className="py-1 text-right tabular-nums">
                                   {t.uniqueVisitors}
@@ -618,13 +618,13 @@ export default function VehicleHeatSection({
           {/* Comparison */}
           {compareRows.length > 0 && (
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-              <h3 className="text-sm font-semibold text-[#1E293B]">
+              <h3 className="text-sm font-semibold text-slate-800">
                 对比车辆（最多 3 辆）
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[32rem] text-sm">
                   <thead>
-                    <tr className="border-b text-left text-slate-500">
+                    <tr className="border-b text-left text-slate-700">
                       <th className="py-2 pr-2 font-medium">指标</th>
                       {compareRows.map((r) => (
                         <th key={r.vehicleId} className="py-2 pr-2 font-medium max-w-[8rem] truncate">
@@ -644,11 +644,11 @@ export default function VehicleHeatSection({
                       ] as const
                     ).map(([label, key]) => (
                       <tr key={label} className="border-b border-slate-50">
-                        <td className="py-2 pr-2 text-slate-600">{label}</td>
+                        <td className="py-2 pr-2 text-slate-700">{label}</td>
                         {compareRows.map((r) => (
                           <td
                             key={r.vehicleId}
-                            className="py-2 pr-2 tabular-nums font-semibold text-[#1E293B]"
+                            className="py-2 pr-2 tabular-nums font-semibold text-slate-800"
                           >
                             {r[key]}
                           </td>
@@ -656,11 +656,11 @@ export default function VehicleHeatSection({
                       </tr>
                     ))}
                     <tr className="border-b border-slate-50">
-                      <td className="py-2 pr-2 text-slate-600">咨询率</td>
+                      <td className="py-2 pr-2 text-slate-700">咨询率</td>
                       {compareRows.map((r) => (
                         <td
                           key={r.vehicleId}
-                          className="py-2 pr-2 tabular-nums font-semibold"
+                          className="py-2 pr-2 tabular-nums font-semibold text-slate-800"
                         >
                           {r.inquiryRate == null ? "暂无数据" : `${r.inquiryRate}%`}
                         </td>
@@ -680,16 +680,16 @@ export default function VehicleHeatSection({
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-[#1E293B] mb-1">
+              <h3 className="text-sm font-semibold text-slate-800 mb-1">
                 高浏览低咨询车辆
               </h3>
-              <p className="text-xs text-slate-400 mb-3">
+              <p className="text-xs text-slate-600 mb-3">
                 这些车辆受到关注，但客户进一步咨询较少，可检查价格、图片、描述或车型匹配度。
               </p>
               {data.sampleNote && data.highViewLowInquiry.length === 0 ? (
-                <p className="text-sm text-slate-500">{data.sampleNote}</p>
+                <p className="text-sm text-slate-600">{data.sampleNote}</p>
               ) : data.highViewLowInquiry.length === 0 ? (
-                <p className="text-sm text-slate-500">样本较少，暂不判断</p>
+                <p className="text-sm text-slate-600">样本较少，暂不判断</p>
               ) : (
                 <ul className="space-y-3">
                   {data.highViewLowInquiry.map((r) => (
@@ -705,10 +705,10 @@ export default function VehicleHeatSection({
                         <div className="h-12 w-16 rounded bg-slate-100" />
                       )}
                       <div className="min-w-0 text-sm">
-                        <p className="font-medium text-[#1E293B] line-clamp-2">
+                        <p className="font-medium text-slate-700 line-clamp-2">
                           {r.title}
                         </p>
-                        <p className="text-xs text-slate-500 tabular-nums mt-0.5">
+                        <p className="text-xs text-slate-800 tabular-nums mt-0.5">
                           访客 {r.uniqueViewers} · WA {r.whatsappClicks} · 咨询率{" "}
                           {r.inquiryRate ?? "暂无数据"}
                           {r.inquiryRate != null ? "%" : ""} ·{" "}
@@ -722,16 +722,16 @@ export default function VehicleHeatSection({
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-[#1E293B] mb-1">
+              <h3 className="text-sm font-semibold text-slate-800 mb-1">
                 低浏览高咨询车辆
               </h3>
-              <p className="text-xs text-slate-400 mb-3">
+              <p className="text-xs text-slate-600 mb-3">
                 这些车辆访问量不高，但咨询意愿较强，可以考虑增加曝光。
               </p>
               {data.sampleNote && data.lowViewHighInquiry.length === 0 ? (
-                <p className="text-sm text-slate-500">{data.sampleNote}</p>
+                <p className="text-sm text-slate-600">{data.sampleNote}</p>
               ) : data.lowViewHighInquiry.length === 0 ? (
-                <p className="text-sm text-slate-500">样本较少，暂不判断</p>
+                <p className="text-sm text-slate-600">样本较少，暂不判断</p>
               ) : (
                 <ul className="space-y-3">
                   {data.lowViewHighInquiry.map((r) => (
@@ -747,10 +747,10 @@ export default function VehicleHeatSection({
                         <div className="h-12 w-16 rounded bg-slate-100" />
                       )}
                       <div className="min-w-0 text-sm">
-                        <p className="font-medium text-[#1E293B] line-clamp-2">
+                        <p className="font-medium text-slate-700 line-clamp-2">
                           {r.title}
                         </p>
-                        <p className="text-xs text-slate-500 tabular-nums mt-0.5">
+                        <p className="text-xs text-slate-800 tabular-nums mt-0.5">
                           访客 {r.uniqueViewers} · WA {r.whatsappClicks} · 咨询率{" "}
                           {r.inquiryRate ?? "暂无数据"}
                           {r.inquiryRate != null ? "%" : ""} · 购物车 {r.cartAdds}{" "}

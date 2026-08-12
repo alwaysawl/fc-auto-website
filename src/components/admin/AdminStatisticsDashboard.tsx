@@ -55,17 +55,17 @@ function MetricCard({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <div className="mt-1.5 text-2xl font-bold text-[#1E293B] break-words">
+      <p className="text-xs font-medium text-slate-700">{label}</p>
+      <div className="mt-1.5 text-2xl font-bold text-slate-800 break-words">
         {children}
       </div>
-      {hint && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] text-slate-600">{hint}</p>}
     </div>
   );
 }
 
 function EmptyLine({ text }: { text: string }) {
-  return <p className="text-sm text-slate-500 py-2">{text}</p>;
+  return <p className="text-sm text-slate-600 py-2">{text}</p>;
 }
 
 function StatusBarChart({
@@ -79,8 +79,8 @@ function StatusBarChart({
       {items.map((item) => (
         <div key={item.label} className="min-w-0">
           <div className="mb-1 flex items-center justify-between gap-2 text-sm">
-            <span className="font-medium text-[#1E293B]">{item.label}</span>
-            <span className="tabular-nums text-slate-600">{item.count}</span>
+            <span className="font-medium text-slate-700">{item.label}</span>
+            <span className="tabular-nums text-slate-800">{item.count}</span>
           </div>
           <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
             <div
@@ -100,7 +100,7 @@ function StatusBarChart({
           </div>
         </div>
       ))}
-      <ul className="flex flex-wrap gap-3 pt-1 text-xs text-slate-500">
+      <ul className="flex flex-wrap gap-3 pt-1 text-xs text-slate-700">
         {items.map((item) => (
           <li key={`legend-${item.label}`} className="inline-flex items-center gap-1.5">
             <span
@@ -142,7 +142,7 @@ function TrendChart({ buckets }: { buckets: { label: string; count: number }[] }
             key={b.label}
             className="flex flex-col items-center justify-end gap-1 flex-1 min-w-[10px] max-w-[48px]"
           >
-            <span className="text-[10px] tabular-nums text-slate-500">
+            <span className="text-[10px] tabular-nums text-slate-800">
               {b.count > 0 ? b.count : ""}
             </span>
             <div
@@ -150,7 +150,7 @@ function TrendChart({ buckets }: { buckets: { label: string; count: number }[] }
               style={{ height: `${Math.max((b.count / max) * 110, b.count > 0 ? 6 : 2)}px` }}
               title={`${b.label}: ${b.count}`}
             />
-            <span className="text-[9px] text-slate-400 truncate w-full text-center">
+            <span className="text-[9px] text-slate-600 truncate w-full text-center">
               {b.label}
             </span>
           </div>
@@ -214,14 +214,14 @@ function MultiTrendChart({
                   title={`会话 ${b.sessions}`}
                 />
               </div>
-              <span className="text-[9px] text-slate-400 truncate w-full text-center">
+              <span className="text-[9px] text-slate-600 truncate w-full text-center">
                 {b.label}
               </span>
             </div>
           ))}
         </div>
       </div>
-      <ul className="flex flex-wrap gap-3 text-xs text-slate-500">
+      <ul className="flex flex-wrap gap-3 text-xs text-slate-700">
         <li className="inline-flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#1E293B]" />
           页面浏览量
@@ -266,20 +266,20 @@ function ChangeHint({
 }) {
   const label = percentChange(current, previous);
   if (label == null) {
-    return <span className="text-[11px] text-slate-400">暂无可比数据</span>;
+    return <span className="text-[11px] text-slate-600">暂无可比数据</span>;
   }
   const up = label.startsWith("+") && label !== "+0%";
   const down = label.startsWith("-");
   return (
     <span
       className={`text-[11px] ${
-        up ? "text-emerald-700" : down ? "text-amber-700" : "text-slate-500"
+        up ? "text-emerald-700" : down ? "text-amber-700" : "text-slate-600"
       }`}
     >
       较上期 {label}
       {isRate ? "（百分点同比）" : ""}
       {previous != null && (
-        <span className="text-slate-400">
+        <span className="text-slate-600">
           {" "}
           · 上期 {isRate ? `${previous}%` : previous}
         </span>
@@ -290,6 +290,7 @@ function ChangeHint({
 
 function sourceLabel(source: string): string {
   const map: Record<string, string> = {
+    vehicle_card: "车辆卡片",
     floating_button: "悬浮按钮",
     header: "页头",
     vehicle_detail: "车辆详情",
@@ -318,7 +319,7 @@ function RankedList({
 }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-      <h3 className="text-sm font-semibold text-[#1E293B] mb-3">{title}</h3>
+      <h3 className="text-sm font-semibold text-slate-800 mb-3">{title}</h3>
       {!available ? (
         <EmptyLine text={error || "该统计项暂无可用数据来源"} />
       ) : items.length === 0 ? (
@@ -330,10 +331,10 @@ function RankedList({
               key={item.name}
               className="flex items-center justify-between gap-3 text-sm border-b border-slate-50 pb-2 last:border-0"
             >
-              <span className="font-medium text-[#1E293B] truncate min-w-0">
+              <span className="font-medium text-slate-700 truncate min-w-0">
                 {item.name}
               </span>
-              <span className="tabular-nums text-slate-600 flex-shrink-0">
+              <span className="tabular-nums text-slate-800 flex-shrink-0">
                 {item.count}（{item.percent}%）
               </span>
             </li>
@@ -422,11 +423,11 @@ export default function AdminStatisticsDashboard({
     <div className="space-y-6 max-w-7xl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">数据统计</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl font-bold text-slate-900">数据统计</h1>
+          <p className="text-sm text-slate-600 mt-1">
             查看车辆、询盘、报价与销售分配的真实经营数据。
           </p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             时区：{data.timezone} · 范围 {data.range.startLabel} ~{" "}
             {data.range.endLabel}
           </p>
@@ -436,11 +437,11 @@ export default function AdminStatisticsDashboard({
             type="button"
             disabled={state === "loading"}
             onClick={() => void load(preset, customStart, customEnd)}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[#1E293B] hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
           >
             {state === "loading" ? "刷新中…" : "刷新数据"}
           </button>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-600">
             上次更新：{formatShanghai(data.generatedAt)}
           </span>
         </div>
@@ -448,7 +449,7 @@ export default function AdminStatisticsDashboard({
 
       {/* Date filter */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-        <p className="text-sm font-semibold text-[#1E293B]">时间范围</p>
+        <p className="text-sm font-semibold text-slate-800">时间范围</p>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <button
@@ -493,13 +494,13 @@ export default function AdminStatisticsDashboard({
             <button
               type="button"
               onClick={() => void load("custom", customStart, customEnd)}
-              className="rounded-lg bg-[#FACC15] px-4 py-2 text-sm font-semibold text-[#1E293B] hover:brightness-95"
+              className="rounded-lg bg-[#FACC15] px-4 py-2 text-sm font-semibold text-slate-800 hover:brightness-95"
             >
               应用
             </button>
           </div>
         )}
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-600">
           时间筛选仅作用于经营活动指标；库存状态卡片始终显示当前实时库存。
         </p>
       </section>
@@ -512,10 +513,10 @@ export default function AdminStatisticsDashboard({
 
       {/* Analytics summary */}
       <section>
-        <h2 className="text-base font-semibold text-[#1E293B] mb-1">
+        <h2 className="text-base font-semibold text-slate-900 mb-1">
           网站访问与转化摘要
         </h2>
-        <p className="text-xs text-slate-400 mb-3">
+        <p className="text-xs text-slate-600 mb-3">
           第一方匿名统计 · 范围 {data.range.startLabel} ~ {data.range.endLabel} ·
           不存储电话、邮箱、VIN 或完整 IP
         </p>
@@ -555,7 +556,7 @@ export default function AdminStatisticsDashboard({
               hint="结算访客 ÷ 加购访客"
             >
               {data.analytics.summaryCards.cartConversionRate == null ? (
-                <span className="text-base font-semibold text-slate-500">
+                <span className="text-base font-semibold text-slate-600">
                   暂无数据
                 </span>
               ) : (
@@ -580,7 +581,7 @@ export default function AdminStatisticsDashboard({
 
       {/* Live inventory */}
       <section>
-        <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+        <h2 className="text-base font-semibold text-slate-900 mb-3">
           当前库存
           <span className="ml-2 text-xs font-normal text-emerald-600">实时</span>
         </h2>
@@ -600,7 +601,7 @@ export default function AdminStatisticsDashboard({
 
       {/* Period activity */}
       <section>
-        <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+        <h2 className="text-base font-semibold text-slate-900 mb-3">
           经营活动（所选时间范围）
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -609,7 +610,7 @@ export default function AdminStatisticsDashboard({
               {metric.available ? (
                 metric.value
               ) : (
-                <span className="text-base font-semibold text-slate-500">
+                <span className="text-base font-semibold text-slate-600">
                   {metric.message || "暂无数据来源"}
                 </span>
               )}
@@ -621,7 +622,7 @@ export default function AdminStatisticsDashboard({
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-          <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+          <h2 className="text-base font-semibold text-slate-900 mb-3">
             车辆状态分布
           </h2>
           {!data.statusChart.available ? (
@@ -634,7 +635,7 @@ export default function AdminStatisticsDashboard({
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-          <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+          <h2 className="text-base font-semibold text-slate-900 mb-3">
             新增车辆趋势
           </h2>
           {!data.vehicleTrend.available ? (
@@ -649,7 +650,7 @@ export default function AdminStatisticsDashboard({
 
       {/* Breakdowns */}
       <section>
-        <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+        <h2 className="text-base font-semibold text-slate-900 mb-3">
           车辆结构分布
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -688,7 +689,7 @@ export default function AdminStatisticsDashboard({
 
       {/* Inventory value */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+        <h2 className="text-base font-semibold text-slate-900 mb-3">
           库存价值概览
         </h2>
         {!data.inventoryValue.available ? (
@@ -733,7 +734,7 @@ export default function AdminStatisticsDashboard({
       {/* Sales assignments */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <h2 className="text-base font-semibold text-[#1E293B]">
+          <h2 className="text-base font-semibold text-slate-900">
             销售分配统计
           </h2>
           {data.assignments.available && (
@@ -752,7 +753,7 @@ export default function AdminStatisticsDashboard({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[28rem] text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-500">
+                <tr className="border-b border-slate-200 text-left text-slate-700">
                   <th className="py-2 pr-3 font-medium">姓名</th>
                   <th className="py-2 pr-3 font-medium">分配次数</th>
                   <th className="py-2 pr-3 font-medium">占比</th>
@@ -763,21 +764,21 @@ export default function AdminStatisticsDashboard({
                 {data.assignments.agents.map((agent) => (
                   <tr
                     key={agent.name}
-                    className="border-b border-slate-100 text-[#1E293B]"
+                    className="border-b border-slate-100 text-slate-800"
                   >
-                    <td className="py-2.5 pr-3 font-medium">{agent.name}</td>
-                    <td className="py-2.5 pr-3 tabular-nums">{agent.count}</td>
-                    <td className="py-2.5 pr-3 tabular-nums">
+                    <td className="py-2.5 pr-3 font-medium text-slate-700">{agent.name}</td>
+                    <td className="py-2.5 pr-3 tabular-nums text-slate-800">{agent.count}</td>
+                    <td className="py-2.5 pr-3 tabular-nums text-slate-800">
                       {agent.percent}%
                     </td>
-                    <td className="py-2.5 text-slate-600">
+                    <td className="py-2.5 text-slate-700">
                       {formatShanghai(agent.latestAt)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-slate-600">
               基于现有 WhatsApp 分配记录统计，不展示电话号码，不改变分配逻辑。
             </p>
           </div>
@@ -786,7 +787,7 @@ export default function AdminStatisticsDashboard({
 
       {/* Activity */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+        <h2 className="text-base font-semibold text-slate-900 mb-3">
           最近动态
         </h2>
         {!data.activity.available ? (
@@ -799,14 +800,14 @@ export default function AdminStatisticsDashboard({
                 className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 border-b border-slate-50 pb-3 last:border-0"
               >
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-500">
+                  <p className="text-xs font-semibold text-slate-700">
                     {item.type}
                   </p>
-                  <p className="text-sm text-[#1E293B] break-words">
+                  <p className="text-sm text-slate-700 break-words">
                     {item.description}
                   </p>
                 </div>
-                <p className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
+                <p className="text-xs text-slate-600 flex-shrink-0 tabular-nums">
                   {formatShanghai(item.at)}
                 </p>
               </li>
@@ -820,10 +821,10 @@ export default function AdminStatisticsDashboard({
         <>
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
             <div>
-              <h2 className="text-base font-semibold text-[#1E293B]">
+              <h2 className="text-base font-semibold text-slate-900">
                 网站访问统计
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 mt-1">
                 页面浏览量 = page_view 次数；独立访客 = 匿名访客标识去重；访问会话
                 = session 去重；平均页数 = 浏览量 ÷ 会话数
               </p>
@@ -848,7 +849,7 @@ export default function AdminStatisticsDashboard({
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-            <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+            <h2 className="text-base font-semibold text-slate-900 mb-3">
               网站访问趋势
             </h2>
             <MultiTrendChart buckets={data.analytics.websiteTrend} />
@@ -856,7 +857,7 @@ export default function AdminStatisticsDashboard({
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-              <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+              <h2 className="text-base font-semibold text-slate-900 mb-3">
                 热门页面
               </h2>
               {data.analytics.popularPages.length === 0 ? (
@@ -868,12 +869,12 @@ export default function AdminStatisticsDashboard({
                       key={page.path}
                       className="flex items-center justify-between gap-3 text-sm border-b border-slate-50 pb-2 last:border-0"
                     >
-                      <span className="font-medium text-[#1E293B] truncate min-w-0">
+                      <span className="font-medium text-slate-700 truncate min-w-0">
                         {page.path}
                       </span>
-                      <span className="tabular-nums text-slate-600 flex-shrink-0 text-right">
+                      <span className="tabular-nums text-slate-800 flex-shrink-0 text-right">
                         {page.views} 次（{page.percent}%）
-                        <span className="block text-[11px] text-slate-400">
+                        <span className="block text-[11px] text-slate-600">
                           {page.visitors} 匿名访客
                         </span>
                       </span>
@@ -884,7 +885,7 @@ export default function AdminStatisticsDashboard({
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-              <h2 className="text-base font-semibold text-[#1E293B] mb-3">
+              <h2 className="text-base font-semibold text-slate-900 mb-3">
                 热门车辆
               </h2>
               {data.analytics.popularVehicles.length === 0 ? (
@@ -909,11 +910,11 @@ export default function AdminStatisticsDashboard({
                       <div className="min-w-0 flex-1">
                         <a
                           href={`/admin/vehicles/${v.vehicleId}/edit`}
-                          className="text-sm font-medium text-[#1E293B] hover:underline line-clamp-2"
+                          className="text-sm font-medium text-slate-700 hover:underline line-clamp-2"
                         >
                           {v.title}
                         </a>
-                        <p className="text-xs text-slate-500 mt-1 tabular-nums">
+                        <p className="text-xs text-slate-800 mt-1 tabular-nums">
                           详情 {v.detailViews} · WhatsApp {v.whatsappClicks} ·
                           报价 {v.quoteDownloads}
                         </p>
@@ -936,10 +937,10 @@ export default function AdminStatisticsDashboard({
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
             <div>
-              <h2 className="text-base font-semibold text-[#1E293B]">
+              <h2 className="text-base font-semibold text-slate-900">
                 WhatsApp 点击统计
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 mt-1">
                 仅统计用户主动点击打开 WhatsApp，不代表成交；不存储电话号码。
               </p>
             </div>
@@ -965,7 +966,7 @@ export default function AdminStatisticsDashboard({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h3 className="text-sm font-semibold text-[#1E293B] mb-2">
+                <h3 className="text-sm font-semibold text-slate-800 mb-2">
                   点击来源分布
                 </h3>
                 {data.analytics.whatsapp.bySource.length === 0 ? (
@@ -977,8 +978,8 @@ export default function AdminStatisticsDashboard({
                         key={row.source}
                         className="flex justify-between gap-2 text-sm border-b border-slate-50 pb-2"
                       >
-                        <span>{sourceLabel(row.source)}</span>
-                        <span className="tabular-nums text-slate-600">
+                        <span className="font-medium text-slate-700">{sourceLabel(row.source)}</span>
+                        <span className="tabular-nums text-slate-800">
                           {row.count}（{row.percent}%）
                         </span>
                       </li>
@@ -987,10 +988,10 @@ export default function AdminStatisticsDashboard({
                 )}
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-[#1E293B] mb-2">
+                <h3 className="text-sm font-semibold text-slate-800 mb-2">
                   销售联系人分配点击
                 </h3>
-                <p className="text-[11px] text-slate-400 mb-2">
+                <p className="text-[11px] text-slate-600 mb-2">
                   点击归因，非销售业绩
                 </p>
                 {data.analytics.whatsapp.byContact.length === 0 ? (
@@ -1002,8 +1003,8 @@ export default function AdminStatisticsDashboard({
                         key={row.name}
                         className="flex justify-between gap-2 text-sm border-b border-slate-50 pb-2"
                       >
-                        <span className="font-medium">{row.name}</span>
-                        <span className="tabular-nums text-slate-600">
+                        <span className="font-medium text-slate-700">{row.name}</span>
+                        <span className="tabular-nums text-slate-800">
                           {row.count}（{row.percent}%）
                         </span>
                       </li>
@@ -1016,10 +1017,10 @@ export default function AdminStatisticsDashboard({
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
             <div>
-              <h2 className="text-base font-semibold text-[#1E293B]">
+              <h2 className="text-base font-semibold text-slate-900">
                 购物车转化统计
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 mt-1">
                 购物车转化率 = 发起 WhatsApp 结算的访客数 ÷ 加入购物车的访客数
               </p>
             </div>
@@ -1052,7 +1053,7 @@ export default function AdminStatisticsDashboard({
                   </MetricCard>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-[#1E293B] mb-3">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3">
                     转化漏斗（匿名访客）
                   </h3>
                   <div className="space-y-2">
@@ -1064,10 +1065,10 @@ export default function AdminStatisticsDashboard({
                       return (
                         <div key={step.stage} className="min-w-0">
                           <div className="mb-1 flex justify-between text-sm">
-                            <span>
+                            <span className="text-slate-700">
                               {idx + 1}. {step.stage}
                             </span>
-                            <span className="tabular-nums text-slate-600">
+                            <span className="tabular-nums text-slate-800">
                               {step.visitors}
                             </span>
                           </div>
@@ -1093,10 +1094,10 @@ export default function AdminStatisticsDashboard({
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
             <div>
-              <h2 className="text-base font-semibold text-[#1E293B]">
+              <h2 className="text-base font-semibold text-slate-900">
                 报价下载统计
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 mt-1">
                 仅统计成功下载；不代表成交，不存储 PDF 内容或客户隐私。
               </p>
             </div>
@@ -1115,13 +1116,13 @@ export default function AdminStatisticsDashboard({
               </MetricCard>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-[#1E293B] mb-2">
+              <h3 className="text-sm font-semibold text-slate-800 mb-2">
                 报价下载趋势
               </h3>
               <TrendChart buckets={data.analytics.quotes.trend} />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-[#1E293B] mb-2">
+              <h3 className="text-sm font-semibold text-slate-800 mb-2">
                 下载最多的车辆
               </h3>
               {data.analytics.quotes.topVehicles.length === 0 ? (
@@ -1135,11 +1136,11 @@ export default function AdminStatisticsDashboard({
                     >
                       <a
                         href={`/admin/vehicles/${v.vehicleId}/edit`}
-                        className="font-medium text-[#1E293B] hover:underline truncate min-w-0"
+                        className="font-medium text-slate-700 hover:underline truncate min-w-0"
                       >
                         {v.title}
                       </a>
-                      <span className="tabular-nums text-slate-600 flex-shrink-0">
+                      <span className="tabular-nums text-slate-800 flex-shrink-0">
                         {v.downloads}
                       </span>
                     </li>
@@ -1160,13 +1161,13 @@ export default function AdminStatisticsDashboard({
       {/* Not enabled */}
       {data.notEnabled.length > 0 && (
         <section className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-          <h2 className="text-sm font-semibold text-[#1E293B] mb-2">
+          <h2 className="text-sm font-semibold text-slate-800 mb-2">
             尚未启用的数据统计
           </h2>
           <ul className="space-y-1.5 text-sm text-slate-600">
             {data.notEnabled.map((item) => (
               <li key={item.name}>
-                <span className="font-medium text-[#1E293B]">{item.name}</span>
+                <span className="font-medium text-slate-700">{item.name}</span>
                 {" — "}
                 {item.reason}
               </li>
@@ -1180,16 +1181,16 @@ export default function AdminStatisticsDashboard({
         <button
           type="button"
           onClick={() => setSourcesOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#1E293B]"
+          className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-800"
         >
           数据来源状态
-          <span className="text-slate-400 font-normal">
+          <span className="text-slate-600 font-normal">
             {sourcesOpen ? "收起" : "展开"}
           </span>
         </button>
         {sourcesOpen && (
           <div className="border-t border-slate-100 px-4 py-3 space-y-2">
-            <p className="text-[11px] text-slate-400 pb-1">
+            <p className="text-[11px] text-slate-600 pb-1">
               第一方匿名分析：不存储客户电话/邮箱、不展示完整 IP、不做侵入式指纹识别。
             </p>
             {data.sources.map((src) => (
@@ -1198,10 +1199,10 @@ export default function AdminStatisticsDashboard({
                 className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 text-sm border-b border-slate-50 pb-2 last:border-0"
               >
                 <div className="min-w-0">
-                  <p className="font-medium text-[#1E293B]">{src.name}</p>
-                  <p className="text-xs text-slate-500">{src.detail}</p>
+                  <p className="font-medium text-slate-700">{src.name}</p>
+                  <p className="text-xs text-slate-600">{src.detail}</p>
                   {(src.totalEvents != null || src.periodEvents != null) && (
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-600 mt-0.5">
                       {src.totalEvents != null && `总事件 ${src.totalEvents}`}
                       {src.totalEvents != null &&
                         src.periodEvents != null &&
@@ -1221,13 +1222,13 @@ export default function AdminStatisticsDashboard({
                     className={
                       src.available
                         ? "text-emerald-700 font-semibold"
-                        : "text-slate-500 font-semibold"
+                        : "text-slate-600 font-semibold"
                     }
                   >
                     {src.available ? "可用" : "暂不可用"}
                   </span>
                   {src.lastLoadedAt && (
-                    <p className="text-slate-400 mt-0.5">
+                    <p className="text-slate-600 mt-0.5">
                       {src.lastLoadedAt}
                     </p>
                   )}
