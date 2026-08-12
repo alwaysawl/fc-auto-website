@@ -285,3 +285,38 @@ html.locale-zh .heading-section {
     display: none;
   }
 }
+
+/* Vehicle card — FOB / CHINA label hierarchy */
+.fob-label {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.fob-text {
+  font-size: 17px;
+  font-weight: 800;
+  color: #1f2937;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.china-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  .fob-text {
+    font-size: 15px;
+  }
+
+  .china-text {
+    font-size: 13px;
+  }
+}
