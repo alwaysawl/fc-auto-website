@@ -20,6 +20,7 @@ interface InventoryClientProps {
   locale: Locale;
   t: Translations;
   error?: string | null;
+  initialBrand?: string;
 }
 
 function inferBodyType(vehicle: Vehicle): string {
@@ -58,8 +59,18 @@ export default function InventoryClient({
   locale,
   t,
   error = null,
+  initialBrand,
 }: InventoryClientProps) {
-  const [filters, setFilters] = useState(emptyFilters);
+  const brandFromUrl =
+    initialBrand?.trim() &&
+    vehicles.some((v) => v.brand === initialBrand.trim())
+      ? initialBrand.trim()
+      : "all";
+
+  const [filters, setFilters] = useState({
+    ...emptyFilters,
+    brand: brandFromUrl,
+  });
   const [page, setPage] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const inventoryTopRef = useRef<HTMLDivElement>(null);

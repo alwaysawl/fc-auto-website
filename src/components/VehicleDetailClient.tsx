@@ -10,7 +10,12 @@ import { driveTypeLabel } from "@/lib/drive-type";
 import AddToCartButton from "@/components/AddToCartButton";
 import CheckoutNowButton from "@/components/CheckoutNowButton";
 import DownloadVehicleQuoteButton from "@/components/DownloadVehicleQuoteButton";
-import { vehicleImageAlt } from "@/lib/seo";
+import {
+  buildVehicleExportKeywordPhrases,
+  buildVehicleSeoParagraph,
+  inventoryBrandFilterHref,
+  vehicleDetailImageAlt,
+} from "@/lib/vehicle-detail-seo";
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle;
@@ -235,6 +240,12 @@ export default function VehicleDetailClient({
     t.vehicleDetail.trustSupport,
   ];
 
+  const seoParagraph = buildVehicleSeoParagraph(vehicle, locale);
+  const exportKeywordPhrases = buildVehicleExportKeywordPhrases(vehicle, locale);
+  const brandInventoryHref = `${getLocalizedPath("/inventory", locale)}${inventoryBrandFilterHref(
+    vehicle.brand
+  )}`;
+
   const inputClass =
     "w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-brand-slate placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-yellow/40 focus:border-accent-yellow";
 
@@ -257,7 +268,7 @@ export default function VehicleDetailClient({
             <div className="relative aspect-[4/3] bg-slate-100 rounded-xl overflow-hidden border border-slate-100">
               <Image
                 src={photos[activePhoto] ?? coverSrc(vehicle)}
-                alt={vehicleImageAlt(vehicle, locale, activePhoto + 1)}
+                alt={vehicleDetailImageAlt(vehicle, locale, activePhoto, photos.length)}
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 65vw"
@@ -301,7 +312,7 @@ export default function VehicleDetailClient({
                   >
                     <Image
                       src={photo}
-                      alt={vehicleImageAlt(vehicle, locale, index + 1)}
+                      alt={vehicleDetailImageAlt(vehicle, locale, index, photos.length)}
                       fill
                       className="object-cover"
                       sizes="80px"
@@ -414,6 +425,47 @@ export default function VehicleDetailClient({
           <p className="text-slate-600 leading-relaxed max-w-3xl whitespace-pre-line">
             {overview}
           </p>
+        </section>
+
+        {/* SEO export description — real vehicle data only */}
+        <section className="mt-12 md:mt-16">
+          <h2 className="text-xl md:text-2xl font-bold text-brand-slate mb-4">
+            {t.vehicleDetail.seoExportTitle}
+          </h2>
+          <p className="text-slate-600 leading-relaxed max-w-3xl">
+            {seoParagraph}
+          </p>
+          <p className="mt-4 text-xs uppercase tracking-wide text-slate-400">
+            {t.vehicleDetail.relatedSearchTerms}
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-500 max-w-3xl">
+            {exportKeywordPhrases.map((phrase) => (
+              <li key={phrase}>{phrase}</li>
+            ))}
+          </ul>
+          <nav
+            className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-brand-slate"
+            aria-label={t.vehicleDetail.browseInventory}
+          >
+            <Link
+              href={getLocalizedPath("/inventory", locale)}
+              className="hover:text-slate-600 transition-colors underline-offset-2 hover:underline"
+            >
+              {t.vehicleDetail.browseInventory}
+            </Link>
+            <Link
+              href={brandInventoryHref}
+              className="hover:text-slate-600 transition-colors underline-offset-2 hover:underline"
+            >
+              {t.vehicleDetail.brandVehicles.replace("{brand}", vehicle.brand)}
+            </Link>
+            <Link
+              href={getLocalizedPath("/inventory", locale)}
+              className="hover:text-slate-600 transition-colors underline-offset-2 hover:underline"
+            >
+              {t.vehicleDetail.viewMoreVehicles}
+            </Link>
+          </nav>
         </section>
 
         {featureLines.length > 0 && (
@@ -532,7 +584,7 @@ export default function VehicleDetailClient({
                   <div className="relative aspect-[4/3] bg-slate-100">
                     <Image
                       src={coverSrc(item)}
-                      alt={vehicleImageAlt(item, locale)}
+                      alt={vehicleDetailImageAlt(item, locale, 0, 1)}
                       fill
                       className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
                       sizes="(max-width: 768px) 100vw, 33vw"

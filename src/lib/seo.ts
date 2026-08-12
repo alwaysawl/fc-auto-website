@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Locale, locales, Vehicle } from "@/lib/types";
 import { getLocalizedPath } from "@/lib/i18n";
+import {
+  buildVehicleMetaDescription,
+  buildVehicleSeoTitle,
+} from "@/lib/vehicle-detail-seo";
+import { vehicleCardImageAlt } from "@/lib/vehicle-detail-seo";
 
 export const SITE_NAME = "FC Auto Export";
 export const SITE_URL = "https://fcautoexport.com";
@@ -141,63 +146,28 @@ export function buildVehicleSeoCopy(
     | "mileage"
     | "fuel"
     | "transmission"
+    | "steering"
+    | "driveType"
+    | "displacement"
     | "fobPrice"
     | "currency"
+    | "status"
   >,
   locale: Locale
 ): { title: string; description: string } {
-  const brandModel = `${vehicle.brand} ${vehicle.model}`.trim();
-  const yearBrandModel = `${vehicle.year} ${brandModel}`.trim();
-
-  let title: string;
-  if (locale === "zh") {
-    title = `${yearBrandModel} 中国出口二手车｜${SITE_NAME}`;
-  } else if (locale === "fr") {
-    title = `${yearBrandModel} voiture d'occasion à l'export depuis la Chine | ${SITE_NAME}`;
-  } else {
-    title = `${yearBrandModel} Used Car for Export from China | ${SITE_NAME}`;
-  }
-
-  const mileage = new Intl.NumberFormat(
-    locale === "zh" ? "zh-CN" : locale === "fr" ? "fr-FR" : "en-US"
-  ).format(vehicle.mileage);
-
-  const custom = vehicle.descriptionEn?.trim();
-  let description: string;
-  if (custom) {
-    description = custom.length > 160 ? `${custom.slice(0, 157)}…` : custom;
-  } else if (locale === "zh") {
-    description = `${yearBrandModel}，里程约 ${mileage} 公里，${vehicle.fuel}，${vehicle.transmission}。由 ${SITE_NAME} 从中国出口的在售二手车。`;
-  } else if (locale === "fr") {
-    description = `${yearBrandModel} — environ ${mileage} km, ${vehicle.fuel}, ${vehicle.transmission}. Véhicule d'occasion proposé à l'export depuis la Chine par ${SITE_NAME}.`;
-  } else {
-    description = `${yearBrandModel} with about ${mileage} km, ${vehicle.fuel}, ${vehicle.transmission}. Quality used car for export from China by ${SITE_NAME}.`;
-  }
-
-  return { title, description };
+  return {
+    title: buildVehicleSeoTitle(vehicle, locale),
+    description: buildVehicleMetaDescription(vehicle, locale),
+  };
 }
 
-/** Accessible/SEO alt text unique per vehicle. */
+/** Accessible/SEO alt text for inventory cards and similar listings. */
 export function vehicleImageAlt(
   vehicle: Pick<Vehicle, "year" | "brand" | "model">,
   locale: Locale = "en",
   photoIndex?: number
 ): string {
-  const base =
-    locale === "zh"
-      ? `${vehicle.year} ${vehicle.brand} ${vehicle.model} 中国出口二手车`
-      : locale === "fr"
-        ? `${vehicle.year} ${vehicle.brand} ${vehicle.model} voiture d'occasion à l'export depuis la Chine`
-        : `${vehicle.year} ${vehicle.brand} ${vehicle.model} used car for export from China`;
-
-  if (photoIndex != null && photoIndex > 0) {
-    return locale === "zh"
-      ? `${base}（图 ${photoIndex}）`
-      : locale === "fr"
-        ? `${base} (photo ${photoIndex})`
-        : `${base} (photo ${photoIndex})`;
-  }
-  return base;
+  return vehicleCardImageAlt(vehicle, locale, photoIndex);
 }
 
 export function homeGraphJsonLd() {
@@ -225,7 +195,7 @@ export function homeGraphJsonLd() {
   };
 }
 
-/** Car + Offer from real vehicle fields only (public in-stock listings). */
+/** Car structured data — only fields that exist on the vehicle record. */
 export function vehicleJsonLd(
   vehicle: Pick<
     Vehicle,
@@ -234,10 +204,12 @@ export function vehicleJsonLd(
     | "brand"
     | "model"
     | "titleEn"
-    | "descriptionEn"
     | "mileage"
     | "fuel"
     | "transmission"
+    | "steering"
+    | "driveType"
+    | "displacement"
     | "color"
     | "bodyType"
     | "fobPrice"
@@ -248,45 +220,68 @@ export function vehicleJsonLd(
   >,
   locale: Locale
 ) {
-  const { description } = buildVehicleSeoCopy(vehicle, locale);
+  const description = buildVehicleMetaDescription(vehicle, locale);
   const url = localeAbsoluteUrl(`/inventory/${vehicle.id}`, locale);
   const image = absoluteImageUrl(vehicleCoverImage(vehicle));
-  const currency = (vehicle.currency || "USD").toUpperCase();
 
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Car",
-    name: vehicleDisplayName(vehicle),
-    brand: {
-      "@type": "Brand",
-      name: vehicle.brand,
-    },
-    model: vehicle.model,
-    vehicleModelDate: String(vehicle.year),
-    mileageFromOdometer: {
-      "@type": "QuantitativeValue",
-      value: vehicle.mileage,
-      unitCode: "KMT",
-    },
     url,
     description,
   };
 
-  if (vehicle.fuel) data.fuelType = vehicle.fuel;
-  if (vehicle.transmission) data.vehicleTransmission = vehicle.transmission;
-  if (vehicle.color) data.color = vehicle.color;
-  if (vehicle.bodyType) data.bodyType = vehicle.bodyType;
+  const name = vehicleDisplayName(vehicle);
+  if (name) data.name = name;
+
+  if (vehicle.brand?.trim()) {
+    data.brand = {
+      "@type": "Brand",
+      name: vehicle.brand.trim(),
+    };
+  }
+
+  if (vehicle.model?.trim()) data.model = vehicle.model.trim();
+
+  if (vehicle.year != null) data.vehicleModelDate = String(vehicle.year);
+
+  if (typeof vehicle.mileage === "number" && Number.isFinite(vehicle.mileage)) {
+    data.mileageFromOdometer = {
+      "@type": "QuantitativeValue",
+      value: vehicle.mileage,
+      unitCode: "KMT",
+    };
+  }
+
+  if (vehicle.fuel?.trim()) data.fuelType = vehicle.fuel.trim();
+  if (vehicle.transmission?.trim()) {
+    data.vehicleTransmission = vehicle.transmission.trim();
+  }
+  if (vehicle.color?.trim()) data.color = vehicle.color.trim();
+  if (vehicle.bodyType?.trim()) data.bodyType = vehicle.bodyType.trim();
+  if (vehicle.driveType?.trim()) {
+    data.driveWheelConfiguration = vehicle.driveType.trim();
+  }
+  if (vehicle.displacement?.trim()) {
+    data.vehicleEngine = {
+      "@type": "EngineSpecification",
+      name: vehicle.displacement.trim(),
+    };
+  }
   if (image) data.image = image;
 
-  // Public pages only list 在售 vehicles — Offer uses real FOB price shown on site.
-  if (typeof vehicle.fobPrice === "number" && Number.isFinite(vehicle.fobPrice)) {
+  const hasPrice =
+    typeof vehicle.fobPrice === "number" && Number.isFinite(vehicle.fobPrice);
+  const inStock = vehicle.status === "在售";
+  const currency = vehicle.currency?.trim();
+
+  if (hasPrice && currency && inStock) {
     data.offers = {
       "@type": "Offer",
       url,
-      priceCurrency: currency,
       price: vehicle.fobPrice,
+      priceCurrency: currency.toUpperCase(),
       availability: "https://schema.org/InStock",
-      itemCondition: "https://schema.org/UsedCondition",
       seller: {
         "@type": "Organization",
         name: SITE_NAME,

@@ -25,10 +25,13 @@ export async function generateMetadata({
 
 export default async function InventoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ brand?: string }>;
 }) {
   const { locale: localeParam } = await params;
+  const { brand: initialBrand } = await searchParams;
   const locale = localeParam as Locale;
   const t = getTranslations(locale);
 
@@ -64,6 +67,7 @@ export default async function InventoryPage({
             locale={locale}
             t={t}
             error={error}
+            initialBrand={initialBrand}
           />
         </div>
       </section>
