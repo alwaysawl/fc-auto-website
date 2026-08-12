@@ -12,10 +12,18 @@ import CheckoutNowButton from "@/components/CheckoutNowButton";
 import DownloadVehicleQuoteButton from "@/components/DownloadVehicleQuoteButton";
 import {
   buildVehicleExportKeywordPhrases,
+  buildVehicleOverviewText,
   buildVehicleSeoParagraph,
+  formatVehicleMileage,
   inventoryBrandFilterHref,
   vehicleDetailImageAlt,
 } from "@/lib/vehicle-detail-seo";
+import {
+  bodyTypeLabel,
+  fuelLabel,
+  steeringLabel,
+  transmissionLabel,
+} from "@/lib/vehicle-field-labels";
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle;
@@ -113,19 +121,26 @@ export default function VehicleDetailClient({
 
   // Public stock id only — never expose VIN
   const stockNumber = vehicle.id;
-  const bodyType = inferBodyType(vehicle);
+  const resolvedBodyType = vehicle.bodyType?.trim() || inferBodyType(vehicle);
+  const localizedBodyType = bodyTypeLabel(resolvedBodyType, locale);
+  const localizedFuel = fuelLabel(vehicle.fuel, locale);
+  const localizedTransmission = transmissionLabel(vehicle.transmission, locale);
+  const localizedSteering = steeringLabel(vehicle.steering, locale);
   const vehicleName =
     vehicle.titleEn?.trim() || `${vehicle.brand} ${vehicle.model}`;
   const currency = vehicle.currency || "USD";
 
   const formatPrice = (price: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(price);
+    new Intl.NumberFormat(
+      locale === "zh" ? "zh-CN" : locale === "fr" ? "fr-FR" : "en-US",
+      {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0,
+      }
+    ).format(price);
 
-  const formatMileage = (km: number) => new Intl.NumberFormat("en-US").format(km);
+  const formatMileage = (km: number) => formatVehicleMileage(locale, km);
 
   const photos = useMemo(() => {
     const seen = new Set<string>();
@@ -142,10 +157,14 @@ export default function VehicleDetailClient({
     return out.length > 0 ? out : ["/images/rav4.jpg"];
   }, [vehicle]);
 
-  const overview = useMemo(() => {
-    if (vehicle.descriptionEn?.trim()) return vehicle.descriptionEn.trim();
-    return `${vehicle.brand} ${vehicle.model} (${vehicle.year}) with ${formatMileage(vehicle.mileage)} ${t.inventory.km}, ${vehicle.fuel}, ${vehicle.transmission}, ${vehicle.steering}. FOB ${formatPrice(vehicle.fobPrice)}.`;
-  }, [vehicle, t.inventory.km, currency]);
+  const overview = useMemo(
+    () =>
+      buildVehicleOverviewText(vehicle, locale, {
+        kmUnit: t.inventory.km,
+        fobLabel: t.inventory.fobPrice,
+      }),
+    [vehicle, locale, t.inventory.km, t.inventory.fobPrice]
+  );
 
   function prevPhoto() {
     setActivePhoto((i) => (i === 0 ? photos.length - 1 : i - 1));
@@ -166,12 +185,12 @@ export default function VehicleDetailClient({
       label: t.inventory.mileage,
       value: `${formatMileage(vehicle.mileage)} ${t.inventory.km}`,
     },
-    { label: t.inventory.fuel, value: vehicle.fuel },
-    { label: t.inventory.transmission, value: vehicle.transmission },
+    { label: t.inventory.fuel, value: localizedFuel },
+    { label: t.inventory.transmission, value: localizedTransmission },
     { label: t.vehicleDetail.drive, value: driveTypeLabel(vehicle.driveType, locale) },
     { label: t.vehicleDetail.engine, value: vehicle.displacement },
-    { label: t.vehicleDetail.bodyType, value: bodyType },
-    { label: t.inventory.steering, value: vehicle.steering },
+    { label: t.vehicleDetail.bodyType, value: localizedBodyType },
+    { label: t.inventory.steering, value: localizedSteering },
     { label: t.vehicleDetail.color, value: colorLabel(vehicle.color, locale) },
     {
       label: t.vehicleDetail.seats,
@@ -192,11 +211,11 @@ export default function VehicleDetailClient({
     },
     {
       label: t.vehicleDetail.bodyType,
-      value: bodyType,
+      value: localizedBodyType,
     },
     {
       label: t.inventory.steering,
-      value: vehicle.steering,
+      value: localizedSteering,
     },
     {
       label: t.vehicleDetail.color,
@@ -209,8 +228,8 @@ export default function VehicleDetailClient({
   ]);
 
   const engineInfo = nonemptyRows([
-    { label: t.inventory.fuel, value: vehicle.fuel },
-    { label: t.inventory.transmission, value: vehicle.transmission },
+    { label: t.inventory.fuel, value: localizedFuel },
+    { label: t.inventory.transmission, value: localizedTransmission },
     { label: t.vehicleDetail.drive, value: driveTypeLabel(vehicle.driveType, locale) },
     { label: t.vehicleDetail.engine, value: vehicle.displacement },
   ]);

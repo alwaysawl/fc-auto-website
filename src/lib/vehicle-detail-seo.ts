@@ -1,5 +1,11 @@
 import type { Locale, Vehicle } from "@/lib/types";
 import { driveTypeLabel } from "@/lib/drive-type";
+import {
+  bodyTypeLabel,
+  fuelLabel,
+  steeringLabel,
+  transmissionLabel,
+} from "@/lib/vehicle-field-labels";
 
 /** Short brand for SEO titles (per marketing preference). */
 export const SEO_TITLE_BRAND = "FC Auto";
@@ -64,15 +70,18 @@ export function buildVehicleMetaDescription(vehicle: VehicleSeoInput, locale: Lo
     ? driveTypeLabel(vehicle.driveType, locale)
     : "";
   const engine = vehicle.displacement?.trim() || "";
+  const fuel = fuelLabel(vehicle.fuel, locale);
+  const transmission = transmissionLabel(vehicle.transmission, locale);
+  const steering = steeringLabel(vehicle.steering, locale);
 
   if (locale === "zh") {
     const specs: string[] = [];
     if (vehicle.mileage != null) specs.push(`里程约 ${mileage} 公里`);
     if (engine) specs.push(engine);
-    if (vehicle.fuel) specs.push(vehicle.fuel);
-    if (vehicle.transmission) specs.push(vehicle.transmission);
+    if (fuel) specs.push(fuel);
+    if (transmission) specs.push(transmission);
     if (drive) specs.push(drive);
-    if (vehicle.steering) specs.push(vehicle.steering);
+    if (steering) specs.push(steering);
     return joinMetaParts([
       `${ybm}。${specs.join("，")}`,
       "中国离岸价（FOB）",
@@ -84,10 +93,10 @@ export function buildVehicleMetaDescription(vehicle: VehicleSeoInput, locale: Lo
     const specs: string[] = [];
     if (vehicle.mileage != null) specs.push(`${mileage} km`);
     if (engine) specs.push(engine);
-    if (vehicle.fuel) specs.push(vehicle.fuel);
-    if (vehicle.transmission) specs.push(vehicle.transmission);
+    if (fuel) specs.push(fuel);
+    if (transmission) specs.push(transmission);
     if (drive) specs.push(drive);
-    if (vehicle.steering) specs.push(vehicle.steering);
+    if (steering) specs.push(steering);
     return joinMetaParts([
       `${ybm}. ${specs.join(", ")}`,
       "Prix FOB Chine",
@@ -98,16 +107,54 @@ export function buildVehicleMetaDescription(vehicle: VehicleSeoInput, locale: Lo
   const specs: string[] = [];
   if (vehicle.mileage != null) specs.push(`${mileage} km`);
   if (engine) specs.push(engine);
-  if (vehicle.fuel) specs.push(vehicle.fuel);
-  if (vehicle.transmission) specs.push(vehicle.transmission);
+  if (fuel) specs.push(fuel);
+  if (transmission) specs.push(transmission);
   if (drive) specs.push(drive);
-  if (vehicle.steering) specs.push(vehicle.steering);
+  if (steering) specs.push(steering);
 
   return joinMetaParts([
     `${ybm}. ${specs.join(", ")}`,
     "FOB China",
     `Used car for export from China by ${SITE_NAME}`,
   ]);
+}
+
+/** Vehicle Overview fallback — localized field labels, real data only. */
+export function buildVehicleOverviewText(
+  vehicle: VehicleSeoInput,
+  locale: Locale,
+  options: { kmUnit: string; fobLabel: string }
+): string {
+  if (locale === "en" && vehicle.descriptionEn?.trim()) {
+    return vehicle.descriptionEn.trim();
+  }
+
+  const fuel = fuelLabel(vehicle.fuel, locale);
+  const transmission = transmissionLabel(vehicle.transmission, locale);
+  const steering = steeringLabel(vehicle.steering, locale);
+  const mileage = formatVehicleMileage(locale, vehicle.mileage);
+  const currency = vehicle.currency?.trim() || "USD";
+  const price = new Intl.NumberFormat(
+    mileageLocale(locale),
+    {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }
+  ).format(vehicle.fobPrice);
+
+  if (locale === "zh") {
+    const specs = [fuel, transmission, steering].filter(Boolean).join("，");
+    return `${vehicle.brand} ${vehicle.model}（${vehicle.year}），里程 ${mileage} ${options.kmUnit}，${specs}。${options.fobLabel} ${price}。`;
+  }
+
+  if (locale === "fr") {
+    const specs = [fuel, transmission, steering].filter(Boolean).join(", ");
+    return `${vehicle.brand} ${vehicle.model} (${vehicle.year}) avec ${mileage} km, ${specs}. ${options.fobLabel} ${price}.`;
+  }
+
+  const specs = [fuel, transmission, steering].filter(Boolean).join(", ");
+  return `${vehicle.brand} ${vehicle.model} (${vehicle.year}) with ${mileage} ${options.kmUnit}, ${specs}. FOB ${price}.`;
 }
 
 /** On-page SEO paragraph — natural prose from real fields. */
@@ -118,14 +165,17 @@ export function buildVehicleSeoParagraph(vehicle: VehicleSeoInput, locale: Local
     ? driveTypeLabel(vehicle.driveType, locale)
     : "";
   const engine = vehicle.displacement?.trim() || "";
+  const fuel = fuelLabel(vehicle.fuel, locale);
+  const transmission = transmissionLabel(vehicle.transmission, locale);
+  const steering = steeringLabel(vehicle.steering, locale);
 
   if (locale === "zh") {
     const traits: string[] = [];
-    if (vehicle.steering) traits.push(vehicle.steering);
-    if (vehicle.transmission) traits.push(`${vehicle.transmission}变速箱`);
+    if (steering) traits.push(steering);
+    if (transmission) traits.push(transmission);
     if (engine) traits.push(`${engine}发动机`);
     if (drive) traits.push(drive);
-    if (vehicle.fuel) traits.push(vehicle.fuel);
+    if (fuel) traits.push(fuel);
     const traitText =
       traits.length > 0 ? `该车为${traits.join("、")}。` : "";
     return `探索这辆由 ${SITE_NAME} 提供的 ${ybm} 中国出口二手车。${traitText}里程约 ${mileage} 公里，面向国际买家、经销商与进口商开放出口。`;
@@ -133,11 +183,11 @@ export function buildVehicleSeoParagraph(vehicle: VehicleSeoInput, locale: Local
 
   if (locale === "fr") {
     const traits: string[] = [];
-    if (vehicle.steering) traits.push(vehicle.steering);
-    if (vehicle.transmission) traits.push(`boîte ${vehicle.transmission}`);
+    if (steering) traits.push(steering);
+    if (transmission) traits.push(transmission);
     if (engine) traits.push(`moteur ${engine}`);
     if (drive) traits.push(drive);
-    if (vehicle.fuel) traits.push(vehicle.fuel);
+    if (fuel) traits.push(fuel);
     const traitText =
       traits.length > 0
         ? `Ce véhicule propose ${traits.join(", ")}. `
@@ -145,12 +195,10 @@ export function buildVehicleSeoParagraph(vehicle: VehicleSeoInput, locale: Local
     return `Découvrez ce ${ybm} disponible à l'export depuis la Chine avec ${SITE_NAME}. ${traitText}Environ ${mileage} km au compteur, pour les acheteurs internationaux, concessionnaires et importateurs.`;
   }
 
-  const steering = vehicle.steering?.trim();
-  const transmission = vehicle.transmission?.trim();
   const featureParts: string[] = [];
   if (engine) featureParts.push(`a ${engine} engine`);
   if (drive) featureParts.push(drive.toLowerCase());
-  if (vehicle.fuel?.trim()) featureParts.push(vehicle.fuel.trim().toLowerCase());
+  if (fuel) featureParts.push(fuel.toLowerCase());
 
   let featureSentence = "";
   if (steering && transmission) {
