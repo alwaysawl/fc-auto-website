@@ -57,6 +57,21 @@ function filterRows(
   });
 }
 
+function statusTextClass(status: string | null | undefined): string {
+  switch (status) {
+    case "在售":
+      return "text-emerald-800";
+    case "已售":
+      return "text-slate-700";
+    case "草稿":
+      return "text-amber-800";
+    case "已下架":
+      return "text-red-700";
+    default:
+      return "text-slate-800";
+  }
+}
+
 function sourceLabel(source: string): string {
   const map: Record<string, string> = {
     vehicle_detail: "车辆详情",
@@ -314,7 +329,7 @@ export default function VehicleHeatSection({
 
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100">
-              <h3 className="text-sm font-semibold text-[#1E293B]">车辆热度排行</h3>
+              <h3 className="text-sm font-semibold text-slate-900">车辆热度排行</h3>
             </div>
             {ranking.length === 0 ? (
               <p className="px-4 py-8 text-sm text-slate-500 text-center">
@@ -325,7 +340,7 @@ export default function VehicleHeatSection({
                 <div className="hidden lg:block overflow-x-auto">
                   <table className="w-full min-w-[64rem] text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 text-left text-slate-500">
+                      <tr className="border-b border-slate-200 text-left text-slate-700">
                         {[
                           "排名",
                           "车辆",
@@ -350,7 +365,7 @@ export default function VehicleHeatSection({
                           key={row.vehicleId}
                           className="border-b border-slate-50 hover:bg-slate-50"
                         >
-                          <td className="px-3 py-2.5 tabular-nums text-slate-500">
+                          <td className="px-3 py-2.5 tabular-nums text-slate-800">
                             {idx + 1}
                           </td>
                           <td className="px-3 py-2.5">
@@ -367,27 +382,29 @@ export default function VehicleHeatSection({
                               )}
                               <button
                                 type="button"
-                                className="text-left font-medium text-[#1E293B] hover:underline line-clamp-2"
+                                className="text-left font-medium text-slate-800 hover:underline line-clamp-2"
                                 onClick={() => void openDetail(row.vehicleId)}
                               >
                                 {row.title}
                               </button>
                             </div>
                           </td>
-                          <td className="px-3 py-2.5">{row.status || "—"}</td>
-                          <td className="px-3 py-2.5 tabular-nums">{row.detailViews}</td>
-                          <td className="px-3 py-2.5 tabular-nums">{row.uniqueViewers}</td>
-                          <td className="px-3 py-2.5 tabular-nums">{row.whatsappClicks}</td>
-                          <td className="px-3 py-2.5 tabular-nums">{row.cartAdds}</td>
-                          <td className="px-3 py-2.5 tabular-nums">{row.quoteDownloads}</td>
-                          <td className="px-3 py-2.5 tabular-nums">
+                          <td className={`px-3 py-2.5 ${statusTextClass(row.status)}`}>
+                            {row.status || "—"}
+                          </td>
+                          <td className="px-3 py-2.5 tabular-nums text-slate-800">{row.detailViews}</td>
+                          <td className="px-3 py-2.5 tabular-nums text-slate-800">{row.uniqueViewers}</td>
+                          <td className="px-3 py-2.5 tabular-nums text-slate-800">{row.whatsappClicks}</td>
+                          <td className="px-3 py-2.5 tabular-nums text-slate-800">{row.cartAdds}</td>
+                          <td className="px-3 py-2.5 tabular-nums text-slate-800">{row.quoteDownloads}</td>
+                          <td className="px-3 py-2.5 tabular-nums text-slate-800">
                             {row.inquiryRate == null ? "暂无数据" : `${row.inquiryRate}%`}
                           </td>
                           <td className="px-3 py-2.5">
                             <div className="flex flex-wrap gap-2">
                               <a
                                 href={`/admin/vehicles/${row.vehicleId}/edit`}
-                                className="text-xs font-semibold underline text-[#1E293B]"
+                                className="text-xs font-semibold underline text-slate-800"
                               >
                                 查看车辆
                               </a>
@@ -395,13 +412,13 @@ export default function VehicleHeatSection({
                                 href={`/en/inventory/${row.vehicleId}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-xs text-slate-600 underline"
+                                className="text-xs font-medium underline text-slate-700"
                               >
                                 网站
                               </a>
                               <button
                                 type="button"
-                                className="text-xs text-slate-600 underline"
+                                className="text-xs font-medium underline text-slate-700"
                                 onClick={() => toggleCompare(row.vehicleId)}
                               >
                                 {compareIds.includes(row.vehicleId)
@@ -431,20 +448,26 @@ export default function VehicleHeatSection({
                           <div className="h-16 w-24 rounded bg-slate-100 flex-shrink-0" />
                         )}
                         <div className="min-w-0">
-                          <p className="text-xs text-slate-400">#{idx + 1}</p>
+                          <p className="text-xs text-slate-800">#{idx + 1}</p>
                           <button
                             type="button"
-                            className="text-sm font-semibold text-[#1E293B] text-left hover:underline"
+                            className="text-sm font-semibold text-slate-800 text-left hover:underline"
                             onClick={() => void openDetail(row.vehicleId)}
                           >
                             {row.title}
                           </button>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {row.status || "—"} · {row.priceLabel || "价格未填"}
+                          <p className="text-xs mt-0.5">
+                            <span className={statusTextClass(row.status)}>
+                              {row.status || "—"}
+                            </span>
+                            <span className="text-slate-800">
+                              {" "}
+                              · {row.priceLabel || "价格未填"}
+                            </span>
                           </p>
                         </div>
                       </div>
-                      <p className="text-xs text-slate-600 tabular-nums">
+                      <p className="text-xs text-slate-800 tabular-nums">
                         浏览 {row.detailViews} · 访客 {row.uniqueViewers} · WA{" "}
                         {row.whatsappClicks} · 购物车 {row.cartAdds} · 报价{" "}
                         {row.quoteDownloads} · 咨询率{" "}
@@ -459,7 +482,7 @@ export default function VehicleHeatSection({
                         </a>
                         <button
                           type="button"
-                          className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs"
+                          className="rounded-md border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-800"
                           onClick={() => toggleCompare(row.vehicleId)}
                         >
                           {compareIds.includes(row.vehicleId) ? "取消对比" : "对比"}
