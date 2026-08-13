@@ -52,6 +52,12 @@ export function middleware(request: NextRequest) {
     const locale = (locales.includes(segment as Locale)
       ? segment
       : defaultLocale) as string;
+    // Avoid duplicate indexable URLs: /en/inventory/ vs /en/inventory
+    if (pathname.length > 1 && pathname.endsWith("/")) {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.replace(/\/+$/, "");
+      return permanentRedirect(url, locale);
+    }
     return withLocaleHeader(NextResponse.next(), locale);
   }
 

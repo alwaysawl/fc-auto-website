@@ -34,6 +34,8 @@ export async function generateMetadata({
     path: "/",
     title: t.seo.homeTitle,
     description: t.seo.homeDescription,
+    image: "/images/hero-rav4.jpg",
+    imageAlt: t.seo.homeTitle,
   });
 }
 

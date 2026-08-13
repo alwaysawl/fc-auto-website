@@ -28,6 +28,8 @@ export default function robots(): MetadataRoute.Robots {
           "/*/cart/",
           "/*/test-upload",
           "/*/test-upload/",
+          "/*/shipping-calculator",
+          "/*/shipping-calculator/",
         ],
       },
     ],

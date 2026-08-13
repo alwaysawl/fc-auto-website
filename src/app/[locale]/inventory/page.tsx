@@ -15,6 +15,7 @@ export async function generateMetadata({
   const { locale: localeParam } = await params;
   const locale = localeParam as Locale;
   const t = getTranslations(locale);
+  // Query strings (?brand=) are client filters. Canonical stays the clean inventory URL.
   return buildPageMetadata({
     locale,
     path: "/inventory",

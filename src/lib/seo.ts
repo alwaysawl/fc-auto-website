@@ -116,6 +116,9 @@ export function buildPageMetadata({
   const ogImage = absoluteImageUrl(image ?? undefined);
   const alternates = buildAlternates(path, locale);
   const ogImageAlt = imageAlt?.trim() || title;
+  const alternateLocale = locales
+    .filter((item) => item !== locale)
+    .map((item) => ogLocale(item));
 
   return {
     metadataBase: new URL(getSiteUrl()),
@@ -131,6 +134,7 @@ export function buildPageMetadata({
       url,
       siteName: SITE_NAME,
       locale: ogLocale(locale),
+      alternateLocale,
       type,
       ...(ogImage
         ? { images: [{ url: ogImage, alt: ogImageAlt }] }
@@ -221,6 +225,7 @@ export function homeGraphJsonLd() {
         "@id": `${site}/#organization`,
         name: SITE_NAME,
         url: site,
+        logo: absoluteUrl("/images/fc-logo.png"),
       },
       {
         "@type": "WebSite",
@@ -321,23 +326,25 @@ export function vehicleJsonLd(
     Number.isFinite(vehicle.fobPrice) &&
     vehicle.fobPrice > 0;
   const currency = vehicle.currency?.trim();
-  const inStock = vehicle.status === "在售" || !vehicle.status;
 
   if (hasPrice && currency) {
-    data.offers = {
+    const offer: Record<string, unknown> = {
       "@type": "Offer",
       url,
       price: vehicle.fobPrice,
       priceCurrency: currency.toUpperCase(),
-      availability: inStock
-        ? "https://schema.org/InStock"
-        : "https://schema.org/SoldOut",
       seller: {
         "@type": "Organization",
         name: SITE_NAME,
         url: getSiteUrl(),
       },
     };
+    if (vehicle.status === "在售") {
+      offer.availability = "https://schema.org/InStock";
+    } else if (vehicle.status === "已售") {
+      offer.availability = "https://schema.org/SoldOut";
+    }
+    data.offers = offer;
   }
 
   return data;
