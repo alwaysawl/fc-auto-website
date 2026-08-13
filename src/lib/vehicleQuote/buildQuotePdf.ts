@@ -8,6 +8,8 @@ import {
   collectQuoteImageUrls,
   formatQuoteDate,
   formatQuotePrice,
+  getQuoteFeaturesSource,
+  parseQuoteFeatureBlocks,
   statusLabelForQuote,
 } from "@/lib/vehicleQuote/helpers";
 import { calculateImageFit } from "@/lib/vehicleQuote/imageFit";
@@ -329,8 +331,11 @@ async function buildVehicleQuotePdfInternal(
     doc.setFontSize(size);
     doc.setTextColor(...color);
     const lines = doc.splitTextToSize(value, maxWidth) as string[];
-    const align = options?.align ?? "left";
-    doc.text(lines, x, yy + size * 0.85, { align });
+    doc.text(lines, x, yy + size * 0.85, {
+      align: options?.align ?? "left",
+      charSpace: 0,
+      maxWidth: 0,
+    });
     return lines.length * size * 1.25;
   };
 
@@ -555,11 +560,10 @@ async function buildVehicleQuotePdfInternal(
     });
   }
 
-  const features = (vehicle.features ?? "")
-    .split(/\r?\n|,/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (features.length) {
+  const featureBlocks = parseQuoteFeatureBlocks(
+    getQuoteFeaturesSource(vehicle, locale)
+  );
+  if (featureBlocks.length) {
     y += 14;
     if (y > pageH - footerSafe - 40) {
       addFooter(doc, copy, whatsappDisplay);
@@ -569,18 +573,38 @@ async function buildVehicleQuotePdfInternal(
     }
     y += text(copy.fieldLabels.features, margin, y, 11, { bold: true });
     y += 6;
-    for (const line of features) {
-      if (y > pageH - footerSafe - 20) {
+    const bulletIndent = 12;
+    for (const block of featureBlocks) {
+      if (y > pageH - footerSafe - 24) {
         addFooter(doc, copy, whatsappDisplay);
         doc.addPage();
         drawHeaderBar(doc, copy, whatsappDisplay);
         y = 42;
       }
-      y += text(`• ${line}`, margin, y, 9, {
-        color: SLATE,
-        maxWidth: contentW,
+      if (block.kind === "heading") {
+        y += 4;
+        // Canvas bitmap: Helvetica cannot safely layout mixed Unicode bullets.
+        const h = putBitmap(doc, block.text, margin, y, {
+          fontSize: 10,
+          fontWeight: "700",
+          color: `rgb(${NAVY[0]},${NAVY[1]},${NAVY[2]})`,
+          maxWidthPt: contentW,
+          locale,
+          align: "left",
+        });
+        y += Math.max(h, 12) + 4;
+        continue;
+      }
+      doc.setFillColor(...SLATE);
+      doc.circle(margin + 3.2, y + 5.2, 1.45, "F");
+      const h = putBitmap(doc, block.text, margin + bulletIndent, y, {
+        fontSize: 9,
+        color: `rgb(${SLATE[0]},${SLATE[1]},${SLATE[2]})`,
+        maxWidthPt: contentW - bulletIndent,
+        locale,
+        align: "left",
       });
-      y += 2;
+      y += Math.max(h, 11) + 3;
     }
   }
 

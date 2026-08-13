@@ -5,6 +5,7 @@ import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
 import VehicleCardFobPrice from "@/components/VehicleCardFobPrice";
 import { vehicleImageAlt } from "@/lib/seo";
+import { VEHICLE_CARD_IMAGE } from "@/lib/vehicle-image-cache";
 
 interface VehicleCardProps {
   vehicle: Vehicle;
@@ -54,8 +55,8 @@ export default function VehicleCard({
           alt={vehicleImageAlt(vehicle, locale)}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-700"
-          sizes="(max-width: 768px) 92vw, (max-width: 1200px) 45vw, 400px"
-          quality={70}
+          sizes={VEHICLE_CARD_IMAGE.sizes}
+          quality={VEHICLE_CARD_IMAGE.quality}
           loading="lazy"
         />
         {!isLight && (

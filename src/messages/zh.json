@@ -233,6 +233,7 @@
     "quotePreparing": "正在生成报价单……",
     "quoteDownloadSuccess": "车辆报价单已下载",
     "quoteDownloadError": "报价单生成失败，请重试。",
+    "closePdfPreview": "关闭预览",
     "getBestFob": "获取最优离岸价",
     "contactWhatsapp": "WhatsApp 联系",
     "whatsappInquiry": "WhatsApp 询价",

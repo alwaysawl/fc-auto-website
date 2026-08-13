@@ -43,6 +43,19 @@ const BODY_TYPE_LABELS: LabelMap = {
   Other: { en: "Other", fr: "Autre", zh: "其他" },
 };
 
+const COLOR_LABELS: LabelMap = {
+  白色: { en: "White", fr: "Blanc", zh: "白色" },
+  黑色: { en: "Black", fr: "Noir", zh: "黑色" },
+  银色: { en: "Silver", fr: "Argent", zh: "银色" },
+  灰色: { en: "Gray", fr: "Gris", zh: "灰色" },
+  红色: { en: "Red", fr: "Rouge", zh: "红色" },
+  蓝色: { en: "Blue", fr: "Bleu", zh: "蓝色" },
+  绿色: { en: "Green", fr: "Vert", zh: "绿色" },
+  黄色: { en: "Yellow", fr: "Jaune", zh: "黄色" },
+  棕色: { en: "Brown", fr: "Marron", zh: "棕色" },
+  金色: { en: "Gold", fr: "Or", zh: "金色" },
+};
+
 function pickLabel(
   map: LabelMap,
   value: string | undefined | null,
@@ -74,4 +87,9 @@ export function steeringLabel(value: string | undefined | null, locale: Locale):
 
 export function bodyTypeLabel(value: string | undefined | null, locale: Locale): string {
   return pickLabel(BODY_TYPE_LABELS, value, locale);
+}
+
+/** Map stored Chinese color names (白色, 黑色, …) to the page/PDF locale. */
+export function colorLabel(value: string | undefined | null, locale: Locale): string {
+  return pickLabel(COLOR_LABELS, value, locale);
 }

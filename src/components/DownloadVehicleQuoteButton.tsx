@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import type { Locale, Vehicle } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { useCart } from "@/components/CartProvider";
@@ -8,7 +9,6 @@ import { buildVehicleQuotePdfFile } from "@/lib/vehicleQuote/buildQuotePdf";
 import {
   canSharePdfFile,
   isAppleMobileBrowser,
-  openPdfFilePreview,
   supportsFileWebShare,
   triggerAnchorDownload,
 } from "@/lib/pdf/deliverPdfBlob";
@@ -25,7 +25,7 @@ type DownloadVehicleQuoteButtonProps = {
 
 /**
  * Customer vehicle quotation PDF:
- * - Preview PDF → new tab (blob URL), does not navigate away
+ * - Preview PDF → in-page overlay (no window.open after await)
  * - Download PDF → Blob/File + Web Share (iOS) or <a download> (desktop/Android)
  *
  * On iOS, Download is two-stage so navigator.share keeps user activation.
@@ -40,7 +40,11 @@ export default function DownloadVehicleQuoteButton({
   const { showToast } = useCart();
   const [busy, setBusy] = useState(false);
   const [generatedPdfFile, setGeneratedPdfFile] = useState<File | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const generatedPdfFileRef = useRef<File | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+  const previewRequestIdRef = useRef(0);
   const apple = isAppleMobileBrowser();
   const fileShareSupported = supportsFileWebShare();
 
@@ -48,7 +52,52 @@ export default function DownloadVehicleQuoteButton({
     generatedPdfFileRef.current = null;
     setGeneratedPdfFile(null);
     setBusy(false);
+    previewRequestIdRef.current += 1;
+    setPreviewOpen(false);
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreviewUrl(null);
   }, [vehicle.id]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!previewOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closePreviewOverlay();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [previewOpen]);
+
+  function revokePreviewUrl() {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreviewUrl(null);
+  }
+
+  function closePreviewOverlay() {
+    previewRequestIdRef.current += 1;
+    setPreviewOpen(false);
+    revokePreviewUrl();
+    setBusy(false);
+  }
 
   function trackQuote(contactName: string) {
     trackAnalyticsEvent("quote_download", {
@@ -68,6 +117,9 @@ export default function DownloadVehicleQuoteButton({
       return { file: existing, contactName: "" };
     }
     const built = await buildVehicleQuotePdfFile(vehicle, locale);
+    if (!built.file || built.file.size === 0) {
+      throw new Error("PDF file was empty");
+    }
     generatedPdfFileRef.current = built.file;
     setGeneratedPdfFile(built.file);
     return built;
@@ -77,17 +129,29 @@ export default function DownloadVehicleQuoteButton({
     event.preventDefault();
     event.stopPropagation();
     if (busy) return;
+
+    const requestId = ++previewRequestIdRef.current;
     setBusy(true);
+    setPreviewOpen(true);
+    revokePreviewUrl();
+
     try {
-      showToast(t.vehicleDetail.quotePreparing);
       const { file, contactName } = await ensurePdfFile();
+      if (requestId !== previewRequestIdRef.current) return;
       if (contactName) trackQuote(contactName);
-      openPdfFilePreview(file);
+      const url = URL.createObjectURL(file);
+      previewUrlRef.current = url;
+      setPreviewUrl(url);
     } catch (err) {
+      if (requestId !== previewRequestIdRef.current) return;
       console.error("[DownloadVehicleQuote] preview", err);
+      setPreviewOpen(false);
+      revokePreviewUrl();
       showToast(t.vehicleDetail.quoteDownloadError);
     } finally {
-      setBusy(false);
+      if (requestId === previewRequestIdRef.current) {
+        setBusy(false);
+      }
     }
   }
 
@@ -198,7 +262,13 @@ export default function DownloadVehicleQuoteButton({
     }
   }
 
-  const previewLabel = locale === "zh" ? "预览 PDF" : "Preview PDF";
+  const previewLabel = busy
+    ? t.vehicleDetail.quotePreparing
+    : locale === "zh"
+      ? "预览 PDF"
+      : locale === "fr"
+        ? "Aperçu PDF"
+        : "Preview PDF";
 
   const compactPdfLabel = (() => {
     if (busy) {
@@ -208,7 +278,6 @@ export default function DownloadVehicleQuoteButton({
           ? "Génération…"
           : "Generating…";
     }
-    // Keep two-stage share UX; only the visible copy changes.
     if (apple && generatedPdfFile) {
       return locale === "zh" ? (
         <>
@@ -262,23 +331,65 @@ export default function DownloadVehicleQuoteButton({
   const btnBase =
     "inline-flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-wait";
 
+  const previewOverlay =
+    previewOpen && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[400] flex flex-col bg-black/70"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t.vehicleDetail.closePdfPreview}
+          >
+            <div className="flex-shrink-0 flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 bg-[#1E293B] text-white shadow-md">
+              <button
+                type="button"
+                onClick={closePreviewOverlay}
+                className="min-h-11 px-4 sm:px-5 rounded-lg bg-accent-yellow text-brand-slate text-sm sm:text-base font-bold hover:bg-accent-yellow-hover transition-colors"
+              >
+                {t.vehicleDetail.closePdfPreview}
+              </button>
+              <p className="text-xs sm:text-sm text-white/80 truncate pr-1">
+                {busy && !previewUrl ? t.vehicleDetail.quotePreparing : ""}
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 bg-slate-200">
+              {previewUrl ? (
+                <iframe
+                  src={previewUrl}
+                  title="PDF preview"
+                  className="w-full h-full border-0 bg-white"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-brand-slate text-sm font-semibold">
+                  {t.vehicleDetail.quotePreparing}
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   if (compact) {
     return (
-      <button
-        type="button"
-        onClick={(e) => void handleDownload(e)}
-        disabled={busy}
-        aria-busy={busy}
-        className={
-          className.includes("vehicle-action-button")
-            ? className
-            : `${btnBase} w-full h-[72px] px-2 rounded-xl text-sm font-bold leading-tight text-center ${className}`
-        }
-      >
-        <span className="vehicle-action-label vehicle-action-label-pdf">
-          {compactPdfLabel}
-        </span>
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={(e) => void handleDownload(e)}
+          disabled={busy}
+          aria-busy={busy}
+          className={
+            className.includes("vehicle-action-button")
+              ? className
+              : `${btnBase} w-full h-[72px] px-2 rounded-xl text-sm font-bold leading-tight text-center ${className}`
+          }
+        >
+          <span className="vehicle-action-label vehicle-action-label-pdf">
+            {compactPdfLabel}
+          </span>
+        </button>
+        {previewOverlay}
+      </>
     );
   }
 
@@ -316,6 +427,7 @@ export default function DownloadVehicleQuoteButton({
         </svg>
         <span className="text-center leading-tight">{downloadLabel}</span>
       </button>
+      {previewOverlay}
     </span>
   );
 }

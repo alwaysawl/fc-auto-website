@@ -233,6 +233,7 @@
     "quotePreparing": "Préparation du devis…",
     "quoteDownloadSuccess": "Devis du véhicule téléchargé",
     "quoteDownloadError": "Impossible de générer le devis. Veuillez réessayer.",
+    "closePdfPreview": "Fermer l’aperçu",
     "getBestFob": "Obtenir le meilleur prix FOB",
     "contactWhatsapp": "Contacter sur WhatsApp",
     "whatsappInquiry": "Demande WhatsApp",

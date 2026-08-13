@@ -14,6 +14,7 @@ const SITE_NAME = "FC Auto Export";
 
 export type VehicleSeoInput = Pick<
   Vehicle,
+  | "id"
   | "year"
   | "brand"
   | "model"
@@ -30,6 +31,19 @@ export type VehicleSeoInput = Pick<
   | "status"
 >;
 
+/** Minimal catalog row used only to detect Year+Brand+Model collisions. */
+export type VehicleTitleCatalogItem = Pick<
+  Vehicle,
+  | "id"
+  | "year"
+  | "brand"
+  | "model"
+  | "driveType"
+  | "displacement"
+  | "mileage"
+  | "transmission"
+>;
+
 function mileageLocale(locale: Locale): string {
   if (locale === "zh") return "zh-CN";
   if (locale === "fr") return "fr-FR";
@@ -44,79 +58,190 @@ export function yearBrandModel(vehicle: Pick<Vehicle, "year" | "brand" | "model"
   return `${vehicle.year} ${vehicle.brand} ${vehicle.model}`.trim();
 }
 
-/** SEO title — unique per vehicle, e.g. 2016 Toyota RAV4 Used Car for Export from China | FC Auto */
-export function buildVehicleSeoTitle(vehicle: VehicleSeoInput, locale: Locale): string {
-  const ybm = yearBrandModel(vehicle);
+/**
+ * Brand spelling for SEO titles only (DB brand unchanged).
+ * "Land Wind" → "Landwind" so Google sees one brand word.
+ */
+export function seoTitleBrandName(brand: string | undefined | null): string {
+  const raw = (brand ?? "").trim();
+  if (/^land\s+wind$/i.test(raw)) return "Landwind";
+  return raw;
+}
+
+export function yearBrandModelForSeoTitle(
+  vehicle: Pick<Vehicle, "year" | "brand" | "model">
+): string {
+  return `${vehicle.year} ${seoTitleBrandName(vehicle.brand)} ${vehicle.model}`.trim();
+}
+
+function sameYearBrandModel(
+  a: Pick<Vehicle, "year" | "brand" | "model">,
+  b: Pick<Vehicle, "year" | "brand" | "model">
+): boolean {
+  return (
+    a.year === b.year &&
+    a.brand.trim() === b.brand.trim() &&
+    a.model.trim() === b.model.trim()
+  );
+}
+
+/** Compact LHD/RHD from stored steering. Empty if unknown — never invents a value. */
+export function steeringTitleToken(
+  steering: string | undefined | null,
+  locale: Locale
+): string {
+  const raw = (steering ?? "").trim();
+  if (!raw) return "";
+  const key = raw.toLowerCase();
+  const isLhd =
+    raw === "Left Hand Drive" ||
+    raw === "LHD" ||
+    raw === "左舵" ||
+    key.includes("left");
+  const isRhd =
+    raw === "Right Hand Drive" ||
+    raw === "RHD" ||
+    raw === "右舵" ||
+    key.includes("right");
+  if (isLhd) return locale === "zh" ? "左舵" : "LHD";
+  if (isRhd) return locale === "zh" ? "右舵" : "RHD";
+  return "";
+}
+
+function fieldIsUniqueAmong(
+  vehicle: VehicleTitleCatalogItem,
+  group: VehicleTitleCatalogItem[],
+  read: (v: VehicleTitleCatalogItem) => string
+): boolean {
+  const mine = read(vehicle);
+  if (!mine) return false;
+  return group.filter((item) => read(item) === mine).length === 1;
+}
+
+/**
+ * One customer-facing token when another in-stock vehicle shares Year+Brand+Model.
+ * Preference: mileage → drive type → displacement → transmission.
+ * Never uses vehicle id / slug / database keys.
+ */
+export function pickVehicleTitleDisambiguator(
+  vehicle: VehicleTitleCatalogItem,
+  catalog: VehicleTitleCatalogItem[],
+  locale: Locale
+): string {
+  const siblings = catalog.filter(
+    (item) => item.id !== vehicle.id && sameYearBrandModel(item, vehicle)
+  );
+  if (siblings.length === 0) return "";
+
+  const group = [vehicle, ...siblings];
+
+  if (
+    fieldIsUniqueAmong(vehicle, group, (v) =>
+      typeof v.mileage === "number" && Number.isFinite(v.mileage)
+        ? String(v.mileage)
+        : ""
+    )
+  ) {
+    const km = locale === "zh" ? "公里" : "km";
+    return `${formatVehicleMileage(locale, vehicle.mileage)} ${km}`;
+  }
+
+  const drive = vehicle.driveType?.trim() || "";
+  if (fieldIsUniqueAmong(vehicle, group, (v) => v.driveType?.trim() || "")) {
+    return drive;
+  }
+
+  const engine = vehicle.displacement?.trim() || "";
+  if (fieldIsUniqueAmong(vehicle, group, (v) => v.displacement?.trim() || "")) {
+    return engine;
+  }
+
+  const transmission = vehicle.transmission?.trim() || "";
+  if (
+    fieldIsUniqueAmong(vehicle, group, (v) => v.transmission?.trim() || "")
+  ) {
+    return transmission;
+  }
+
+  return "";
+}
+
+/**
+ * SEO title from live vehicle fields.
+ * Example: 2016 Landwind X7 LHD Used Car for Sale | FC Auto
+ * Model is used as stored; brand display may normalize Land Wind → Landwind.
+ */
+export function buildVehicleSeoTitle(
+  vehicle: VehicleSeoInput,
+  locale: Locale,
+  catalog: VehicleTitleCatalogItem[] = []
+): string {
+  const ybm = yearBrandModelForSeoTitle(vehicle);
+  const extra = pickVehicleTitleDisambiguator(vehicle, catalog, locale);
+  const steering = steeringTitleToken(vehicle.steering, locale);
+  const head = [ybm, extra, steering].filter(Boolean).join(" ");
+
   if (locale === "zh") {
-    return `${ybm} 中国出口二手车｜${SEO_TITLE_BRAND}`;
+    return `${head} 二手车在售｜${SEO_TITLE_BRAND}`;
   }
   if (locale === "fr") {
-    return `${ybm} voiture d'occasion à l'export depuis la Chine | ${SEO_TITLE_BRAND}`;
+    return `${head} voiture d'occasion à vendre | ${SEO_TITLE_BRAND}`;
   }
-  return `${ybm} Used Car for Export from China | ${SEO_TITLE_BRAND}`;
+  return `${head} Used Car for Sale | ${SEO_TITLE_BRAND}`;
 }
 
-function joinMetaParts(parts: string[]): string {
-  const text = parts.filter(Boolean).join(". ").replace(/\.\s*\./g, ".");
-  if (text.length <= 160) return text;
-  return `${text.slice(0, 157).replace(/\s+\S*$/, "")}…`;
+function capMetaDescription(text: string, max = 160): string {
+  const compact = text.replace(/\s+/g, " ").trim();
+  if (compact.length <= max) return compact;
+  return `${compact.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
 }
 
-/** Meta description from real vehicle fields only. */
+function hasMileageKm(vehicle: VehicleSeoInput): boolean {
+  return typeof vehicle.mileage === "number" && Number.isFinite(vehicle.mileage);
+}
+
+/** Meta description from real vehicle fields only. Unique per listing. */
 export function buildVehicleMetaDescription(vehicle: VehicleSeoInput, locale: Locale): string {
-  const ybm = yearBrandModel(vehicle);
-  const mileage = formatVehicleMileage(locale, vehicle.mileage);
-  const drive = vehicle.driveType?.trim()
-    ? driveTypeLabel(vehicle.driveType, locale)
-    : "";
-  const engine = vehicle.displacement?.trim() || "";
+  const ybm = yearBrandModelForSeoTitle(vehicle);
+  const steer = steeringTitleToken(vehicle.steering, locale);
+  const lead = [ybm, steer].filter(Boolean).join(" ");
   const fuel = fuelLabel(vehicle.fuel, locale);
   const transmission = transmissionLabel(vehicle.transmission, locale);
-  const steering = steeringLabel(vehicle.steering, locale);
+  const mileage = hasMileageKm(vehicle)
+    ? formatVehicleMileage(locale, vehicle.mileage)
+    : "";
 
   if (locale === "zh") {
-    const specs: string[] = [];
-    if (vehicle.mileage != null) specs.push(`里程约 ${mileage} 公里`);
-    if (engine) specs.push(engine);
-    if (fuel) specs.push(fuel);
-    if (transmission) specs.push(transmission);
-    if (drive) specs.push(drive);
-    if (steering) specs.push(steering);
-    return joinMetaParts([
-      `${ybm}。${specs.join("，")}`,
-      "中国离岸价（FOB）",
-      `由中国出口的二手车，${SITE_NAME} 提供出口服务`,
-    ]);
+    const facts: string[] = [];
+    if (mileage) facts.push(`里程 ${mileage} 公里`);
+    if (fuel) facts.push(fuel);
+    if (transmission) facts.push(transmission);
+    const factText = facts.length > 0 ? `，${facts.join("，")}` : "";
+    return capMetaDescription(
+      `${lead} 二手车在售${factText}。查看车辆详情并联系 FC Auto，中国二手车出口商。`
+    );
   }
 
   if (locale === "fr") {
-    const specs: string[] = [];
-    if (vehicle.mileage != null) specs.push(`${mileage} km`);
-    if (engine) specs.push(engine);
-    if (fuel) specs.push(fuel);
-    if (transmission) specs.push(transmission);
-    if (drive) specs.push(drive);
-    if (steering) specs.push(steering);
-    return joinMetaParts([
-      `${ybm}. ${specs.join(", ")}`,
-      "Prix FOB Chine",
-      `Véhicule d'occasion à l'export depuis la Chine par ${SITE_NAME}`,
-    ]);
+    const facts: string[] = [];
+    if (mileage) facts.push(`${mileage} km`);
+    if (fuel) facts.push(fuel.toLowerCase());
+    if (transmission) facts.push(transmission.toLowerCase());
+    const withFacts =
+      facts.length > 0 ? ` avec ${facts.join(", ")}` : "";
+    return capMetaDescription(
+      `${lead} voiture d'occasion à vendre${withFacts}. Consultez les détails et contactez FC Auto, exportateur de voitures d'occasion depuis la Chine.`
+    );
   }
 
-  const specs: string[] = [];
-  if (vehicle.mileage != null) specs.push(`${mileage} km`);
-  if (engine) specs.push(engine);
-  if (fuel) specs.push(fuel);
-  if (transmission) specs.push(transmission);
-  if (drive) specs.push(drive);
-  if (steering) specs.push(steering);
-
-  return joinMetaParts([
-    `${ybm}. ${specs.join(", ")}`,
-    "FOB China",
-    `Used car for export from China by ${SITE_NAME}`,
-  ]);
+  const extras: string[] = [];
+  if (fuel) extras.push(fuel.toLowerCase());
+  if (transmission) extras.push(transmission.toLowerCase());
+  const mileageBit = mileage ? ` with ${mileage} km` : "";
+  const extraBit = extras.length > 0 ? `, ${extras.join(", ")}` : "";
+  return capMetaDescription(
+    `${lead} used car for sale${mileageBit}${extraBit}. View details and contact FC Auto, a used car exporter from China.`
+  );
 }
 
 /** Vehicle Overview fallback — localized field labels, real data only. */
@@ -256,38 +381,34 @@ export function buildVehicleExportKeywordPhrases(
   ];
 }
 
-type ViewLabel = { en: string; fr: string; zh: string };
-
-function viewLabelForIndex(index: number, total: number): ViewLabel {
-  if (index === 0) {
-    return { en: "front view", fr: "vue avant", zh: "正面" };
-  }
-  if (total > 1 && index === total - 1) {
-    return { en: "rear view", fr: "vue arrière", zh: "尾部" };
-  }
-  if (total > 2 && index === 1) {
-    return { en: "interior", fr: "intérieur", zh: "内饰" };
-  }
-  return { en: "exterior view", fr: "vue extérieure", zh: "外观" };
-}
-
-/** Detail gallery alt — unique per image with view hint. */
+/**
+ * Detail gallery alt — natural and short.
+ * Example: 2016 Landwind X7 used car for sale
+ * Extra photos get a photo number only (never invents interior/rear/etc.).
+ */
 export function vehicleDetailImageAlt(
   vehicle: Pick<Vehicle, "year" | "brand" | "model">,
   locale: Locale,
   photoIndex: number,
   totalPhotos: number
 ): string {
-  const base = `${vehicle.year} ${vehicle.brand} ${vehicle.model}`;
-  const view = viewLabelForIndex(photoIndex, totalPhotos);
+  const base = yearBrandModelForSeoTitle(vehicle);
+  const photoSuffix =
+    totalPhotos > 1 && photoIndex > 0
+      ? locale === "zh"
+        ? `（图 ${photoIndex + 1}）`
+        : locale === "fr"
+          ? ` (photo ${photoIndex + 1})`
+          : ` — photo ${photoIndex + 1}`
+      : "";
 
   if (locale === "zh") {
-    return `${base} ${view.zh} 中国出口二手车`;
+    return `${base} 二手车在售${photoSuffix}`;
   }
   if (locale === "fr") {
-    return `${base} ${view.fr} voiture d'occasion de Chine`;
+    return `${base} voiture d'occasion à vendre${photoSuffix}`;
   }
-  return `${base} ${view.en} used car from China`;
+  return `${base} used car for sale${photoSuffix}`;
 }
 
 /** Inventory list cards — keep simpler alts (non-detail). */

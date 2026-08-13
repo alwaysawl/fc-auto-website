@@ -7,6 +7,7 @@ import type { Locale } from "@/lib/types";
 import type { Translations } from "@/lib/translations";
 import { getLocalizedPath } from "@/lib/i18n";
 import { useCart } from "@/components/CartProvider";
+import { VEHICLE_CARD_IMAGE } from "@/lib/vehicle-image-cache";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
 import {
   VEHICLE_TYPES,
@@ -674,7 +675,8 @@ export default function CartPageClient({
                     alt={item.title}
                     fill
                     className="object-cover"
-                    sizes="(max-width: 640px) 100vw, 140px"
+                    sizes={VEHICLE_CARD_IMAGE.sizes}
+                    quality={VEHICLE_CARD_IMAGE.quality}
                   />
                 </div>
                 <div className="p-4 sm:pr-5 sm:py-4 min-w-0 overflow-x-hidden">

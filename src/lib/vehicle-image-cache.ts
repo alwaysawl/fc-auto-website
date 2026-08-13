@@ -11,10 +11,15 @@ import { getImageProps } from "next/image";
 /** How many upcoming gallery frames to warm after the current one is ready. */
 export const VEHICLE_IMAGE_PRELOAD_AHEAD = 1;
 
-/** Inventory / card carousel — ~800–1200px class display. */
+/**
+ * Inventory / Latest / similar cards.
+ * Breakpoints match Tailwind md (768) / xl (1280) grids:
+ * 1 col below 768, 2 col until 1280, ~400px slot at 3 col.
+ * Using 767/1279 avoids the inclusive 768px 92vw miss that requested w=1600 for 2-col cards.
+ */
 export const VEHICLE_CARD_IMAGE = {
-  sizes: "(max-width: 768px) 92vw, (max-width: 1280px) 45vw, 400px",
-  quality: 70,
+  sizes: "(max-width: 767px) 92vw, (max-width: 1279px) 45vw, 400px",
+  quality: 75,
   width: 1200,
   height: 900,
 } as const;

@@ -20,6 +20,7 @@ import {
 } from "@/lib/vehicle-detail-seo";
 import {
   bodyTypeLabel,
+  colorLabel,
   fuelLabel,
   steeringLabel,
   transmissionLabel,
@@ -28,6 +29,7 @@ import {
   isVehicleImageReady,
   markVehicleImageReady,
   preloadVehicleImagesAhead,
+  VEHICLE_CARD_IMAGE,
   VEHICLE_DETAIL_IMAGE,
 } from "@/lib/vehicle-image-cache";
 import { useSyncedVehicleGallerySwitch } from "@/hooks/useSyncedVehicleGallerySwitch";
@@ -76,29 +78,6 @@ function statusLabel(
   if (status === "已下架") return t.vehicleDetail.unavailable;
   if (status === "草稿") return t.vehicleDetail.draft;
   return status?.trim() || t.vehicleDetail.available;
-}
-function colorLabel(color: string | undefined, locale: string): string {
-  if (!color) return "";
-
-  const map: Record<string, { en: string; fr: string; zh: string }> = {
-    "白色": { en: "White", fr: "Blanc", zh: "白色" },
-    "黑色": { en: "Black", fr: "Noir", zh: "黑色" },
-    "银色": { en: "Silver", fr: "Argent", zh: "银色" },
-    "灰色": { en: "Gray", fr: "Gris", zh: "灰色" },
-    "红色": { en: "Red", fr: "Rouge", zh: "红色" },
-    "蓝色": { en: "Blue", fr: "Bleu", zh: "蓝色" },
-    "绿色": { en: "Green", fr: "Vert", zh: "绿色" },
-    "黄色": { en: "Yellow", fr: "Jaune", zh: "黄色" },
-    "棕色": { en: "Brown", fr: "Marron", zh: "棕色" },
-    "金色": { en: "Gold", fr: "Or", zh: "金色" },
-  };
-
-  const item = map[color.trim()];
-  if (!item) return color;
-
-  if (locale === "fr") return item.fr;
-  if (locale === "zh") return item.zh;
-  return item.en;
 }
 function nonemptyRows(
   rows: Array<{ label: string; value?: string | null }>
@@ -407,7 +386,7 @@ export default function VehicleDetailClient({
                       fill
                       className="object-cover"
                       sizes="80px"
-                      quality={60}
+                      quality={VEHICLE_DETAIL_IMAGE.quality}
                       loading="lazy"
                     />
                   </button>
@@ -685,7 +664,8 @@ export default function VehicleDetailClient({
                       alt={vehicleDetailImageAlt(item, locale, 0, 1)}
                       fill
                       className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                      sizes="(max-width: 768px) 100vw, 33vw"
+                      sizes={VEHICLE_CARD_IMAGE.sizes}
+                      quality={VEHICLE_CARD_IMAGE.quality}
                     />
                   </div>
                   <div className="p-4">

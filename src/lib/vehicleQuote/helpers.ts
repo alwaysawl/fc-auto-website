@@ -1,5 +1,6 @@
 import type { Locale, Vehicle } from "@/lib/types";
 import { driveTypeLabel } from "@/lib/drive-type";
+import { colorLabel } from "@/lib/vehicle-field-labels";
 import { getVehicleQuoteCopy } from "@/lib/vehicleQuote/copy";
 
 /** Sanitize for cross-OS filenames */
@@ -111,7 +112,7 @@ export function buildQuoteSpecRows(
     { label: L.bodyType, value: body },
     { label: L.steering, value: vehicle.steering },
     { label: L.engineCapacity, value: vehicle.displacement },
-    { label: L.exteriorColor, value: vehicle.color },
+    { label: L.exteriorColor, value: colorLabel(vehicle.color, locale) },
     {
       label: L.seats,
       value: vehicle.seats != null ? String(vehicle.seats) : "",
@@ -139,6 +140,66 @@ export function collectQuoteImageUrls(vehicle: Vehicle): string[] {
   push(vehicle.mainImageUrl);
   for (const u of vehicle.galleryImageUrls ?? []) push(u);
   for (const u of vehicle.photos ?? []) push(u);
+  return out;
+}
+
+export function getQuoteFeaturesSource(vehicle: Vehicle, locale: Locale): string {
+  if (locale === "zh") {
+    return (vehicle.featuresZh?.trim() || vehicle.features || "").trim();
+  }
+  if (locale === "fr") {
+    return (vehicle.featuresFr?.trim() || vehicle.features || "").trim();
+  }
+  return (vehicle.features || "").trim();
+}
+
+export type QuoteFeatureBlock =
+  | { kind: "heading"; text: string }
+  | { kind: "item"; text: string };
+
+const FEATURE_SECTION_HEADING =
+  /^(basic|exterior|interior|interior\s*&\s*comfort|interior and comfort|comfort|safety|sécurité|securite|extérieur|exterieur|intérieur|interieur|confort|équipements|外观|内饰|安全|基础|基础配置)$/i;
+
+/** PDF-only display cleanup. Does not mutate stored vehicle data. */
+export function normalizeQuoteFeatureLine(raw: string): string {
+  return raw
+    .replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g, " ")
+    .replace(/^[•●○◦▪▸►\-\*\u2022\u2023\u25E6\u2043]+[ \t]*/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function isFeatureSectionHeading(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (FEATURE_SECTION_HEADING.test(t)) return true;
+  if (/brief specs$/i.test(t)) return true;
+  return false;
+}
+
+/**
+ * Split features for the quotation PDF (newlines, or commas when stored as one line).
+ */
+export function parseQuoteFeatureBlocks(raw: string): QuoteFeatureBlock[] {
+  const source = raw.trim();
+  if (!source) return [];
+
+  const rows = /\r?\n/.test(source)
+    ? source.split(/\r?\n/)
+    : source.split(",");
+
+  const out: QuoteFeatureBlock[] = [];
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    const text = normalizeQuoteFeatureLine(row);
+    if (!text) continue;
+    const kind = isFeatureSectionHeading(text) ? "heading" : "item";
+    const key = `${kind}:${text.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ kind, text });
+  }
   return out;
 }
 

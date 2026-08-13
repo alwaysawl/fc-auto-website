@@ -2,6 +2,7 @@ import { Locale } from "@/lib/types";
 import { getTranslations } from "@/lib/translations";
 import {
   dbGetPublicVehicleById,
+  dbGetPublicVehicles,
   dbGetSimilarPublicVehicles,
 } from "@/lib/supabase/vehicle-queries";
 import VehicleDetailClient from "@/components/VehicleDetailClient";
@@ -16,6 +17,7 @@ import {
   vehicleCoverImage,
   vehicleJsonLd,
 } from "@/lib/seo";
+import { vehicleDetailImageAlt } from "@/lib/vehicle-detail-seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -32,13 +34,21 @@ export async function generateMetadata({
   try {
     const vehicle = await dbGetPublicVehicleById(id);
     if (vehicle) {
-      const { title, description } = buildVehicleSeoCopy(vehicle, locale);
+      let catalog: Awaited<ReturnType<typeof dbGetPublicVehicles>> = [];
+      try {
+        catalog = await dbGetPublicVehicles();
+      } catch {
+        catalog = [];
+      }
+      const { title, description } = buildVehicleSeoCopy(vehicle, locale, catalog);
+      const cover = vehicleCoverImage(vehicle);
       return buildPageMetadata({
         locale,
         path: `/inventory/${vehicle.id}`,
         title,
         description,
-        image: vehicleCoverImage(vehicle),
+        image: cover,
+        imageAlt: vehicleDetailImageAlt(vehicle, locale, 0, 1),
       });
     }
   } catch {

@@ -4,8 +4,11 @@ import { getLocalizedPath } from "@/lib/i18n";
 import {
   buildVehicleMetaDescription,
   buildVehicleSeoTitle,
+  seoTitleBrandName,
+  steeringTitleToken,
+  vehicleCardImageAlt,
+  yearBrandModelForSeoTitle,
 } from "@/lib/vehicle-detail-seo";
-import { vehicleCardImageAlt } from "@/lib/vehicle-detail-seo";
 
 export const SITE_NAME = "FC Auto Export";
 export const SITE_URL = "https://fcautoexport.com";
@@ -14,8 +17,24 @@ export const DEFAULT_LOCALE: Locale = "en";
 /** Canonical production origin (no trailing slash). */
 export function getSiteUrl(): string {
   const fromEnv = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/$/, "");
-  if (fromEnv) return fromEnv;
-  return SITE_URL;
+  if (!fromEnv) return SITE_URL;
+
+  try {
+    const parsed = new URL(fromEnv);
+    const host = parsed.hostname.toLowerCase();
+    // Public canonical / OG / JSON-LD must never point at local or preview hosts.
+    if (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host.endsWith(".vercel.app") ||
+      host === "www.fcautoexport.com"
+    ) {
+      return SITE_URL;
+    }
+    return fromEnv;
+  } catch {
+    return SITE_URL;
+  }
 }
 
 export function absoluteUrl(path: string): string {
@@ -76,6 +95,8 @@ type BuildPageMetadataInput = {
   title: string;
   description: string;
   image?: string | null;
+  /** Optional OG image alt; defaults to page title when omitted. */
+  imageAlt?: string;
   noIndex?: boolean;
   type?: "website" | "article";
 };
@@ -87,12 +108,14 @@ export function buildPageMetadata({
   title,
   description,
   image,
+  imageAlt,
   noIndex = false,
   type = "website",
 }: BuildPageMetadataInput): Metadata {
   const url = localeAbsoluteUrl(path, locale);
   const ogImage = absoluteImageUrl(image ?? undefined);
   const alternates = buildAlternates(path, locale);
+  const ogImageAlt = imageAlt?.trim() || title;
 
   return {
     metadataBase: new URL(getSiteUrl()),
@@ -109,7 +132,9 @@ export function buildPageMetadata({
       siteName: SITE_NAME,
       locale: ogLocale(locale),
       type,
-      ...(ogImage ? { images: [{ url: ogImage, alt: title }] } : {}),
+      ...(ogImage
+        ? { images: [{ url: ogImage, alt: ogImageAlt }] }
+        : {}),
     },
     twitter: {
       card: ogImage ? "summary_large_image" : "summary",
@@ -138,6 +163,7 @@ export function vehicleCoverImage(vehicle: Pick<Vehicle, "mainImageUrl" | "photo
 export function buildVehicleSeoCopy(
   vehicle: Pick<
     Vehicle,
+    | "id"
     | "year"
     | "brand"
     | "model"
@@ -153,10 +179,23 @@ export function buildVehicleSeoCopy(
     | "currency"
     | "status"
   >,
-  locale: Locale
+  locale: Locale,
+  catalog: Array<
+    Pick<
+      Vehicle,
+      | "id"
+      | "year"
+      | "brand"
+      | "model"
+      | "driveType"
+      | "displacement"
+      | "mileage"
+      | "transmission"
+    >
+  > = []
 ): { title: string; description: string } {
   return {
-    title: buildVehicleSeoTitle(vehicle, locale),
+    title: buildVehicleSeoTitle(vehicle, locale, catalog),
     description: buildVehicleMetaDescription(vehicle, locale),
   };
 }
@@ -223,27 +262,30 @@ export function vehicleJsonLd(
   const description = buildVehicleMetaDescription(vehicle, locale);
   const url = localeAbsoluteUrl(`/inventory/${vehicle.id}`, locale);
   const image = absoluteImageUrl(vehicleCoverImage(vehicle));
+  const brandName = seoTitleBrandName(vehicle.brand);
+  const name = yearBrandModelForSeoTitle(vehicle);
 
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Car",
-    url,
-    description,
   };
 
-  const name = vehicleDisplayName(vehicle);
+  if (url.startsWith("https://") || url.startsWith("http://")) data.url = url;
+  if (description) data.description = description;
   if (name) data.name = name;
 
-  if (vehicle.brand?.trim()) {
+  if (brandName) {
     data.brand = {
       "@type": "Brand",
-      name: vehicle.brand.trim(),
+      name: brandName,
     };
   }
 
   if (vehicle.model?.trim()) data.model = vehicle.model.trim();
 
-  if (vehicle.year != null) data.vehicleModelDate = String(vehicle.year);
+  if (vehicle.year != null && Number.isFinite(vehicle.year)) {
+    data.vehicleModelDate = String(vehicle.year);
+  }
 
   if (typeof vehicle.mileage === "number" && Number.isFinite(vehicle.mileage)) {
     data.mileageFromOdometer = {
@@ -257,6 +299,10 @@ export function vehicleJsonLd(
   if (vehicle.transmission?.trim()) {
     data.vehicleTransmission = vehicle.transmission.trim();
   }
+
+  const configuration = steeringTitleToken(vehicle.steering, "en");
+  if (configuration) data.vehicleConfiguration = configuration;
+
   if (vehicle.color?.trim()) data.color = vehicle.color.trim();
   if (vehicle.bodyType?.trim()) data.bodyType = vehicle.bodyType.trim();
   if (vehicle.driveType?.trim()) {
@@ -268,20 +314,24 @@ export function vehicleJsonLd(
       name: vehicle.displacement.trim(),
     };
   }
-  if (image) data.image = image;
+  if (image && /^https?:\/\//i.test(image)) data.image = image;
 
   const hasPrice =
-    typeof vehicle.fobPrice === "number" && Number.isFinite(vehicle.fobPrice);
-  const inStock = vehicle.status === "在售";
+    typeof vehicle.fobPrice === "number" &&
+    Number.isFinite(vehicle.fobPrice) &&
+    vehicle.fobPrice > 0;
   const currency = vehicle.currency?.trim();
+  const inStock = vehicle.status === "在售" || !vehicle.status;
 
-  if (hasPrice && currency && inStock) {
+  if (hasPrice && currency) {
     data.offers = {
       "@type": "Offer",
       url,
       price: vehicle.fobPrice,
       priceCurrency: currency.toUpperCase(),
-      availability: "https://schema.org/InStock",
+      availability: inStock
+        ? "https://schema.org/InStock"
+        : "https://schema.org/SoldOut",
       seller: {
         "@type": "Organization",
         name: SITE_NAME,
