@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
+    // Uploaded object paths already include a timestamp filename, so long TTL is safe.
+    // Helps browser/CDN reuse optimized vehicle photos without cache-busting query params.
+    minimumCacheTTL: 60 * 60 * 24 * 30,
+    // Prefer widths that match card (~800–1200) and detail (~1200–1600) displays.
+    deviceSizes: [640, 750, 828, 1080, 1200, 1600, 1920],
+    imageSizes: [64, 96, 128, 256, 384],
     remotePatterns: [
       ...(supabaseHost
         ? [

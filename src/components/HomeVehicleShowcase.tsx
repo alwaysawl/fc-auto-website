@@ -106,6 +106,8 @@ function ShowcaseCard({
             fill
             className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
             sizes="(max-width: 1024px) 240px, 25vw"
+            quality={70}
+            loading="lazy"
           />
           <span
             className={`absolute bottom-3 right-3 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded text-white ${

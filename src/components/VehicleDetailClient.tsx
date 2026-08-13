@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Vehicle, Locale } from "@/lib/types";
@@ -24,6 +24,13 @@ import {
   steeringLabel,
   transmissionLabel,
 } from "@/lib/vehicle-field-labels";
+import {
+  isVehicleImageReady,
+  markVehicleImageReady,
+  nextGalleryIndex,
+  preloadVehicleImage,
+  VEHICLE_DETAIL_IMAGE,
+} from "@/lib/vehicle-image-cache";
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle;
@@ -118,6 +125,8 @@ export default function VehicleDetailClient({
     email: "",
     message: t.vehicleDetail.defaultMessage,
   });
+  const switchingRef = useRef(false);
+  const activePhotoRef = useRef(0);
 
   // Public stock id only — never expose VIN
   const stockNumber = vehicle.id;
@@ -157,6 +166,49 @@ export default function VehicleDetailClient({
     return out.length > 0 ? out : ["/images/rav4.jpg"];
   }, [vehicle]);
 
+  activePhotoRef.current = activePhoto;
+
+  const warmNextOnly = useCallback(
+    (fromIndex: number) => {
+      if (photos.length <= 1) return;
+      const nextIdx = nextGalleryIndex(fromIndex, photos.length);
+      if (nextIdx === fromIndex) return;
+      const nextSrc = photos[nextIdx];
+      if (!nextSrc || isVehicleImageReady(nextSrc)) return;
+      void preloadVehicleImage(nextSrc, VEHICLE_DETAIL_IMAGE);
+    },
+    [photos]
+  );
+
+  const goToPhoto = useCallback(
+    async (nextIndex: number) => {
+      if (photos.length <= 1 || switchingRef.current) return;
+      const clamped =
+        ((nextIndex % photos.length) + photos.length) % photos.length;
+      if (clamped === activePhotoRef.current) return;
+
+      switchingRef.current = true;
+      try {
+        const targetSrc = photos[clamped];
+        // Keep current main photo visible until the target is ready.
+        if (targetSrc && !isVehicleImageReady(targetSrc)) {
+          await preloadVehicleImage(targetSrc, VEHICLE_DETAIL_IMAGE);
+        }
+        setActivePhoto(clamped);
+      } finally {
+        switchingRef.current = false;
+      }
+    },
+    [photos]
+  );
+
+  // Detail page: after the current main image is ready, warm only the next one.
+  useEffect(() => {
+    const current = photos[activePhoto];
+    if (!current || !isVehicleImageReady(current)) return;
+    warmNextOnly(activePhoto);
+  }, [photos, activePhoto, warmNextOnly]);
+
   const overview = useMemo(
     () =>
       buildVehicleOverviewText(vehicle, locale, {
@@ -167,11 +219,11 @@ export default function VehicleDetailClient({
   );
 
   function prevPhoto() {
-    setActivePhoto((i) => (i === 0 ? photos.length - 1 : i - 1));
+    void goToPhoto(activePhotoRef.current - 1);
   }
 
   function nextPhoto() {
-    setActivePhoto((i) => (i === photos.length - 1 ? 0 : i + 1));
+    void goToPhoto(activePhotoRef.current + 1);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -301,8 +353,15 @@ export default function VehicleDetailClient({
                 alt={vehicleDetailImageAlt(vehicle, locale, activePhoto, photos.length)}
                 fill
                 className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 65vw"
+                sizes={VEHICLE_DETAIL_IMAGE.sizes}
+                quality={VEHICLE_DETAIL_IMAGE.quality}
                 priority
+                fetchPriority="high"
+                onLoad={() => {
+                  const current = photos[activePhoto] ?? coverSrc(vehicle);
+                  markVehicleImageReady(current);
+                  warmNextOnly(activePhoto);
+                }}
               />
 
               {photos.length > 1 && (
@@ -333,7 +392,9 @@ export default function VehicleDetailClient({
                   <button
                     key={photo + index}
                     type="button"
-                    onClick={() => setActivePhoto(index)}
+                    onClick={() => {
+                      void goToPhoto(index);
+                    }}
                     className={`relative w-16 h-12 sm:w-20 sm:h-[60px] flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
                       activePhoto === index
                         ? "border-accent-yellow"
@@ -346,6 +407,8 @@ export default function VehicleDetailClient({
                       fill
                       className="object-cover"
                       sizes="80px"
+                      quality={60}
+                      loading="lazy"
                     />
                   </button>
                 ))}

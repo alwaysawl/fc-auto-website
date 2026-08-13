@@ -446,7 +446,7 @@ export default function InventoryClient({
                       vehicle={vehicle}
                       locale={locale}
                       t={t}
-                      priority={i < 3}
+                      priority={i < 2}
                     />
                   ))}
                 </div>

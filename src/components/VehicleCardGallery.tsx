@@ -10,6 +10,13 @@ import {
   type KeyboardEvent,
   type TouchEvent,
 } from "react";
+import {
+  isVehicleImageReady,
+  markVehicleImageReady,
+  nextGalleryIndex,
+  preloadVehicleImage,
+  VEHICLE_CARD_IMAGE,
+} from "@/lib/vehicle-image-cache";
 
 const PLACEHOLDER = "/images/rav4.jpg";
 const SWIPE_THRESHOLD_PX = 40;
@@ -86,6 +93,9 @@ function useIsFinePointer(): boolean | null {
  * - Fine pointer (mouse/trackpad): static cover only — even in a narrow window
  * - Coarse / no-hover (touch): swipe + arrows/dots for multi-image vehicles
  * Image tap never opens a gallery. Behavior is not based on lg/md width.
+ *
+ * Preload policy (egress-safe): only warm the next image after the current one
+ * loads, and only when the card is in view / interacted / priority.
  */
 export default function VehicleCardGallery({
   images,
@@ -106,30 +116,81 @@ export default function VehicleCardGallery({
   const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState<Record<number, boolean>>({});
   const [coverFailed, setCoverFailed] = useState(false);
+  const [inView, setInView] = useState(priority);
+  const [userInteracted, setUserInteracted] = useState(false);
+
+  const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
+  const switchingRef = useRef(false);
+  const indexRef = useRef(0);
 
-  const goTo = useCallback(
-    (next: number) => {
-      if (!multi || isFinePointer === true) return;
-      const clamped =
-        ((next % resolved.length) + resolved.length) % resolved.length;
-      setIndex(clamped);
-    },
-    [multi, resolved.length, isFinePointer]
+  indexRef.current = index;
+
+  const srcFor = useCallback(
+    (i: number) => (failed[i] ? PLACEHOLDER : resolved[i] ?? PLACEHOLDER),
+    [failed, resolved]
   );
 
-  const prev = useCallback(() => goTo(index - 1), [goTo, index]);
-  const next = useCallback(() => goTo(index + 1), [goTo, index]);
+  const canPreloadNext =
+    touchCarouselActive &&
+    multi &&
+    (inView || userInteracted || priority);
+
+  const warmNextOnly = useCallback(
+    (fromIndex: number) => {
+      if (!canPreloadNext) return;
+      const nextIdx = nextGalleryIndex(fromIndex, resolved.length);
+      if (nextIdx === fromIndex) return;
+      const nextSrc = srcFor(nextIdx);
+      if (isVehicleImageReady(nextSrc)) return;
+      void preloadVehicleImage(nextSrc, VEHICLE_CARD_IMAGE);
+    },
+    [canPreloadNext, resolved.length, srcFor]
+  );
+
+  const goTo = useCallback(
+    async (next: number) => {
+      if (!multi || isFinePointer === true || switchingRef.current) return;
+      const clamped =
+        ((next % resolved.length) + resolved.length) % resolved.length;
+      if (clamped === indexRef.current) return;
+
+      setUserInteracted(true);
+      switchingRef.current = true;
+      try {
+        const targetSrc = failed[clamped]
+          ? PLACEHOLDER
+          : resolved[clamped] ?? PLACEHOLDER;
+        // Keep current frame visible until the target is ready (no white flash).
+        if (!isVehicleImageReady(targetSrc)) {
+          await preloadVehicleImage(targetSrc, VEHICLE_CARD_IMAGE);
+        }
+        setIndex(clamped);
+      } finally {
+        switchingRef.current = false;
+      }
+    },
+    [multi, resolved, isFinePointer, failed]
+  );
+
+  const prev = useCallback(() => {
+    void goTo(indexRef.current - 1);
+  }, [goTo]);
+  const next = useCallback(() => {
+    void goTo(indexRef.current + 1);
+  }, [goTo]);
 
   const photosKey = resolved.join("|");
   useEffect(() => {
     setIndex(0);
     setFailed({});
     setCoverFailed(false);
+    setUserInteracted(false);
     touchStart.current = null;
     swiped.current = false;
+    switchingRef.current = false;
   }, [photosKey]);
 
   useEffect(() => {
@@ -139,6 +200,40 @@ export default function VehicleCardGallery({
       swiped.current = false;
     }
   }, [isFinePointer]);
+
+  // Only cards that enter the viewport (or are priority) may warm the next image.
+  useEffect(() => {
+    if (priority) {
+      setInView(true);
+      return;
+    }
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setInView(true);
+            // Once seen, keep eligibility; disconnect to avoid churn.
+            io.disconnect();
+            break;
+          }
+        }
+      },
+      { root: null, rootMargin: "120px 0px", threshold: 0.01 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [priority]);
+
+  // After current image is marked ready + eligibility, warm only the next one.
+  useEffect(() => {
+    if (!canPreloadNext) return;
+    const currentSrc = srcFor(index);
+    if (!isVehicleImageReady(currentSrc)) return;
+    warmNextOnly(index);
+  }, [canPreloadNext, index, srcFor, warmNextOnly, failed]);
 
   // Non-passive touchmove — only when touch carousel is active
   useEffect(() => {
@@ -204,14 +299,12 @@ export default function VehicleCardGallery({
     }
   }
 
-  function srcFor(i: number) {
-    return failed[i] ? PLACEHOLDER : resolved[i] ?? PLACEHOLDER;
-  }
-
   const showControls = multi && isFinePointer !== true;
+  const displaySrc = srcFor(touchCarouselActive ? index : 0);
 
   return (
     <div
+      ref={rootRef}
       className={`relative aspect-[4/3] bg-slate-100 overflow-hidden select-none ${className}`}
     >
       {/* Fine-pointer desktops: static cover (CSS media — not viewport width) */}
@@ -224,10 +317,13 @@ export default function VehicleCardGallery({
           alt={alt}
           fill
           className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+          sizes={VEHICLE_CARD_IMAGE.sizes}
+          quality={VEHICLE_CARD_IMAGE.quality}
           priority={priority}
           loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
           draggable={false}
+          onLoad={() => markVehicleImageReady(coverFailed ? PLACEHOLDER : coverSrc)}
           onError={() => setCoverFailed(true)}
         />
       </div>
@@ -260,14 +356,20 @@ export default function VehicleCardGallery({
       >
         <div className="absolute inset-0 pointer-events-none" aria-hidden>
           <Image
-            src={srcFor(touchCarouselActive ? index : 0)}
+            src={displaySrc}
             alt={alt}
             fill
             className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+            sizes={VEHICLE_CARD_IMAGE.sizes}
+            quality={VEHICLE_CARD_IMAGE.quality}
             priority={priority && index === 0}
             loading={priority && index === 0 ? "eager" : "lazy"}
+            fetchPriority={priority && index === 0 ? "high" : "auto"}
             draggable={false}
+            onLoad={() => {
+              markVehicleImageReady(displaySrc);
+              warmNextOnly(index);
+            }}
             onError={() =>
               setFailed((prev) => ({
                 ...prev,
@@ -276,22 +378,6 @@ export default function VehicleCardGallery({
             }
           />
         </div>
-
-        {touchCarouselActive &&
-          multi &&
-          resolved.map((url, i) =>
-            i === index || Math.abs(i - index) > 1 ? null : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={`${reactId}-preload-${i}`}
-                src={url}
-                alt=""
-                className="hidden"
-                loading="lazy"
-                onError={() => setFailed((prev) => ({ ...prev, [i]: true }))}
-              />
-            )
-          )}
 
         {showControls && (
           <>
