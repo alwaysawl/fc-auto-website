@@ -530,6 +530,7 @@ function InventoryVehicleCard({
           previousImage: t.inventory.galleryPrevious,
           nextImage: t.inventory.galleryNext,
           imagePosition: t.inventory.galleryPosition,
+          loading: t.inventory.galleryLoading,
         }}
       />
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Vehicle, Locale } from "@/lib/types";
@@ -27,10 +27,11 @@ import {
 import {
   isVehicleImageReady,
   markVehicleImageReady,
-  preloadVehicleImage,
   preloadVehicleImagesAhead,
   VEHICLE_DETAIL_IMAGE,
 } from "@/lib/vehicle-image-cache";
+import { useSyncedVehicleGallerySwitch } from "@/hooks/useSyncedVehicleGallerySwitch";
+import VehicleImageLoadingOverlay from "@/components/VehicleImageLoadingOverlay";
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle;
@@ -116,7 +117,6 @@ export default function VehicleDetailClient({
   locale,
   t,
 }: VehicleDetailClientProps) {
-  const [activePhoto, setActivePhoto] = useState(0);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -125,8 +125,6 @@ export default function VehicleDetailClient({
     email: "",
     message: t.vehicleDetail.defaultMessage,
   });
-  const switchingRef = useRef(false);
-  const activePhotoRef = useRef(0);
 
   // Public stock id only — never expose VIN
   const stockNumber = vehicle.id;
@@ -166,34 +164,39 @@ export default function VehicleDetailClient({
     return out.length > 0 ? out : ["/images/rav4.jpg"];
   }, [vehicle]);
 
-  activePhotoRef.current = activePhoto;
+  const getPhotoSrc = useCallback(
+    (i: number) => photos[i] ?? coverSrc(vehicle),
+    [photos, vehicle]
+  );
 
-  const warmAhead = useCallback((fromIndex: number) => {
-    if (photos.length <= 1) return;
-    preloadVehicleImagesAhead(fromIndex, photos, VEHICLE_DETAIL_IMAGE);
-  }, [photos]);
-
-  const goToPhoto = useCallback(
-    async (nextIndex: number) => {
-      if (photos.length <= 1 || switchingRef.current) return;
-      const clamped =
-        ((nextIndex % photos.length) + photos.length) % photos.length;
-      if (clamped === activePhotoRef.current) return;
-
-      switchingRef.current = true;
-      try {
-        const targetSrc = photos[clamped];
-        // Keep current main photo visible until the target is ready.
-        if (targetSrc && !isVehicleImageReady(targetSrc)) {
-          await preloadVehicleImage(targetSrc, VEHICLE_DETAIL_IMAGE);
-        }
-        setActivePhoto(clamped);
-      } finally {
-        switchingRef.current = false;
-      }
+  const warmAhead = useCallback(
+    (fromIndex: number) => {
+      if (photos.length <= 1) return;
+      preloadVehicleImagesAhead(fromIndex, photos, VEHICLE_DETAIL_IMAGE);
     },
     [photos]
   );
+
+  const {
+    index: activePhoto,
+    isSwitching,
+    goTo: goToPhoto,
+    goRelative,
+    reset: resetGallery,
+  } = useSyncedVehicleGallerySwitch({
+    length: photos.length,
+    getSrc: getPhotoSrc,
+    preloadOpts: VEHICLE_DETAIL_IMAGE,
+    enabled: photos.length > 1,
+    onCommitted: (committed) => {
+      warmAhead(committed);
+    },
+  });
+
+  const photosKey = photos.join("|");
+  useEffect(() => {
+    resetGallery();
+  }, [photosKey, resetGallery]);
 
   // Detail page: after the current main image is ready, warm up to two ahead.
   useEffect(() => {
@@ -212,11 +215,11 @@ export default function VehicleDetailClient({
   );
 
   function prevPhoto() {
-    void goToPhoto(activePhotoRef.current - 1);
+    goRelative(-1);
   }
 
   function nextPhoto() {
-    void goToPhoto(activePhotoRef.current + 1);
+    goRelative(1);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -357,13 +360,17 @@ export default function VehicleDetailClient({
                 }}
               />
 
+              {isSwitching ? (
+                <VehicleImageLoadingOverlay label={t.inventory.galleryLoading} />
+              ) : null}
+
               {photos.length > 1 && (
                 <>
                   <button
                     type="button"
                     onClick={prevPhoto}
                     aria-label="Previous image"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 text-brand-slate shadow-soft flex items-center justify-center hover:bg-white transition-colors"
+                    className="absolute left-3 top-1/2 z-10 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 text-brand-slate shadow-soft flex items-center justify-center hover:bg-white transition-colors"
                   >
                     ‹
                   </button>
@@ -371,7 +378,7 @@ export default function VehicleDetailClient({
                     type="button"
                     onClick={nextPhoto}
                     aria-label="Next image"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 text-brand-slate shadow-soft flex items-center justify-center hover:bg-white transition-colors"
+                    className="absolute right-3 top-1/2 z-10 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 text-brand-slate shadow-soft flex items-center justify-center hover:bg-white transition-colors"
                   >
                     ›
                   </button>

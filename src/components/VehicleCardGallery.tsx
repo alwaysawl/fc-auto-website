@@ -13,10 +13,11 @@ import {
 import {
   isVehicleImageReady,
   markVehicleImageReady,
-  preloadVehicleImage,
   preloadVehicleImagesAhead,
   VEHICLE_CARD_IMAGE,
 } from "@/lib/vehicle-image-cache";
+import { useSyncedVehicleGallerySwitch } from "@/hooks/useSyncedVehicleGallerySwitch";
+import VehicleImageLoadingOverlay from "@/components/VehicleImageLoadingOverlay";
 
 const PLACEHOLDER = "/images/rav4.jpg";
 const SWIPE_THRESHOLD_PX = 40;
@@ -38,6 +39,7 @@ export type VehicleCardGalleryLabels = {
   previousImage: string;
   nextImage: string;
   imagePosition: string; // "Image {current} of {total}"
+  loading?: string;
 };
 
 type VehicleCardGalleryProps = {
@@ -96,6 +98,7 @@ function useIsFinePointer(): boolean | null {
  *
  * Preload policy (egress-safe): after the current image loads, warm at most the
  * next two frames — only when the card is in view / interacted / priority.
+ * Dots / index only advance when the target frame is ready (synced with image).
  */
 export default function VehicleCardGallery({
   images,
@@ -113,7 +116,6 @@ export default function VehicleCardGallery({
   /** Touch carousel active only when we know the device is not fine-pointer. */
   const touchCarouselActive = isFinePointer === false;
 
-  const [index, setIndex] = useState(0);
   const [failed, setFailed] = useState<Record<number, boolean>>({});
   const [coverFailed, setCoverFailed] = useState(false);
   const [inView, setInView] = useState(priority);
@@ -123,82 +125,81 @@ export default function VehicleCardGallery({
   const trackRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
-  const switchingRef = useRef(false);
-  const indexRef = useRef(0);
-
-  indexRef.current = index;
 
   const srcFor = useCallback(
     (i: number) => (failed[i] ? PLACEHOLDER : resolved[i] ?? PLACEHOLDER),
     [failed, resolved]
   );
 
-  const canPreloadNext =
-    touchCarouselActive &&
-    multi &&
-    (inView || userInteracted || priority);
-
   const warmAhead = useCallback(
     (fromIndex: number) => {
-      if (!canPreloadNext) return;
+      if (
+        !(
+          touchCarouselActive &&
+          multi &&
+          (inView || userInteracted || priority)
+        )
+      ) {
+        return;
+      }
       const upcoming = resolved.map((_, i) => srcFor(i));
       preloadVehicleImagesAhead(fromIndex, upcoming, VEHICLE_CARD_IMAGE);
     },
-    [canPreloadNext, resolved, srcFor]
+    [
+      touchCarouselActive,
+      multi,
+      inView,
+      userInteracted,
+      priority,
+      resolved,
+      srcFor,
+    ]
   );
 
-  const goTo = useCallback(
-    async (next: number) => {
-      if (!multi || isFinePointer === true || switchingRef.current) return;
-      const clamped =
-        ((next % resolved.length) + resolved.length) % resolved.length;
-      if (clamped === indexRef.current) return;
-
-      setUserInteracted(true);
-      switchingRef.current = true;
-      try {
-        const targetSrc = failed[clamped]
-          ? PLACEHOLDER
-          : resolved[clamped] ?? PLACEHOLDER;
-        // Keep current frame visible until the target is ready (no white flash).
-        if (!isVehicleImageReady(targetSrc)) {
-          await preloadVehicleImage(targetSrc, VEHICLE_CARD_IMAGE);
-        }
-        setIndex(clamped);
-      } finally {
-        switchingRef.current = false;
-      }
+  const {
+    index,
+    isSwitching,
+    goRelative,
+    reset,
+    jumpTo,
+  } = useSyncedVehicleGallerySwitch({
+    length: resolved.length,
+    getSrc: srcFor,
+    preloadOpts: VEHICLE_CARD_IMAGE,
+    enabled: multi && touchCarouselActive,
+    onCommitted: (committed) => {
+      warmAhead(committed);
     },
-    [multi, resolved, isFinePointer, failed]
-  );
+  });
 
   const prev = useCallback(() => {
-    void goTo(indexRef.current - 1);
-  }, [goTo]);
+    setUserInteracted(true);
+    goRelative(-1);
+  }, [goRelative]);
   const next = useCallback(() => {
-    void goTo(indexRef.current + 1);
-  }, [goTo]);
+    setUserInteracted(true);
+    goRelative(1);
+  }, [goRelative]);
 
   const photosKey = resolved.join("|");
   useEffect(() => {
-    setIndex(0);
+    reset();
     setFailed({});
     setCoverFailed(false);
     setUserInteracted(false);
     touchStart.current = null;
     swiped.current = false;
-    switchingRef.current = false;
-  }, [photosKey]);
+  }, [photosKey, reset]);
 
   useEffect(() => {
     if (isFinePointer === true) {
-      setIndex(0);
+      jumpTo(0);
       touchStart.current = null;
       swiped.current = false;
     }
-  }, [isFinePointer]);
+  }, [isFinePointer, jumpTo]);
 
-  // Only cards that enter the viewport (or are priority) may warm the next image.
+  // Only cards that enter the viewport (or are priority) may warm ahead.
   useEffect(() => {
     if (priority) {
       setInView(true);
@@ -212,7 +213,6 @@ export default function VehicleCardGallery({
         for (const entry of entries) {
           if (entry.isIntersecting) {
             setInView(true);
-            // Once seen, keep eligibility; disconnect to avoid churn.
             io.disconnect();
             break;
           }
@@ -223,6 +223,11 @@ export default function VehicleCardGallery({
     io.observe(el);
     return () => io.disconnect();
   }, [priority]);
+
+  const canPreloadNext =
+    touchCarouselActive &&
+    multi &&
+    (inView || userInteracted || priority);
 
   // After current image is marked ready + eligibility, warm up to two ahead.
   useEffect(() => {
@@ -375,6 +380,10 @@ export default function VehicleCardGallery({
             }
           />
         </div>
+
+        {touchCarouselActive && isSwitching ? (
+          <VehicleImageLoadingOverlay label={labels.loading} />
+        ) : null}
 
         {showControls && (
           <>

@@ -210,7 +210,8 @@
     "popular": "Popular",
     "galleryPrevious": "Previous image",
     "galleryNext": "Next image",
-    "galleryPosition": "Image {current} of {total}"
+    "galleryPosition": "Image {current} of {total}",
+    "galleryLoading": "Loading…"
   },
   "vehicleDetail": {
     "specifications": "Specifications",
