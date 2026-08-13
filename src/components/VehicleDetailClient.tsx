@@ -27,8 +27,8 @@ import {
 import {
   isVehicleImageReady,
   markVehicleImageReady,
-  nextGalleryIndex,
   preloadVehicleImage,
+  preloadVehicleImagesAhead,
   VEHICLE_DETAIL_IMAGE,
 } from "@/lib/vehicle-image-cache";
 
@@ -168,17 +168,10 @@ export default function VehicleDetailClient({
 
   activePhotoRef.current = activePhoto;
 
-  const warmNextOnly = useCallback(
-    (fromIndex: number) => {
-      if (photos.length <= 1) return;
-      const nextIdx = nextGalleryIndex(fromIndex, photos.length);
-      if (nextIdx === fromIndex) return;
-      const nextSrc = photos[nextIdx];
-      if (!nextSrc || isVehicleImageReady(nextSrc)) return;
-      void preloadVehicleImage(nextSrc, VEHICLE_DETAIL_IMAGE);
-    },
-    [photos]
-  );
+  const warmAhead = useCallback((fromIndex: number) => {
+    if (photos.length <= 1) return;
+    preloadVehicleImagesAhead(fromIndex, photos, VEHICLE_DETAIL_IMAGE);
+  }, [photos]);
 
   const goToPhoto = useCallback(
     async (nextIndex: number) => {
@@ -202,12 +195,12 @@ export default function VehicleDetailClient({
     [photos]
   );
 
-  // Detail page: after the current main image is ready, warm only the next one.
+  // Detail page: after the current main image is ready, warm up to two ahead.
   useEffect(() => {
     const current = photos[activePhoto];
     if (!current || !isVehicleImageReady(current)) return;
-    warmNextOnly(activePhoto);
-  }, [photos, activePhoto, warmNextOnly]);
+    warmAhead(activePhoto);
+  }, [photos, activePhoto, warmAhead]);
 
   const overview = useMemo(
     () =>
@@ -360,7 +353,7 @@ export default function VehicleDetailClient({
                 onLoad={() => {
                   const current = photos[activePhoto] ?? coverSrc(vehicle);
                   markVehicleImageReady(current);
-                  warmNextOnly(activePhoto);
+                  warmAhead(activePhoto);
                 }}
               />
 

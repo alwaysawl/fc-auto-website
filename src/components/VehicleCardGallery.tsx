@@ -13,8 +13,8 @@ import {
 import {
   isVehicleImageReady,
   markVehicleImageReady,
-  nextGalleryIndex,
   preloadVehicleImage,
+  preloadVehicleImagesAhead,
   VEHICLE_CARD_IMAGE,
 } from "@/lib/vehicle-image-cache";
 
@@ -94,8 +94,8 @@ function useIsFinePointer(): boolean | null {
  * - Coarse / no-hover (touch): swipe + arrows/dots for multi-image vehicles
  * Image tap never opens a gallery. Behavior is not based on lg/md width.
  *
- * Preload policy (egress-safe): only warm the next image after the current one
- * loads, and only when the card is in view / interacted / priority.
+ * Preload policy (egress-safe): after the current image loads, warm at most the
+ * next two frames — only when the card is in view / interacted / priority.
  */
 export default function VehicleCardGallery({
   images,
@@ -138,16 +138,13 @@ export default function VehicleCardGallery({
     multi &&
     (inView || userInteracted || priority);
 
-  const warmNextOnly = useCallback(
+  const warmAhead = useCallback(
     (fromIndex: number) => {
       if (!canPreloadNext) return;
-      const nextIdx = nextGalleryIndex(fromIndex, resolved.length);
-      if (nextIdx === fromIndex) return;
-      const nextSrc = srcFor(nextIdx);
-      if (isVehicleImageReady(nextSrc)) return;
-      void preloadVehicleImage(nextSrc, VEHICLE_CARD_IMAGE);
+      const upcoming = resolved.map((_, i) => srcFor(i));
+      preloadVehicleImagesAhead(fromIndex, upcoming, VEHICLE_CARD_IMAGE);
     },
-    [canPreloadNext, resolved.length, srcFor]
+    [canPreloadNext, resolved, srcFor]
   );
 
   const goTo = useCallback(
@@ -227,13 +224,13 @@ export default function VehicleCardGallery({
     return () => io.disconnect();
   }, [priority]);
 
-  // After current image is marked ready + eligibility, warm only the next one.
+  // After current image is marked ready + eligibility, warm up to two ahead.
   useEffect(() => {
     if (!canPreloadNext) return;
     const currentSrc = srcFor(index);
     if (!isVehicleImageReady(currentSrc)) return;
-    warmNextOnly(index);
-  }, [canPreloadNext, index, srcFor, warmNextOnly, failed]);
+    warmAhead(index);
+  }, [canPreloadNext, index, srcFor, warmAhead, failed]);
 
   // Non-passive touchmove — only when touch carousel is active
   useEffect(() => {
@@ -368,7 +365,7 @@ export default function VehicleCardGallery({
             draggable={false}
             onLoad={() => {
               markVehicleImageReady(displaySrc);
-              warmNextOnly(index);
+              warmAhead(index);
             }}
             onError={() =>
               setFailed((prev) => ({
