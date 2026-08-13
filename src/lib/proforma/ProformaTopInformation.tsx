@@ -187,7 +187,9 @@ function SellerPartyField({
       label={field.label}
       layout={layout}
       labelClassName="text-[8.5pt] font-bold text-slate-500"
-      valueClassName="min-w-0 break-words text-[8.5pt] font-normal text-[#1E293B]"
+      valueClassName={`min-w-0 text-[8.5pt] font-normal text-[#1E293B] ${
+        field.maxLines === 1 ? "whitespace-nowrap" : "break-words"
+      }`}
     >
       {field.value || "—"}
     </AlignedFieldRow>

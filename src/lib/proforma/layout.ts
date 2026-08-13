@@ -4,7 +4,7 @@
  */
 
 /** Non-visual diagnostic marker — inspect DOM/data attribute or console on PDF download. */
-export const PROFORMA_LAYOUT_VERSION = "compact-header-gap-v8";
+export const PROFORMA_LAYOUT_VERSION = "seller-col-width-v9";
 
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
@@ -39,7 +39,8 @@ export const INFO_BOTTOM = INFO_TOP + INFO_HEIGHT; // 184
 
 export const INFO_COL_COUNT = 3;
 export const INFO_COL_GAP = 6;
-export const INFO_COL_FRACTIONS = [0.3, 0.28, 0.42] as const;
+/** Seller gets extra width so phone/email/website stay on one line. */
+export const INFO_COL_FRACTIONS = [0.36, 0.26, 0.38] as const;
 
 const INFO_COLS_INNER_W = PI_CONTENT_W - INFO_COL_GAP * (INFO_COL_COUNT - 1);
 

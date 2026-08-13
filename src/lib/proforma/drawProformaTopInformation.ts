@@ -17,7 +17,6 @@ import {
 } from "@/lib/proforma/alignedLabelValue";
 import {
   INFO_BOTTOM,
-  INFO_HEIGHT,
   INFO_TOP,
   infoColLeft,
   infoColWidth,
@@ -28,7 +27,6 @@ import { setProformaFont } from "@/lib/proforma/pdfFonts";
 import type {
   ProformaTopInformationData,
   TopInfoAddressField,
-  TopInfoPartyField,
 } from "@/lib/proforma/topInformationModel";
 
 type Pdf = jsPDF;
@@ -44,7 +42,6 @@ const PT_PARTY = 8.5;
 const PT_META_LABEL = 9;
 const PT_META_VALUE = 9.5;
 const PT_LINE_HEIGHT = 1.12;
-const INFO_BOTTOM_PAD = 4;
 
 const MARGIN = PI_MARGIN;
 const CONTENT_W = PI_CONTENT_W;
@@ -88,24 +85,6 @@ function putText(
   }
   doc.text(lines, x, y);
   return lines.length * (fontSize + lineGap);
-}
-
-function measureValueHeight(
-  doc: Pdf,
-  value: string,
-  valueW: number,
-  maxLines = 99,
-  fontSize = PT_PARTY
-): number {
-  const lineGap = fontSize * (PT_LINE_HEIGHT - 1);
-  setProformaFont(doc, "normal");
-  doc.setFontSize(fontSize);
-  const lines = doc.splitTextToSize(
-    (value || "—").trim() || "—",
-    valueW
-  ) as string[];
-  const n = Math.min(maxLines, Math.max(1, lines.length));
-  return Math.max(fontSize * PT_LINE_HEIGHT, n * (fontSize + lineGap)) + 1.2;
 }
 
 /**
@@ -270,7 +249,6 @@ export function drawProformaTopInformation(
   const col2 = infoColLeft(1);
   const col3 = infoColLeft(2);
   const infoTop = INFO_TOP;
-  const infoLimit = INFO_TOP + INFO_HEIGHT - INFO_BOTTOM_PAD;
 
   const sellerLayout = layoutAlignedColumn(
     data.seller.fields.map((f) => f.label),
@@ -281,8 +259,6 @@ export function drawProformaTopInformation(
   const buyerColW = infoColWidth(1);
   const invoiceColW = infoColWidth(2);
 
-  const sellerValueW = alignedValueMaxWidth(sellerLayout, sellerColW);
-
   drawSectionTitle(doc, data.seller.title, col1, infoTop, sellerColW - 4);
   drawSectionTitle(doc, data.buyer.title, col2, infoTop, buyerColW - 4);
   drawSectionTitle(doc, data.invoice.title, col3, infoTop, invoiceColW - 4);
@@ -291,46 +267,9 @@ export function drawProformaTopInformation(
 
   // —— Left: Seller ——
   let y1 = bodyY;
-  const partyFields = data.seller.fields.filter(
-    (f): f is TopInfoPartyField => f.kind === "party"
-  );
-  const addressField = data.seller.fields.find(
-    (f): f is TopInfoAddressField => f.kind === "address"
-  );
-
-  let reserved = 0;
-  for (const f of partyFields) {
-    if (f.label.startsWith("Company")) continue;
-    reserved += measureValueHeight(
-      doc,
-      f.value,
-      sellerValueW,
-      f.maxLines ?? 99
-    );
-  }
-  const companyField = partyFields.find((f) => f.label.startsWith("Company"));
-  if (companyField) {
-    reserved += measureValueHeight(
-      doc,
-      companyField.value,
-      sellerValueW,
-      companyField.maxLines ?? 3
-    );
-  }
-
-  const addressBudget = Math.max(
-    PT_PARTY * PT_LINE_HEIGHT + 1.5,
-    infoLimit - (bodyY + reserved)
-  );
-  const addrLineH = PT_PARTY * PT_LINE_HEIGHT;
-  const addressMaxLines = Math.max(
-    1,
-    Math.min(
-      5,
-      Math.floor(addressBudget / addrLineH),
-      addressField?.lines.length || 1
-    )
-  );
+  // Address may wrap once ("2nd Floor, Wenhai" / "Automobile City").
+  // Never cap by source line count — that dropped wrapped words.
+  const addressMaxLines = 2;
 
   for (const field of data.seller.fields) {
     if (field.kind === "address") {

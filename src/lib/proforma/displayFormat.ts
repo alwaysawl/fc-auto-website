@@ -8,9 +8,6 @@ const PREFERRED_COMPANY =
 
 const PREFERRED_ADDRESS_LINES = [
   "2nd Floor, Wenhai Automobile City",
-  "Wenhua North Road",
-  "Guicheng Street, Nanhai District",
-  "Foshan, Guangdong, China",
 ] as const;
 
 function normalizeCompanyKey(value: string): string {
@@ -48,7 +45,9 @@ export function formatSellerCompanyDisplay(companyName: string): string {
 }
 
 /**
- * Preferred multi-line address for known FC addresses.
+ * Preferred street line for known FC addresses.
+ * The full snapshot may include company name + remaining city lines;
+ * PDF/preview only show this complete street string (wrapping allowed).
  * Otherwise splits on commas/newlines into compact lines (max 5).
  */
 export function formatSellerAddressDisplayLines(

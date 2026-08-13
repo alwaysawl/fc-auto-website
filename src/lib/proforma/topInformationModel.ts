@@ -101,17 +101,17 @@ export function buildProformaTopInformation(
         party(
           "Company / 公司",
           formatSellerCompanyDisplay(input.companyName),
-          3
+          2
         ),
         {
           kind: "address",
           label: "Address / 地址",
           lines: formatSellerAddressDisplayLines(input.companyAddress),
         },
-        party("Sales / 销售", input.salespersonName),
-        party("Phone / 电话", input.salespersonPhone),
-        party("Email / 邮箱", input.salespersonEmail),
-        party("Website / 网站", website),
+        party("Sales / 销售", input.salespersonName, 1),
+        party("Phone / 电话", input.salespersonPhone, 1),
+        party("Email / 邮箱", input.salespersonEmail, 1),
+        party("Website / 网站", website, 1),
       ],
     },
     buyer: {
