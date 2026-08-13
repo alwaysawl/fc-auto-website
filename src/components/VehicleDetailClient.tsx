@@ -198,7 +198,7 @@ export default function VehicleDetailClient({
     resetGallery();
   }, [photosKey, resetGallery]);
 
-  // Detail page: after the current main image is ready, warm up to two ahead.
+  // Detail page: after the current main image is ready, warm only the next one.
   useEffect(() => {
     const current = photos[activePhoto];
     if (!current || !isVehicleImageReady(current)) return;

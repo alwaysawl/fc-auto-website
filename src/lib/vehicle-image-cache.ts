@@ -9,7 +9,7 @@
 import { getImageProps } from "next/image";
 
 /** How many upcoming gallery frames to warm after the current one is ready. */
-export const VEHICLE_IMAGE_PRELOAD_AHEAD = 2;
+export const VEHICLE_IMAGE_PRELOAD_AHEAD = 1;
 
 /** Inventory / card carousel — ~800–1200px class display. */
 export const VEHICLE_CARD_IMAGE = {

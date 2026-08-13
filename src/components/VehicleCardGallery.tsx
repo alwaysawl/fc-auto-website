@@ -96,8 +96,8 @@ function useIsFinePointer(): boolean | null {
  * - Coarse / no-hover (touch): swipe + arrows/dots for multi-image vehicles
  * Image tap never opens a gallery. Behavior is not based on lg/md width.
  *
- * Preload policy (egress-safe): after the current image loads, warm at most the
- * next two frames — only when the card is in view / interacted / priority.
+ * Preload policy (egress-safe): after the current image loads, warm only the
+ * next frame — only when the card is in view / interacted / priority.
  * Dots / index only advance when the target frame is ready (synced with image).
  */
 export default function VehicleCardGallery({
@@ -229,7 +229,7 @@ export default function VehicleCardGallery({
     multi &&
     (inView || userInteracted || priority);
 
-  // After current image is marked ready + eligibility, warm up to two ahead.
+  // After current image is marked ready + eligibility, warm only the next one.
   useEffect(() => {
     if (!canPreloadNext) return;
     const currentSrc = srcFor(index);
