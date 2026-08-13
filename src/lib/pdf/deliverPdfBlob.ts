@@ -30,6 +30,14 @@ export function isAppleMobileBrowser(): boolean {
   return false;
 }
 
+/** Phones/tablets that should not see desktop-only download actions. */
+export function isMobileBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (isAppleMobileBrowser()) return true;
+  const ua = navigator.userAgent || "";
+  return /Android|webOS|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+}
+
 export function canSharePdfFile(file: File): boolean {
   const nav = navigator as Navigator & {
     canShare?: (data: ShareData) => boolean;

@@ -29,6 +29,10 @@ import {
   isAppleMobileBrowser,
 } from "@/lib/proforma/downloadProformaPdf";
 import {
+  isMobileBrowser,
+  triggerAnchorDownload,
+} from "@/lib/pdf/deliverPdfBlob";
+import {
   clearPendingProformaPdf,
   stashPendingProformaPdf,
   takePendingProformaPdf,
@@ -280,6 +284,7 @@ export default function AdminProformaEditor({
   const [generatedPdfFile, setGeneratedPdfFile] = useState<File | null>(null);
   const generatedPdfFileRef = useRef<File | null>(null);
   const signatureAtGeneration = useRef<string>("");
+  const [showDesktopPdfDownload, setShowDesktopPdfDownload] = useState(false);
 
   const contentSignature = useMemo(
     () =>
@@ -369,6 +374,10 @@ export default function AdminProformaEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- clear only on signature drift
   }, [contentSignature, generatedPdfFile]);
+
+  useEffect(() => {
+    setShowDesktopPdfDownload(!isMobileBrowser());
+  }, []);
 
   const totals = useMemo(() => {
     const itemTotals = items.map((item) =>
@@ -588,6 +597,7 @@ export default function AdminProformaEditor({
   const save = async (opts: {
     generatePdf?: boolean;
     markIssued?: boolean;
+    downloadToComputer?: boolean;
   }) => {
     if (saving) return;
 
@@ -685,7 +695,12 @@ export default function AdminProformaEditor({
           contentSignature,
         });
 
-        setMessage("PDF 已生成，请点击「保存 PDF 到手机」。");
+        if (opts.downloadToComputer) {
+          triggerAnchorDownload(pdfFile, pdfFile.name);
+          setMessage(`PDF 已开始下载。\n${pdfFile.name}`);
+        } else {
+          setMessage("PDF 已生成，请点击「保存 PDF 到手机」。");
+        }
       } else {
         setMessage(`草稿已保存 ${savedNumber}`);
       }
@@ -772,6 +787,25 @@ export default function AdminProformaEditor({
     setError("请再次点击「保存 PDF 到手机」。");
   }
 
+  /** Desktop only: browser file download. Never Web Share. */
+  async function handleSavePdfToComputer(
+    event: React.MouseEvent<HTMLButtonElement>
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (saving) return;
+
+    const file = generatedPdfFileRef.current;
+    if (file && file.size > 0 && file.type === "application/pdf") {
+      triggerAnchorDownload(file, file.name);
+      setMessage(`PDF 已开始下载。\n${file.name}`);
+      setError(null);
+      return;
+    }
+
+    await save({ generatePdf: true, downloadToComputer: true });
+  }
+
   const importFreight = () => {
     const country = shipping.find((c) => c.id === freightCountryId);
     const port = country?.ports.find(
@@ -853,6 +887,20 @@ export default function AdminProformaEditor({
                 ? "保存 PDF 到手机"
                 : "保存并生成 PDF"}
           </button>
+          {showDesktopPdfDownload ? (
+            <button
+              type="button"
+              className={btnGhost}
+              disabled={saving}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void handleSavePdfToComputer(event);
+              }}
+            >
+              {saving ? "保存中…" : "保存 PDF 到电脑"}
+            </button>
+          ) : null}
           <Link href="/admin/proforma-invoices" className={btnGhost}>
             取消
           </Link>
