@@ -27,10 +27,12 @@ const nextConfig: NextConfig = {
     "/api/admin/proforma-invoices/*/pdf": [
       "./public/fonts/NotoSansSC-Regular.ttf",
       "./public/fonts/NotoSansSC-Bold.ttf",
+      "./public/images/fc-logo.png",
     ],
     "/api/admin/proforma-invoices/[id]/pdf": [
       "./public/fonts/NotoSansSC-Regular.ttf",
       "./public/fonts/NotoSansSC-Bold.ttf",
+      "./public/images/fc-logo.png",
     ],
   },
   images: {

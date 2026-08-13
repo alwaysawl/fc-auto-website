@@ -32,7 +32,13 @@ const SLATE: [number, number, number] = [71, 85, 105];
 const LIGHT: [number, number, number] = [248, 250, 252];
 const FRAME_FILL: [number, number, number] = [250, 250, 250];
 
+/** Same asset as Header BrandLogo (`/images/fc-logo.png`, 760×231). */
+const SITE_LOGO_PATH = "/images/fc-logo.png";
+const SITE_LOGO_NATIVE_W = 760;
+const SITE_LOGO_NATIVE_H = 231;
+
 type Pdf = jsPDF;
+type HeaderLogo = { dataUrl: string; width: number; height: number };
 
 function addFooter(
   doc: Pdf,
@@ -75,24 +81,41 @@ function finalizePageNumbers(
 function drawHeaderBar(
   doc: Pdf,
   copy: ReturnType<typeof getVehicleQuoteCopy>,
-  whatsappDisplay: string
+  whatsappDisplay: string,
+  logo: HeaderLogo | null
 ) {
   const w = doc.internal.pageSize.getWidth();
+  const headerH = 28;
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, w, 28, "F");
-  doc.setFillColor(...YELLOW);
-  doc.roundedRect(10, 7, 14, 14, 2, 2, "F");
-  doc.setTextColor(...NAVY);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("FC", 17, 16, { align: "center" });
+  doc.rect(0, 0, w, headerH, "F");
+
+  const logoH = 18;
+  const logoW = logo
+    ? (logoH * logo.width) / logo.height
+    : 14;
+  const logoX = 10;
+  const logoY = (headerH - logoH) / 2;
+
+  if (logo) {
+    doc.addImage(logo.dataUrl, "PNG", logoX, logoY, logoW, logoH);
+  } else {
+    doc.setFillColor(...YELLOW);
+    doc.roundedRect(logoX, 7, 14, 14, 2, 2, "F");
+    doc.setTextColor(...NAVY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("FC", logoX + 7, 16, { align: "center" });
+  }
+
+  const textX = logoX + logoW + 8;
   doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text(copy.companyName, 28, 13);
+  doc.text(copy.companyName, textX, 13);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(200, 210, 220);
-  doc.text(copy.tagline, 28, 20);
+  doc.text(copy.tagline, textX, 20);
   doc.setTextColor(...YELLOW);
   doc.setFontSize(8);
   doc.text(copy.website, w - 12, 13, { align: "right" });
@@ -293,6 +316,14 @@ async function buildVehicleQuotePdfInternal(
   const mainImage = images[0] ?? null;
   const gridImages = images.slice(0, 6);
   const qrDataUrl = await loadPngAsDataUrl(contact.qrPath);
+  const logoDataUrl = await loadPngAsDataUrl(SITE_LOGO_PATH);
+  const headerLogo: HeaderLogo | null = logoDataUrl
+    ? {
+        dataUrl: logoDataUrl,
+        width: SITE_LOGO_NATIVE_W,
+        height: SITE_LOGO_NATIVE_H,
+      }
+    : null;
 
   const vehicleName =
     vehicle.titleEn?.trim() || `${vehicle.brand} ${vehicle.model}`;
@@ -300,7 +331,7 @@ async function buildVehicleQuotePdfInternal(
   const status = statusLabelForQuote(vehicle.status, locale);
   const quoteDate = formatQuoteDate(locale);
 
-  drawHeaderBar(doc, copy, whatsappDisplay);
+  drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
   let y = 42;
 
   const text = (
@@ -426,7 +457,7 @@ async function buildVehicleQuotePdfInternal(
   if (y + contactCardH > pageH - footerSafe) {
     addFooter(doc, copy, whatsappDisplay);
     doc.addPage();
-    drawHeaderBar(doc, copy, whatsappDisplay);
+    drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
     y = 42;
   }
 
@@ -516,7 +547,7 @@ async function buildVehicleQuotePdfInternal(
 
   // —— Page 2 ——
   doc.addPage();
-  drawHeaderBar(doc, copy, whatsappDisplay);
+  drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
   y = 42;
   y += text(copy.vehicleInformation, margin, y, 14, { bold: true });
   y += 10;
@@ -527,7 +558,7 @@ async function buildVehicleQuotePdfInternal(
     if (y > pageH - footerSafe - 20) {
       addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy, whatsappDisplay);
+      drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
       y = 42;
     }
     doc.setFillColor(...(rowIndex % 2 === 0 ? LIGHT : WHITE));
@@ -549,7 +580,7 @@ async function buildVehicleQuotePdfInternal(
     if (y > pageH - footerSafe - 60) {
       addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy, whatsappDisplay);
+      drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
       y = 42;
     }
     y += text(copy.fieldLabels.description, margin, y, 11, { bold: true });
@@ -568,7 +599,7 @@ async function buildVehicleQuotePdfInternal(
     if (y > pageH - footerSafe - 40) {
       addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy, whatsappDisplay);
+      drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
       y = 42;
     }
     y += text(copy.fieldLabels.features, margin, y, 11, { bold: true });
@@ -578,7 +609,7 @@ async function buildVehicleQuotePdfInternal(
       if (y > pageH - footerSafe - 24) {
         addFooter(doc, copy, whatsappDisplay);
         doc.addPage();
-        drawHeaderBar(doc, copy, whatsappDisplay);
+        drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
         y = 42;
       }
       if (block.kind === "heading") {
@@ -644,7 +675,7 @@ async function buildVehicleQuotePdfInternal(
     if (y + blockNeed > pageH - footerSafe) {
       addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy, whatsappDisplay);
+      drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
       y = 42;
     }
 
@@ -687,7 +718,7 @@ async function buildVehicleQuotePdfInternal(
     if (y > pageH - footerSafe - 100) {
       addFooter(doc, copy, whatsappDisplay);
       doc.addPage();
-      drawHeaderBar(doc, copy, whatsappDisplay);
+      drawHeaderBar(doc, copy, whatsappDisplay, headerLogo);
       y = 42;
     }
     const discPadTop = 12;

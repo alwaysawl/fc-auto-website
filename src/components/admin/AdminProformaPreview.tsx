@@ -145,10 +145,15 @@ export default function AdminProformaPreview({
           <div style={band(HEADER_TOP, HEADER_HEIGHT)}>
             <div className="flex h-full items-center justify-between gap-2 pb-[4pt]">
               <div className="flex items-center gap-2">
-                <div className="flex h-[26pt] w-[26pt] items-center justify-center rounded-md bg-[#1E293B]">
-                  <div className="flex h-[17pt] w-[17pt] items-center justify-center rounded bg-[#D4AF37] text-[9px] font-bold text-[#1E293B]">
-                    FC
-                  </div>
+                <div className="flex h-[24pt] items-center justify-center rounded-md bg-[#1E293B] px-[3pt]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/images/fc-logo.png"
+                    alt=""
+                    width={760}
+                    height={231}
+                    className="h-[18pt] w-auto object-contain object-center"
+                  />
                 </div>
                 <div>
                   <p className="text-[11pt] font-bold leading-none text-[#1E293B]">

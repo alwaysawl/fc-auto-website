@@ -43,10 +43,11 @@ export function formatQuotePrice(vehicle: Vehicle): string {
 }
 
 export function formatQuoteMileage(vehicle: Vehicle, locale: Locale): string {
-  const n = new Intl.NumberFormat(
-    locale === "zh" ? "zh-CN" : locale === "fr" ? "fr-FR" : "en-US"
-  ).format(vehicle.mileage);
-  return `${n} km`;
+  const n = new Intl.NumberFormat("en-US", {
+    useGrouping: true,
+    maximumFractionDigits: 0,
+  }).format(Math.round(Number(vehicle.mileage) || 0));
+  return locale === "zh" ? `${n} 公里` : `${n} km`;
 }
 
 export function statusLabelForQuote(

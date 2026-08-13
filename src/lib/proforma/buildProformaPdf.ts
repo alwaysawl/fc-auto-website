@@ -4,6 +4,8 @@
  * Exactly 8 visible vehicle rows — no pagination, no autoTable.
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { jsPDF } from "jspdf";
 import { formatUsd } from "@/lib/admin/proforma/money";
 import type {
@@ -69,7 +71,35 @@ const PAGE_W = PAGE_WIDTH;
 const PAGE_H = PAGE_HEIGHT;
 const CONTENT_W = PI_CONTENT_W;
 
+/** Same asset as Header BrandLogo and vehicle quotation PDF (`/images/fc-logo.png`, 760×231). */
+const SITE_LOGO_NATIVE_W = 760;
+const SITE_LOGO_NATIVE_H = 231;
+const SITE_LOGO_FILE = "fc-logo.png";
+
 type Pdf = jsPDF;
+type HeaderLogo = { dataUrl: string; width: number; height: number };
+
+let cachedSiteLogoDataUrl: string | null | undefined;
+
+function loadSiteLogoPngDataUrl(): string | null {
+  if (cachedSiteLogoDataUrl !== undefined) return cachedSiteLogoDataUrl;
+  const cwd = process.cwd();
+  const candidates = [
+    join(cwd, "public", "images", SITE_LOGO_FILE),
+    join(cwd, "images", SITE_LOGO_FILE),
+  ];
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    try {
+      cachedSiteLogoDataUrl = `data:image/png;base64,${readFileSync(candidate).toString("base64")}`;
+      return cachedSiteLogoDataUrl;
+    } catch {
+      break;
+    }
+  }
+  cachedSiteLogoDataUrl = null;
+  return null;
+}
 
 export type ProformaPdfSource = {
   invoiceNumber: string;
@@ -203,23 +233,42 @@ function drawGoldRule(doc: Pdf, y: number) {
 }
 
 /** Header band only — never draws Invoice/Seller/Buyer. */
-function drawHeader(doc: Pdf, source: ProformaPdfSource) {
+function drawHeader(doc: Pdf, source: ProformaPdfSource, logo: HeaderLogo | null) {
   const bandTop = HEADER_TOP;
   const usableH = HEADER_HEIGHT - 4;
-  const logo = 26; // ~8% larger than prior 24pt
-  const logoY = bandTop + (usableH - logo) / 2;
-  const midY = logoY + logo / 2;
+  const logoH = 18;
+  const logoPad = 3;
+  const logoW = logo
+    ? (logoH * logo.width) / logo.height
+    : 26;
+  const plateW = logo ? logoW + logoPad * 2 : 26;
+  const plateH = logo ? logoH + logoPad * 2 : 26;
+  const plateY = bandTop + (usableH - plateH) / 2;
+  const midY = plateY + plateH / 2;
 
-  doc.setFillColor(...NAVY);
-  doc.roundedRect(MARGIN, logoY, logo, logo, 2.8, 2.8, "F");
-  doc.setFillColor(...GOLD);
-  doc.roundedRect(MARGIN + 2.8, logoY + 2.8, logo - 5.6, logo - 5.6, 1.6, 1.6, "F");
-  setProformaFont(doc, "bold");
-  doc.setTextColor(...NAVY);
-  doc.setFontSize(9);
-  doc.text("FC", MARGIN + logo / 2, logoY + logo * 0.62, { align: "center" });
+  if (logo) {
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(MARGIN, plateY, plateW, plateH, 2.8, 2.8, "F");
+    doc.addImage(
+      logo.dataUrl,
+      "PNG",
+      MARGIN + logoPad,
+      plateY + logoPad,
+      logoW,
+      logoH
+    );
+  } else {
+    doc.setFillColor(...NAVY);
+    doc.roundedRect(MARGIN, plateY, 26, 26, 2.8, 2.8, "F");
+    doc.setFillColor(...GOLD);
+    doc.roundedRect(MARGIN + 2.8, plateY + 2.8, 20.4, 20.4, 1.6, 1.6, "F");
+    setProformaFont(doc, "bold");
+    doc.setTextColor(...NAVY);
+    doc.setFontSize(9);
+    doc.text("FC", MARGIN + 13, plateY + 26 * 0.62, { align: "center" });
+  }
 
-  const brandX = MARGIN + logo + 7;
+  const brandX = MARGIN + plateW + 7;
   setProformaFont(doc, "bold");
   doc.setFontSize(11);
   doc.setTextColor(...NAVY);
@@ -667,7 +716,16 @@ export async function buildProformaPdfBytes(
   // Non-visual deploy diagnostic (not drawn on PDF)
   console.info("[proforma-layout]", PROFORMA_LAYOUT_VERSION);
 
-  drawHeader(doc, source);
+  const logoDataUrl = loadSiteLogoPngDataUrl();
+  const headerLogo: HeaderLogo | null = logoDataUrl
+    ? {
+        dataUrl: logoDataUrl,
+        width: SITE_LOGO_NATIVE_W,
+        height: SITE_LOGO_NATIVE_H,
+      }
+    : null;
+
+  drawHeader(doc, source, headerLogo);
   drawProformaTopInformation(
     doc,
     buildProformaTopInformation({
