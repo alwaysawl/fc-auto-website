@@ -4,6 +4,7 @@ import { Locale, Vehicle } from "@/lib/types";
 import { getLocalizedPath } from "@/lib/i18n";
 import { Translations } from "@/lib/translations";
 import WhatsAppAssignLink from "@/components/WhatsAppAssignLink";
+import VehicleCardFobPrice from "@/components/VehicleCardFobPrice";
 import { vehicleImageAlt } from "@/lib/seo";
 import { VEHICLE_CARD_IMAGE } from "@/lib/vehicle-image-cache";
 
@@ -94,12 +95,19 @@ function ShowcaseCard({
   className?: string;
 }) {
   const modelName = displayModelName(vehicle);
+  const detailHref = getLocalizedPath(`/inventory/${vehicle.id}`, locale);
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: vehicle.currency || "USD",
+      maximumFractionDigits: 0,
+    }).format(price);
 
   return (
     <article
       className={`group bg-white rounded-xl border border-slate-100 shadow-soft overflow-hidden hover:shadow-soft-lg transition-shadow ${className}`}
     >
-      <Link href={getLocalizedPath(`/inventory/${vehicle.id}`, locale)} className="block">
+      <Link href={detailHref} className="block min-w-0">
         <div className="relative aspect-[4/3] bg-slate-50">
           <Image
             src={coverImageSrc(vehicle)}
@@ -118,19 +126,24 @@ function ShowcaseCard({
             {badge === "hot" ? t.homeShowcase.hotBadge : t.homeShowcase.saleBadge}
           </span>
         </div>
-        <div className="p-4">
-          <h3 className="text-sm font-bold text-brand-slate">
+        <div className="p-4 min-w-0">
+          <h3 className="text-sm font-bold text-brand-slate break-words">
             {vehicle.brand} {modelName}
           </h3>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-1 break-words">
             {vehicle.year} | {vehicle.fuel}
           </p>
+          <VehicleCardFobPrice
+            label={t.inventory.fobChina}
+            price={formatPrice(vehicle.fobPrice)}
+            className="mt-2"
+          />
         </div>
       </Link>
 
       <div className="px-4 pb-4 flex gap-2">
         <Link
-          href={getLocalizedPath(`/inventory/${vehicle.id}`, locale)}
+          href={detailHref}
           className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-accent-yellow text-brand-slate text-xs font-semibold rounded-md hover:bg-accent-yellow-hover transition-colors"
         >
           {t.inventory.viewDetails}

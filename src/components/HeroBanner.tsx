@@ -17,7 +17,7 @@ export default function HeroBanner({ locale, t }: HeroBannerProps) {
   return (
     <div className="relative">
       {/* Mobile/tablet: height grows with content. Desktop (md+): fixed hero height unchanged. */}
-      <section className="relative h-auto min-h-[700px] md:min-h-0 md:h-[680px] overflow-visible md:overflow-hidden">
+      <section className="relative h-auto min-h-[560px] md:min-h-0 md:h-[680px] overflow-visible md:overflow-hidden">
         <Image
           src={HERO_BG}
           alt=""
@@ -32,7 +32,7 @@ export default function HeroBanner({ locale, t }: HeroBannerProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/25 md:from-black/30 md:to-black/20" />
 
         <div className="relative container-max h-full px-4 sm:px-6 lg:px-8 flex items-center">
-          <div className="w-full max-w-md md:max-w-lg lg:max-w-xl pt-20 pb-14 md:pt-20 md:pb-32">
+          <div className="w-full max-w-md md:max-w-lg lg:max-w-xl pt-16 pb-8 md:pt-20 md:pb-32">
             <div className="flex items-start gap-3 mb-4 md:mb-5 min-w-0">
               <span className="w-8 h-0.5 bg-accent-yellow mt-1.5 flex-shrink-0" aria-hidden />
               <span className={`text-white/90 text-[11px] sm:text-xs font-semibold leading-snug min-w-0 break-words ${locale === "zh" ? "tracking-wide" : "uppercase tracking-[0.12em] md:tracking-[0.15em]"}`}>
@@ -51,7 +51,7 @@ export default function HeroBanner({ locale, t }: HeroBannerProps) {
             <p className="text-white/85 text-sm md:text-base font-medium mb-2 md:mb-1 break-words">
               {t.hero.brands}
             </p>
-            <p className="text-white/65 text-sm md:text-base leading-relaxed mb-8 md:mb-8 max-w-md break-words">
+            <p className="text-white/65 text-sm md:text-base leading-relaxed mb-5 md:mb-8 max-w-md break-words">
               {t.hero.subtitle}
             </p>
 
