@@ -12,15 +12,17 @@ interface VehicleCardFobPriceProps {
   className?: string;
 }
 
-/** Split "FOB China" / "FOB Chine" into lead + trail; leave other locales intact. */
-function splitFobLabel(label: string): { fob: string; china: string } | null {
-  const match = label.trim().match(/^FOB\s+(.+)$/i);
-  if (!match) return null;
-  return { fob: "FOB", china: match[1] };
+/** Split "CHINA PRICE" / "PRIX CHINE" / "中国价格" for the existing two-weight label. */
+function splitPriceLabel(label: string): { lead: string; trail: string } | null {
+  const value = label.trim();
+  if (/^CHINA\s+PRICE$/i.test(value)) return { lead: "CHINA", trail: "PRICE" };
+  if (/^PRIX\s+CHINE$/i.test(value)) return { lead: "PRIX", trail: "CHINE" };
+  if (value === "中国价格") return { lead: "中国", trail: "价格" };
+  return null;
 }
 
 /**
- * Shared FOB price block for vehicle list cards (homepage + inventory).
+ * Shared China-price block for vehicle list cards (homepage + inventory).
  * Typography only — callers own label copy and formatted price strings.
  */
 export default function VehicleCardFobPrice({
@@ -34,14 +36,14 @@ export default function VehicleCardFobPrice({
     variant === "dark" ? "text-gold font-display" : "text-brand-slate";
   const priceType =
     priceSize === "2xl" ? "text-2xl font-bold" : "text-xl font-bold";
-  const parts = splitFobLabel(label);
+  const parts = splitPriceLabel(label);
 
   return (
     <div className={`min-w-0 ${className}`.trim()}>
       {parts ? (
         <span className="fob-label">
-          <span className="fob-text">{parts.fob}</span>
-          <span className="china-text">{parts.china}</span>
+          <span className="fob-text">{parts.lead}</span>
+          <span className="china-text">{parts.trail}</span>
         </span>
       ) : (
         <span className="fob-label">

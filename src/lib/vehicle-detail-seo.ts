@@ -279,7 +279,7 @@ export function buildVehicleOverviewText(
   }
 
   const specs = [fuel, transmission, steering].filter(Boolean).join(", ");
-  return `${vehicle.brand} ${vehicle.model} (${vehicle.year}) with ${mileage} ${options.kmUnit}, ${specs}. FOB ${price}.`;
+  return `${vehicle.brand} ${vehicle.model} (${vehicle.year}) with ${mileage} ${options.kmUnit}, ${specs}. ${options.fobLabel} ${price}.`;
 }
 
 /** On-page SEO paragraph — natural prose from real fields. */

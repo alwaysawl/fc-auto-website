@@ -84,7 +84,7 @@
       },
       {
         "title": "Transparent Pricing",
-        "description": "Clear FOB prices with no hidden fees. Know exactly what you pay."
+        "description": "Clear China prices with no hidden fees. Know exactly what you pay."
       },
       {
         "title": "Africa Specialists",
@@ -109,8 +109,8 @@
         "description": "Independent inspections can be arranged for extra buyer confidence."
       },
       {
-        "title": "Transparent FOB Pricing",
-        "description": "Clear China FOB prices with no hidden charges on the listing."
+        "title": "Transparent China Pricing",
+        "description": "Clear China prices with no hidden charges on the listing."
       },
       {
         "title": "Professional Export Experience",
@@ -139,7 +139,7 @@
       },
       {
         "title": "Get a Quote",
-        "description": "Use our shipping calculator for transparent FOB + shipping pricing."
+        "description": "Use our shipping calculator for transparent China price + shipping pricing."
       },
       {
         "title": "Confirm & Pay",
@@ -191,7 +191,7 @@
     "noResults": "No vehicles found matching your criteria.",
     "calculateShipping": "Calculate Shipping",
     "viewDetails": "View Details",
-    "fobPrice": "FOB Price",
+    "fobPrice": "China Price",
     "mileage": "Mileage",
     "year": "Year",
     "fuel": "Fuel",
@@ -206,7 +206,7 @@
     "emptyInventory": "No vehicles available.",
     "loadError": "Failed to load inventory",
     "loadingVehicles": "Loading vehicles",
-    "fobChina": "FOB China",
+    "fobChina": "CHINA PRICE",
     "popular": "Popular",
     "galleryPrevious": "Previous image",
     "galleryNext": "Next image",
@@ -219,7 +219,7 @@
     "shippingTable": "Shipping Price Table",
     "quantity": "Quantity",
     "shippingCost": "Shipping Cost",
-    "totalCost": "Total Cost (FOB + Shipping)",
+    "totalCost": "Total Cost (China Price + Shipping)",
     "contactUs": "Contact Us on WhatsApp",
     "vehicles": "vehicles",
     "vehicle": "vehicle",
@@ -234,7 +234,7 @@
     "quoteDownloadSuccess": "Vehicle quote downloaded",
     "quoteDownloadError": "Unable to generate the quote. Please try again.",
     "closePdfPreview": "Close Preview",
-    "getBestFob": "Get Best FOB Price",
+    "getBestFob": "Get Best China Price",
     "contactWhatsapp": "Contact on WhatsApp",
     "whatsappInquiry": "WhatsApp Inquiry",
     "checkoutNow": "Checkout",
@@ -274,7 +274,7 @@
     "destinationPort": "Destination Port",
     "vehicleType": "Vehicle Type",
     "shippingMethod": "Shipping Method",
-    "optionalFob": "Optional FOB vehicle price (USD)",
+    "optionalFob": "Optional China vehicle price (USD)",
     "optionalFobHint": "Leave blank if you only need a freight estimate.",
     "selectCountry": "Select country",
     "selectPort": "Select port",
@@ -282,8 +282,8 @@
     "resultTitle": "Sample shipping estimate",
     "sampleBadge": "SAMPLE estimate",
     "estimatedFreight": "Estimated ocean freight",
-    "fobPrice": "FOB vehicle price",
-    "fobPlusFreight": "Estimated FOB + freight total",
+    "fobPrice": "China vehicle price",
+    "fobPlusFreight": "Estimated China price + freight total",
     "currency": "Currency",
     "requestQuote": "Request Final Shipping Quote",
     "whatsappCta": "WhatsApp",
@@ -457,7 +457,7 @@
     "browseInventory": "Browse Inventory",
     "shippingOptions": "Shipping destination",
     "stockId": "Stock ID",
-    "fobChina": "FOB China",
+    "fobChina": "CHINA PRICE",
     "estimatedFreight": "Estimated Freight",
     "subtotal": "Subtotal",
     "remove": "Remove",
@@ -494,7 +494,7 @@
     "arrangementOwnAgentSummary": "Customer's own shipping agent",
     "freightByCustomerAgent": "Arranged by customer's shipping agent",
     "freightCustomerAgentShort": "Customer Agent",
-    "estimatedTotalFobOnly": "FOB vehicle total only",
+    "estimatedTotalFobOnly": "Vehicle total only",
     "destinationCountryOptional": "Destination Country (Optional)",
     "destinationPortOptional": "Destination Port (Optional)",
     "ownAgentNotice": "You have selected your own shipping agent. The website will not calculate or include freight charges. Vehicle handover, container loading, booking and shipping arrangements must be confirmed with you or your agent.",

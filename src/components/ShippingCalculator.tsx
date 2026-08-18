@@ -109,10 +109,10 @@ export default function ShippingCalculator({
       `Estimated ocean freight: ${formatUsd(freight)} ${SHIPPING_CURRENCY}`,
     ];
     if (fobPrice != null) {
-      lines.push(`Optional FOB price: ${formatUsd(fobPrice)} ${SHIPPING_CURRENCY}`);
+      lines.push(`Optional China price: ${formatUsd(fobPrice)} ${SHIPPING_CURRENCY}`);
       if (fobPlusFreight != null) {
         lines.push(
-          `Estimated FOB + freight: ${formatUsd(fobPlusFreight)} ${SHIPPING_CURRENCY}`
+          `Estimated China price + freight: ${formatUsd(fobPlusFreight)} ${SHIPPING_CURRENCY}`
         );
       }
     }

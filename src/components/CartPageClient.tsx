@@ -282,13 +282,13 @@ export default function CartPageClient({
             item.title,
             "库存编号",
             item.id,
-            "FOB",
+            t.cart.fobChina,
             `USD ${item.fobPrice.toLocaleString("en-US")}`,
             "",
           ]),
           `运输安排：${t.cart.arrangementOwnAgent}`,
           `运费：由客户代理安排`,
-          `车辆 FOB 总价：${fob}`,
+          `车辆总价：${fob}`,
           `目的国家：${countryDisplay}`,
           `目的港口：${portDisplay}`,
           "",
@@ -307,13 +307,13 @@ export default function CartPageClient({
             item.title,
             "N° de stock",
             item.id,
-            "FOB",
+            t.cart.fobChina,
             `USD ${item.fobPrice.toLocaleString("en-US")}`,
             "",
           ]),
           `Organisation du transport : ${t.cart.arrangementOwnAgent}`,
           `Fret : Organisé par l'agent du client`,
-          `Total FOB des véhicules : ${vehicleTotal.toLocaleString("fr-FR")} USD`,
+          `Total des véhicules : ${vehicleTotal.toLocaleString("fr-FR")} USD`,
           `Pays de destination : ${countryDisplay}`,
           `Port de destination : ${portDisplay}`,
           "",
@@ -331,13 +331,13 @@ export default function CartPageClient({
           item.title,
           "Stock ID",
           item.id,
-          "FOB",
+          t.cart.fobChina,
           `USD ${item.fobPrice.toLocaleString("en-US")}`,
           "",
         ]),
         `Shipping arrangement: ${t.cart.arrangementOwnAgent}`,
         `Freight: Arranged by customer's agent`,
-        `Vehicle FOB total: ${fob}`,
+        `Vehicle total: ${fob}`,
         `Destination country: ${countryDisplay}`,
         `Destination port: ${portDisplay}`,
         "",
@@ -359,7 +359,7 @@ export default function CartPageClient({
       linesOut.push(item.title);
       linesOut.push(`Stock ID`);
       linesOut.push(item.id);
-      linesOut.push(`FOB`);
+      linesOut.push(t.cart.fobChina);
       linesOut.push(`USD ${item.fobPrice.toLocaleString("en-US")}`);
       linesOut.push("");
     });
@@ -469,7 +469,7 @@ export default function CartPageClient({
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 xl:gap-8 items-start pb-24 xl:pb-0">
-      <div className="space-y-5 min-w-0">
+      <div className="flex flex-col-reverse xl:flex-col gap-5 min-w-0">
         {/* Shipping selectors */}
         <section className="bg-white border border-slate-100 rounded-2xl shadow-soft p-4 sm:p-5">
           <h2 className="text-base font-bold text-brand-slate mb-4">

@@ -84,7 +84,7 @@
       },
       {
         "title": "价格透明",
-        "description": "清晰的中国离岸价，无隐藏费用，让您清楚掌握成本。"
+        "description": "清晰的中国价格，无隐藏费用，让您清楚掌握成本。"
       },
       {
         "title": "深耕非洲市场",
@@ -109,8 +109,8 @@
         "description": "可安排独立第三方检测，让买家更放心。"
       },
       {
-        "title": "透明中国离岸价",
-        "description": "清晰的中国 FOB 价格，列表无隐藏费用。"
+        "title": "透明中国价格",
+        "description": "清晰的中国价格，列表无隐藏费用。"
       },
       {
         "title": "专业出口经验",
@@ -139,7 +139,7 @@
       },
       {
         "title": "获取报价",
-        "description": "通过运费计算器了解离岸价与运输费用估算。"
+        "description": "通过运费计算器了解中国价格与运输费用估算。"
       },
       {
         "title": "确认并付款",
@@ -195,8 +195,8 @@
     "loadingVehicles": "正在加载车辆",
     "calculateShipping": "计算运费",
     "viewDetails": "查看详情",
-    "fobPrice": "离岸价",
-    "fobChina": "中国离岸价",
+    "fobPrice": "中国价格",
+    "fobChina": "中国价格",
     "popular": "热门",
     "mileage": "行驶里程",
     "year": "年份",
@@ -220,7 +220,7 @@
     "shippingTable": "运费价格表",
     "quantity": "数量",
     "shippingCost": "运费",
-    "totalCost": "合计（离岸价 + 运费）",
+    "totalCost": "合计（中国价格 + 运费）",
     "contactUs": "WhatsApp 联系我们",
     "vehicles": "辆",
     "vehicle": "辆",
@@ -234,7 +234,7 @@
     "quoteDownloadSuccess": "车辆报价单已下载",
     "quoteDownloadError": "报价单生成失败，请重试。",
     "closePdfPreview": "关闭预览",
-    "getBestFob": "获取最优离岸价",
+    "getBestFob": "获取最优中国价格",
     "contactWhatsapp": "WhatsApp 联系",
     "whatsappInquiry": "WhatsApp 询价",
     "checkoutNow": "立即结算",
@@ -274,7 +274,7 @@
     "destinationPort": "目的港口",
     "vehicleType": "车辆类型",
     "shippingMethod": "运输方式",
-    "optionalFob": "可选车辆离岸价格（美元）",
+    "optionalFob": "可选车辆中国价格（美元）",
     "optionalFobHint": "如仅需运费估算，可留空。",
     "selectCountry": "选择国家",
     "selectPort": "选择港口",
@@ -282,7 +282,7 @@
     "resultTitle": "运费估算结果",
     "sampleBadge": "示例估算",
     "estimatedFreight": "预估海运费",
-    "fobPrice": "车辆离岸价格",
+    "fobPrice": "车辆中国价格",
     "fobPlusFreight": "预估车辆与运费总计",
     "currency": "货币",
     "requestQuote": "获取最终运费报价",
@@ -457,7 +457,7 @@
     "browseInventory": "浏览车辆库存",
     "shippingOptions": "运输目的地",
     "stockId": "库存编号",
-    "fobChina": "中国离岸价",
+    "fobChina": "中国价格",
     "estimatedFreight": "预估运费",
     "subtotal": "小计",
     "remove": "移除",
@@ -494,7 +494,7 @@
     "arrangementOwnAgentSummary": "客户自有运输代理",
     "freightByCustomerAgent": "由客户运输代理安排",
     "freightCustomerAgentShort": "客户代理安排",
-    "estimatedTotalFobOnly": "仅车辆 FOB 总价",
+    "estimatedTotalFobOnly": "仅车辆总价",
     "destinationCountryOptional": "目的国家（可选）",
     "destinationPortOptional": "目的港口（可选）",
     "ownAgentNotice": "您已选择使用自己的运输代理。网站不会计算或收取运输费用，车辆交接、装柜、订舱及运输安排需由您或您的代理与我们进一步确认。",
