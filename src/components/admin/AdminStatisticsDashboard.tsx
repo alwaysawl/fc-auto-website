@@ -7,6 +7,8 @@ import type {
 } from "@/lib/admin/statistics-types";
 import type { TrafficSourceFilter } from "@/lib/analytics/source";
 import VehicleHeatSection from "@/components/admin/VehicleHeatSection";
+import WhatsAppQualitySection from "@/components/admin/WhatsAppQualitySection";
+import { emptyWhatsAppQuality } from "@/lib/admin/whatsapp-quality-types";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -1214,6 +1216,13 @@ export default function AdminStatisticsDashboard({
               </div>
             </div>
           </section>
+
+          <WhatsAppQualitySection
+            data={data.whatsappQuality ?? emptyWhatsAppQuality()}
+            onLeadsChange={(next) =>
+              setData((prev) => ({ ...prev, whatsappQuality: next }))
+            }
+          />
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
             <h2 className="text-base font-semibold text-slate-900">来源渠道转化</h2>

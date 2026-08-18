@@ -3,6 +3,9 @@ import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAnalyticsDashboardBlock } from "@/lib/analytics/aggregate";
 import { getVehicleHeatDashboard } from "@/lib/analytics/vehicle-heat";
+import { getWhatsAppQualityDashboard } from "@/lib/admin/whatsapp-quality";
+import { emptyWhatsAppQuality } from "@/lib/admin/whatsapp-quality-types";
+import type { WhatsAppQualityDashboard } from "@/lib/admin/whatsapp-quality-types";
 import {
   TRAFFIC_SOURCE_IDS,
   trafficSourceLabel,
@@ -534,6 +537,22 @@ export async function getAdminStatistics(options: {
     };
   }
 
+  // WhatsApp quality (isolated — never rewrites analytics_events)
+  let whatsappQuality: WhatsAppQualityDashboard;
+  try {
+    whatsappQuality = await getWhatsAppQualityDashboard({
+      range,
+      uniqueVisitors: analytics.website.uniqueVisitors,
+    });
+  } catch (err) {
+    logSafe("whatsappQuality", err);
+    whatsappQuality = {
+      ...emptyWhatsAppQuality(analytics.website.uniqueVisitors),
+      available: false,
+      error: "WhatsApp 真实询盘数据加载失败，请稍后重试",
+    };
+  }
+
   // ── Vehicles ──────────────────────────────────────────────────────────────
   let vehicles: VehicleStatRow[] = [];
   let vehiclesOk = false;
@@ -1004,5 +1023,6 @@ export async function getAdminStatistics(options: {
     notEnabled,
     analytics,
     vehicleHeat,
+    whatsappQuality,
   };
 }

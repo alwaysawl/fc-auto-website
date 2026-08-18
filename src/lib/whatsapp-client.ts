@@ -28,7 +28,7 @@ function fallbackOpen(input: OpenAssignedWhatsAppInput) {
 
 export async function openAssignedWhatsApp(
   input: OpenAssignedWhatsAppInput
-): Promise<{ success: boolean; agentName?: string }> {
+): Promise<{ success: boolean; agentName?: string; inquiryId?: string }> {
   // inquiryNote is message-only — do not send to assign RPC / DB
   const payload: WhatsAppAssignRequest = {
     sourcePage: input.sourcePage,
@@ -73,7 +73,11 @@ export async function openAssignedWhatsApp(
 
     const url = buildWhatsAppUrl(data.assignment.whatsappNumber, message);
     window.open(url, "_blank", "noopener,noreferrer");
-    return { success: true, agentName: data.assignment.agentName };
+    return {
+      success: true,
+      agentName: data.assignment.agentName,
+      inquiryId: data.assignment.inquiryId,
+    };
   } catch (error) {
     console.error(
       "[whatsapp] assignment error:",

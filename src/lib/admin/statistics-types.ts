@@ -1,5 +1,6 @@
 import type { VehicleStatus } from "@/lib/types";
 import type { TrafficSource, TrafficSourceFilter } from "@/lib/analytics/source";
+import type { WhatsAppQualityDashboard } from "@/lib/admin/whatsapp-quality-types";
 
 export type StatisticsRangePreset =
   | "today"
@@ -270,6 +271,7 @@ export type StatisticsPayload = {
   notEnabled: { name: string; reason: string }[];
   analytics: AnalyticsDashboard;
   vehicleHeat: VehicleHeatDashboard;
+  whatsappQuality: WhatsAppQualityDashboard;
 };
 
 export type VehicleHeatSort =
