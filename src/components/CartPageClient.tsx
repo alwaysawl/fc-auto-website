@@ -469,8 +469,8 @@ export default function CartPageClient({
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 xl:gap-8 items-start pb-24 xl:pb-0">
-        {/* Shipping selectors — mobile: after vehicle list, before order summary */}
-        <section className="order-2 xl:order-1 xl:col-start-1 bg-white border border-slate-100 rounded-2xl shadow-soft p-4 sm:p-5 min-w-0">
+        {/* Shipping — mobile first */}
+        <section className="order-1 xl:order-1 xl:col-start-1 bg-white border border-slate-100 rounded-2xl shadow-soft p-4 sm:p-5 min-w-0">
           <h2 className="text-base font-bold text-brand-slate mb-4">
             {t.cart.shippingOptions}
           </h2>
@@ -660,8 +660,8 @@ export default function CartPageClient({
           )}
         </section>
 
-        {/* Cart items — mobile first */}
-        <ul className="order-1 xl:order-2 xl:col-start-1 space-y-4 min-w-0">
+        {/* Cart items — mobile last */}
+        <ul className="order-3 xl:order-2 xl:col-start-1 space-y-4 min-w-0">
           {lines.map(({ item, freight, subtotal }) => (
             <li
               key={item.id}
@@ -782,8 +782,8 @@ export default function CartPageClient({
           ))}
         </ul>
 
-      {/* Summary — mobile: after shipping block (incl. container notice) */}
-      <aside className="order-3 xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:sticky xl:top-24 min-w-0">
+      {/* Summary — mobile: after shipping, before vehicle list */}
+      <aside className="order-2 xl:order-3 xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:sticky xl:top-24 min-w-0">
         <div className="bg-brand-slate text-white rounded-2xl shadow-elevated p-5 sm:p-6">
           <h2 className="text-lg font-bold mb-4">{t.cart.summaryTitle}</h2>
           <dl className="space-y-3 text-sm">
