@@ -4,24 +4,24 @@ import {
   getAnalyticsSessionId,
   getAnonymousVisitorId,
 } from "@/lib/analytics/ids";
+import {
+  classifyFirstTouchCapture,
+  isTrafficSource,
+  type TrafficSource,
+} from "@/lib/analytics/source";
 import type {
   AnalyticsEventInput,
   AnalyticsEventName,
 } from "@/lib/analytics/types";
 import { isAnalyticsEventName } from "@/lib/analytics/types";
 
-const MAX_META_KEYS = 12;
+const MAX_META_KEYS = 20;
 const MAX_META_STRING = 120;
 const DEDUPE_MS = 800;
 const recentKeys = new Map<string, number>();
 const FIRST_TOUCH_KEY = "__fc_auto_first_touch_v2";
 
-type FirstTouchSource =
-  | "facebook"
-  | "google"
-  | "direct"
-  | "other"
-  | "unknown";
+type FirstTouchSource = TrafficSource;
 
 type FirstTouchAttribution = {
   version: 2;
@@ -112,42 +112,12 @@ function classifyFirstTouchSource(input: {
   gclid: string | null;
   referrer_host: string | null;
 }): { source: FirstTouchSource; directExplicit: boolean } {
-  const utm = (input.utm_source ?? "").toLowerCase();
-  const ref = (input.referrer_host ?? "").toLowerCase();
-
-  // Priority: utm_source -> fbclid -> gclid -> referrer_host -> direct -> unknown
-  if (utm.includes("facebook") || utm === "fb" || utm.includes("meta")) {
-    return { source: "facebook", directExplicit: false };
-  }
-  if (utm.includes("google")) {
-    return { source: "google", directExplicit: false };
-  }
-  if (input.fbclid) {
-    return { source: "facebook", directExplicit: false };
-  }
-  if (input.gclid) {
-    return { source: "google", directExplicit: false };
-  }
-  if (
-    ref.includes("facebook.com") ||
-    ref.includes("m.facebook.com") ||
-    ref.includes("l.facebook.com") ||
-    ref.includes("lm.facebook.com")
-  ) {
-    return { source: "facebook", directExplicit: false };
-  }
-  if (ref.includes("google.")) {
-    return { source: "google", directExplicit: false };
-  }
-  if (ref) {
-    return { source: "other", directExplicit: false };
-  }
-
-  // Explicit direct: no utm/fbclid/gclid and empty referrer on first capture.
-  if (!utm && !input.fbclid && !input.gclid && !ref) {
-    return { source: "direct", directExplicit: true };
-  }
-  return { source: "unknown", directExplicit: false };
+  return classifyFirstTouchCapture({
+    utmSource: input.utm_source,
+    fbclid: input.fbclid,
+    gclid: input.gclid,
+    referrerHost: input.referrer_host,
+  });
 }
 
 function readStoredAttribution(): FirstTouchAttribution | null {
@@ -155,7 +125,7 @@ function readStoredAttribution(): FirstTouchAttribution | null {
     const raw = window.localStorage.getItem(FIRST_TOUCH_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<FirstTouchAttribution>;
-    if (parsed.version !== 2 || !parsed.source) return null;
+    if (parsed.version !== 2 || !isTrafficSource(parsed.source)) return null;
     return {
       version: 2,
       source: parsed.source,

@@ -115,12 +115,12 @@ function formatShanghaiDateTime(iso: string | Date): string {
   }).format(d);
 }
 
-export function resolveStatisticsRange(
-  preset: StatisticsRangePreset,
+export function resolveStatisticsRange<T extends string>(
+  preset: T,
   customStart?: string | null,
   customEnd?: string | null
 ): {
-  preset: StatisticsRangePreset;
+  preset: T;
   startIso: string;
   endIso: string;
   startLabel: string;
@@ -135,6 +135,9 @@ export function resolveStatisticsRange(
   if (preset === "today") {
     startYmd = today;
     endYmd = today;
+  } else if (preset === "yesterday") {
+    startYmd = addCalendarDays(today, -1);
+    endYmd = startYmd;
   } else if (preset === "7d") {
     startYmd = addCalendarDays(today, -6);
     endYmd = today;
@@ -151,7 +154,7 @@ export function resolveStatisticsRange(
       startYmd = s;
       endYmd = e;
     } else {
-      resolvedPreset = "30d";
+      resolvedPreset = "30d" as T;
       startYmd = addCalendarDays(today, -29);
       endYmd = today;
     }
@@ -304,6 +307,7 @@ export async function getAdminStatistics(options: {
   const presetRaw = (options.preset ?? "30d") as StatisticsRangePreset;
   const preset: StatisticsRangePreset = [
     "today",
+    "yesterday",
     "7d",
     "30d",
     "month",
@@ -338,6 +342,9 @@ export async function getAdminStatistics(options: {
       websiteTrend: block.websiteTrend,
       popularPages: block.popularPages,
       popularVehicles: block.popularVehicles,
+      trafficSources: block.trafficSources,
+      devices: block.devices,
+      geo: block.geo,
       whatsapp: block.whatsapp,
       cart: block.cart,
       quotes: block.quotes,
@@ -413,6 +420,13 @@ export async function getAdminStatistics(options: {
       websiteTrend: [],
       popularPages: [],
       popularVehicles: [],
+      trafficSources: [],
+      devices: [],
+      geo: {
+        available: false,
+        message:
+          "暂无访客国家/地区数据。当前未采集 IP 地理信息；country_id 仅为购物车或询盘填写的目的国，不能代表访客来源地。",
+      },
       whatsapp: {
         totalClicks: 0,
         uniqueVisitors: 0,

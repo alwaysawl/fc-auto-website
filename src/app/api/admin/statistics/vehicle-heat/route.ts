@@ -20,6 +20,7 @@ export async function GET(request: Request) {
     const presetRaw = (searchParams.get("preset") ?? "30d") as StatisticsRangePreset;
     const preset: StatisticsRangePreset = [
       "today",
+      "yesterday",
       "7d",
       "30d",
       "month",

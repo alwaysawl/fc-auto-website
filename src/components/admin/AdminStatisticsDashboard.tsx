@@ -5,12 +5,14 @@ import type {
   StatisticsPayload,
   StatisticsRangePreset,
 } from "@/lib/admin/statistics-types";
+import type { TrafficSourceFilter } from "@/lib/analytics/source";
 import VehicleHeatSection from "@/components/admin/VehicleHeatSection";
 
 type LoadState = "loading" | "ready" | "error";
 
 const PRESETS: { id: StatisticsRangePreset; label: string }[] = [
   { id: "today", label: "今天" },
+  { id: "yesterday", label: "昨天" },
   { id: "7d", label: "最近 7 天" },
   { id: "30d", label: "最近 30 天" },
   { id: "month", label: "本月" },
@@ -362,13 +364,7 @@ export default function AdminStatisticsDashboard({
 }: {
   initial: StatisticsPayload;
 }) {
-  type FunnelSource =
-    | "all"
-    | "facebook"
-    | "google"
-    | "direct"
-    | "other"
-    | "unknown";
+  type FunnelSource = TrafficSourceFilter;
   type FunnelDevice = "all" | "mobile" | "desktop" | "tablet" | "other";
 
   const [preset, setPreset] = useState<StatisticsRangePreset>(
@@ -905,6 +901,80 @@ export default function AdminStatisticsDashboard({
             </div>
           </section>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+              <h2 className="text-base font-semibold text-slate-900">
+                来源渠道
+              </h2>
+              <p className="text-xs text-slate-600 mt-1 mb-3">
+                按 utm_source、fbclid/gclid 与 referrer 识别。空来源的历史记录计为未知来源，不会记成直接访问。
+              </p>
+              {(data.analytics.trafficSources ?? []).length === 0 ? (
+                <EmptyLine text="所选时间范围内暂无数据" />
+              ) : (
+                <ul className="space-y-2">
+                  {(data.analytics.trafficSources ?? []).map((row) => (
+                    <li
+                      key={row.source}
+                      className="flex items-center justify-between gap-3 text-sm border-b border-slate-50 pb-2 last:border-0"
+                    >
+                      <span className="font-medium text-slate-700">
+                        {row.label}
+                      </span>
+                      <span className="tabular-nums text-slate-800 text-right">
+                        {row.events} 次（{row.percent}%）
+                        <span className="block text-[11px] text-slate-600">
+                          {row.visitors} 匿名访客
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+              <h2 className="text-base font-semibold text-slate-900">
+                设备类型
+              </h2>
+              <p className="text-xs text-slate-600 mt-1 mb-3">
+                来自匿名 user_agent_category：mobile / desktop / tablet
+              </p>
+              {(data.analytics.devices ?? []).length === 0 ? (
+                <EmptyLine text="所选时间范围内暂无数据" />
+              ) : (
+                <ul className="space-y-2">
+                  {(data.analytics.devices ?? []).map((row) => (
+                    <li
+                      key={row.device}
+                      className="flex items-center justify-between gap-3 text-sm border-b border-slate-50 pb-2 last:border-0"
+                    >
+                      <span className="font-medium text-slate-700">
+                        {row.label}
+                      </span>
+                      <span className="tabular-nums text-slate-800 text-right">
+                        {row.events} 次（{row.percent}%）
+                        <span className="block text-[11px] text-slate-600">
+                          {row.visitors} 匿名访客
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+            <h2 className="text-base font-semibold text-slate-900">
+              国家 / 地区
+            </h2>
+            <p className="text-sm text-slate-600 mt-2">
+              {data.analytics.geo?.message ??
+                "暂无访客国家/地区数据。当前未采集 IP 地理信息。"}
+            </p>
+          </section>
+
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
             <h2 className="text-base font-semibold text-slate-900 mb-3">
               网站访问趋势
@@ -1001,7 +1071,10 @@ export default function AdminStatisticsDashboard({
                   >
                     <option value="all">全部来源</option>
                     <option value="facebook">Facebook</option>
+                    <option value="instagram">Instagram</option>
                     <option value="google">Google</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="whatsapp">WhatsApp</option>
                     <option value="direct">直接访问</option>
                     <option value="other">其他来源</option>
                     <option value="unknown">未知来源</option>

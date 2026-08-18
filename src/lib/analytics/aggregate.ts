@@ -2,6 +2,14 @@ import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { StatisticsRangePreset } from "@/lib/admin/statistics-types";
+import {
+  classifyTrafficSource,
+  parseTrafficSourceFilter,
+  trafficSourceLabel,
+  TRAFFIC_SOURCE_IDS,
+  type TrafficSource,
+  type TrafficSourceFilter,
+} from "@/lib/analytics/source";
 
 export type AnalyticsDashboardBlock = {
   available: boolean;
@@ -35,6 +43,24 @@ export type AnalyticsDashboardBlock = {
     whatsappClicks: number;
     quoteDownloads: number;
   }[];
+  trafficSources: {
+    source: TrafficSource;
+    label: string;
+    events: number;
+    visitors: number;
+    percent: number;
+  }[];
+  devices: {
+    device: "mobile" | "desktop" | "tablet" | "other";
+    label: string;
+    events: number;
+    visitors: number;
+    percent: number;
+  }[];
+  geo: {
+    available: boolean;
+    message: string;
+  };
   whatsapp: {
     totalClicks: number;
     uniqueVisitors: number;
@@ -77,13 +103,7 @@ export type AnalyticsDashboardBlock = {
   };
   funnel: {
     filters: {
-      source:
-        | "all"
-        | "facebook"
-        | "google"
-        | "direct"
-        | "other"
-        | "unknown";
+      source: TrafficSourceFilter;
       device: "all" | "mobile" | "desktop" | "tablet" | "other";
     };
     homeVisitors: number;
@@ -117,14 +137,33 @@ type EventRow = {
   user_agent_category: string | null;
 };
 
-type FunnelSourceFilter =
-  | "all"
-  | "facebook"
-  | "google"
-  | "direct"
-  | "other"
-  | "unknown";
+type FunnelSourceFilter = TrafficSourceFilter;
 type FunnelDeviceFilter = "all" | "mobile" | "desktop" | "tablet" | "other";
+
+const EVENT_PAGE_SIZE = 1000;
+const EVENT_HARD_CAP = 50_000;
+
+const GEO_UNAVAILABLE_MESSAGE =
+  "暂无访客国家/地区数据。当前未采集 IP 地理信息；country_id 仅为购物车或询盘填写的目的国，不能代表访客来源地。";
+
+function emptyTrafficSources(): AnalyticsDashboardBlock["trafficSources"] {
+  return TRAFFIC_SOURCE_IDS.map((source) => ({
+    source,
+    label: trafficSourceLabel(source),
+    events: 0,
+    visitors: 0,
+    percent: 0,
+  }));
+}
+
+function emptyDevices(): AnalyticsDashboardBlock["devices"] {
+  return [
+    { device: "mobile", label: "移动端", events: 0, visitors: 0, percent: 0 },
+    { device: "desktop", label: "电脑端", events: 0, visitors: 0, percent: 0 },
+    { device: "tablet", label: "平板", events: 0, visitors: 0, percent: 0 },
+    { device: "other", label: "其他", events: 0, visitors: 0, percent: 0 },
+  ];
+}
 
 function shanghaiYmd(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -222,7 +261,7 @@ function buildTrend(
   range: { preset: StatisticsRangePreset; startIso: string; endIso: string; startLabel: string; endLabel: string }
 ) {
   const pageViews = rows.filter((r) => r.event_name === "page_view");
-  if (range.preset === "today") {
+  if (range.preset === "today" || range.preset === "yesterday") {
     return Array.from({ length: 24 }, (_, h) => {
       const key = String(h).padStart(2, "0");
       const hourRows = pageViews.filter(
@@ -310,35 +349,47 @@ async function loadEvents(
 ): Promise<{ ok: boolean; rows: EventRow[]; error: string | null; tableMissing: boolean }> {
   try {
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("analytics_events")
-      .select(
-        "event_name, event_time, session_id, anonymous_visitor_id, page_path, referrer_host, vehicle_id, cart_item_count, cart_value_usd, metadata, user_agent_category"
-      )
-      .gte("event_time", startIso)
-      .lt("event_time", endIso)
-      .order("event_time", { ascending: false })
-      .limit(20000);
+    const rows: EventRow[] = [];
+    let from = 0;
 
-    if (error) {
-      const msg = String(error.message || "");
-      const missing =
-        error.code === "PGRST205" ||
-        msg.toLowerCase().includes("does not exist") ||
-        msg.toLowerCase().includes("schema cache");
-      console.error("[analytics.aggregate]", error.code ?? "", msg.slice(0, 160));
-      return {
-        ok: false,
-        rows: [],
-        error: missing
-          ? "该统计项暂无可用数据来源"
-          : "数据加载失败，请稍后重试",
-        tableMissing: missing,
-      };
+    while (from < EVENT_HARD_CAP) {
+      const to = from + EVENT_PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from("analytics_events")
+        .select(
+          "event_name, event_time, session_id, anonymous_visitor_id, page_path, referrer_host, vehicle_id, cart_item_count, cart_value_usd, metadata, user_agent_category"
+        )
+        .gte("event_time", startIso)
+        .lt("event_time", endIso)
+        .order("event_time", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        const msg = String(error.message || "");
+        const missing =
+          error.code === "PGRST205" ||
+          msg.toLowerCase().includes("does not exist") ||
+          msg.toLowerCase().includes("schema cache");
+        console.error("[analytics.aggregate]", error.code ?? "", msg.slice(0, 160));
+        return {
+          ok: false,
+          rows: [],
+          error: missing
+            ? "该统计项暂无可用数据来源"
+            : "数据加载失败，请稍后重试",
+          tableMissing: missing,
+        };
+      }
+
+      const batch = (data ?? []) as EventRow[];
+      rows.push(...batch);
+      if (batch.length < EVENT_PAGE_SIZE) break;
+      from += EVENT_PAGE_SIZE;
     }
+
     return {
       ok: true,
-      rows: (data ?? []) as EventRow[],
+      rows,
       error: null,
       tableMissing: false,
     };
@@ -371,14 +422,9 @@ export async function getAnalyticsDashboardBlock(options: {
   };
 }): Promise<AnalyticsDashboardBlock> {
   const { range, loadedAtLabel } = options;
-  const sourceFilter: FunnelSourceFilter =
-    options.funnelFilters?.source === "facebook" ||
-    options.funnelFilters?.source === "google" ||
-    options.funnelFilters?.source === "direct" ||
-    options.funnelFilters?.source === "other" ||
-    options.funnelFilters?.source === "unknown"
-      ? options.funnelFilters.source
-      : "all";
+  const sourceFilter: FunnelSourceFilter = parseTrafficSourceFilter(
+    options.funnelFilters?.source ?? null
+  );
   const deviceFilter: FunnelDeviceFilter =
     options.funnelFilters?.device === "mobile" ||
     options.funnelFilters?.device === "desktop" ||
@@ -449,6 +495,12 @@ export async function getAnalyticsDashboardBlock(options: {
       websiteTrend: [],
       popularPages: [],
       popularVehicles: [],
+      trafficSources: emptyTrafficSources(),
+      devices: emptyDevices(),
+      geo: {
+        available: false,
+        message: GEO_UNAVAILABLE_MESSAGE,
+      },
       whatsapp: {
         totalClicks: 0,
         uniqueVisitors: 0,
@@ -524,75 +576,23 @@ export async function getAnalyticsDashboardBlock(options: {
   const sessions = distinct(pageViews.map((r) => r.session_id));
   const uniqueVisitors = distinct(pageViews.map((r) => r.anonymous_visitor_id));
 
-  function classifySource(row: EventRow): FunnelSourceFilter {
-    const meta = row.metadata ?? {};
-    const utm = String(
-      (meta as { utm_source?: string | null }).utm_source ?? ""
-    ).toLowerCase();
-    const fbclid = String(
-      (meta as { fbclid?: string | null }).fbclid ?? ""
-    ).toLowerCase();
-    const gclid = String(
-      (meta as { gclid?: string | null }).gclid ?? ""
-    ).toLowerCase();
-    const firstTouch = String(
-      (meta as { first_touch_source?: string | null }).first_touch_source ?? ""
-    ).toLowerCase();
-    const firstTouchDirect = Boolean(
-      (meta as { first_touch_direct?: boolean | null }).first_touch_direct
-    );
-    const attributionVersion = Number(
-      (meta as { attribution_version?: number | string | null })
-        .attribution_version ?? 0
-    );
-    const ref = (row.referrer_host ?? "").toLowerCase();
-    const hasRef = ref.length > 0;
-
-    // New-data first-touch source (from metadata) has highest confidence.
-    if (
-      firstTouch === "facebook" ||
-      firstTouch === "google" ||
-      firstTouch === "direct" ||
-      firstTouch === "other" ||
-      firstTouch === "unknown"
-    ) {
-      return firstTouch as FunnelSourceFilter;
-    }
-
-    // Priority fallback: utm_source -> fbclid -> gclid -> referrer -> direct -> unknown
-    if (utm.includes("facebook") || utm === "fb" || utm.includes("meta")) {
-      return "facebook";
-    }
-    if (utm.includes("google")) {
-      return "google";
-    }
-    if (fbclid) return "facebook";
-    if (gclid) return "google";
-    if (
-      ref.includes("facebook.com") ||
-      ref.includes("m.facebook.com") ||
-      ref.includes("l.facebook.com") ||
-      ref.includes("lm.facebook.com")
-    ) {
-      return "facebook";
-    }
-    if (ref.includes("google.")) {
-      return "google";
-    }
-    if (hasRef) {
-      return "other";
-    }
-
-    // Only new tracked direct traffic can be classified as direct.
-    if (attributionVersion >= 2 && firstTouchDirect) {
-      return "direct";
-    }
-
-    // Historical missing-source rows are unknown, not direct.
-    return "unknown";
+  function classifySource(row: EventRow): TrafficSource {
+    const meta = (row.metadata ?? {}) as Record<string, unknown>;
+    return classifyTrafficSource({
+      utmSource: meta.utm_source,
+      fbclid: meta.fbclid,
+      gclid: meta.gclid,
+      referrerHost: row.referrer_host,
+      firstTouchSource: meta.first_touch_source,
+      firstTouchDirect: meta.first_touch_direct,
+      firstTouchReferrerHost: meta.first_touch_referrer_host,
+      attributionVersion: meta.attribution_version,
+    });
   }
 
-  function classifyDevice(row: EventRow): FunnelDeviceFilter {
+  function classifyDevice(
+    row: EventRow
+  ): "mobile" | "desktop" | "tablet" | "other" {
     const ua = (row.user_agent_category ?? "").toLowerCase();
     if (ua === "mobile") return "mobile";
     if (ua === "tablet") return "tablet";
@@ -749,6 +749,66 @@ export async function getAnalyticsDashboardBlock(options: {
     )
     .slice(0, 8);
 
+  const sourceVisitorSets = new Map<TrafficSource, Set<string>>();
+  const sourceEventCounts = new Map<TrafficSource, number>();
+  for (const id of TRAFFIC_SOURCE_IDS) {
+    sourceVisitorSets.set(id, new Set());
+    sourceEventCounts.set(id, 0);
+  }
+  const deviceVisitorSets: Record<
+    "mobile" | "desktop" | "tablet" | "other",
+    Set<string>
+  > = {
+    mobile: new Set(),
+    desktop: new Set(),
+    tablet: new Set(),
+    other: new Set(),
+  };
+  const deviceEventCounts: Record<
+    "mobile" | "desktop" | "tablet" | "other",
+    number
+  > = {
+    mobile: 0,
+    desktop: 0,
+    tablet: 0,
+    other: 0,
+  };
+  for (const r of rows) {
+    const source = classifySource(r);
+    sourceEventCounts.set(source, (sourceEventCounts.get(source) ?? 0) + 1);
+    if (r.anonymous_visitor_id) {
+      sourceVisitorSets.get(source)?.add(r.anonymous_visitor_id);
+    }
+    const device = classifyDevice(r);
+    deviceEventCounts[device] += 1;
+    if (r.anonymous_visitor_id) deviceVisitorSets[device].add(r.anonymous_visitor_id);
+  }
+  const trafficSources = TRAFFIC_SOURCE_IDS.map((source) => {
+    const events = sourceEventCounts.get(source) ?? 0;
+    return {
+      source,
+      label: trafficSourceLabel(source),
+      events,
+      visitors: sourceVisitorSets.get(source)?.size ?? 0,
+      percent: pct(events, rows.length),
+    };
+  });
+  const deviceLabels = {
+    mobile: "移动端",
+    desktop: "电脑端",
+    tablet: "平板",
+    other: "其他",
+  } as const;
+  const devices = (["mobile", "desktop", "tablet", "other"] as const).map(
+    (device) => ({
+      device,
+      label: deviceLabels[device],
+      events: deviceEventCounts[device],
+      visitors: deviceVisitorSets[device].size,
+      percent: pct(deviceEventCounts[device], rows.length),
+    })
+  );
+
   // whatsapp breakdown
   const sourceMap = new Map<string, number>();
   const contactMap = new Map<string, number>();
@@ -883,6 +943,12 @@ export async function getAnalyticsDashboardBlock(options: {
     websiteTrend: buildTrend(rows, range),
     popularPages,
     popularVehicles,
+    trafficSources,
+    devices,
+    geo: {
+      available: false,
+      message: GEO_UNAVAILABLE_MESSAGE,
+    },
     whatsapp: whatsappBlock,
     cart,
     quotes: quotesBlock,

@@ -1,7 +1,9 @@
 import type { VehicleStatus } from "@/lib/types";
+import type { TrafficSource, TrafficSourceFilter } from "@/lib/analytics/source";
 
 export type StatisticsRangePreset =
   | "today"
+  | "yesterday"
   | "7d"
   | "30d"
   | "month"
@@ -52,6 +54,24 @@ export type AnalyticsDashboard = {
     whatsappClicks: number;
     quoteDownloads: number;
   }[];
+  trafficSources: {
+    source: TrafficSource;
+    label: string;
+    events: number;
+    visitors: number;
+    percent: number;
+  }[];
+  devices: {
+    device: "mobile" | "desktop" | "tablet" | "other";
+    label: string;
+    events: number;
+    visitors: number;
+    percent: number;
+  }[];
+  geo: {
+    available: boolean;
+    message: string;
+  };
   whatsapp: {
     totalClicks: number;
     uniqueVisitors: number;
@@ -98,13 +118,7 @@ export type AnalyticsDashboard = {
    */
   funnel: {
     filters: {
-      source:
-        | "all"
-        | "facebook"
-        | "google"
-        | "direct"
-        | "other"
-        | "unknown";
+      source: TrafficSourceFilter;
       device: "all" | "mobile" | "desktop" | "tablet" | "other";
     };
     homeVisitors: number;

@@ -126,21 +126,36 @@ export async function getVehicleHeatDashboard(options: {
 }): Promise<VehicleHeatDashboard> {
   try {
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("analytics_events")
-      .select(
-        "event_name, event_time, anonymous_visitor_id, vehicle_id, metadata"
-      )
-      .gte("event_time", options.range.startIso)
-      .lt("event_time", options.range.endIso)
-      .not("vehicle_id", "is", null)
-      .in("event_name", [
-        "vehicle_detail_view",
-        "whatsapp_click",
-        "cart_add",
-        "quote_download",
-      ])
-      .limit(20000);
+    const rows: EventRow[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    let error: { code?: string; message?: string } | null = null;
+    while (from < 50_000) {
+      const page = await supabase
+        .from("analytics_events")
+        .select(
+          "event_name, event_time, anonymous_visitor_id, vehicle_id, metadata"
+        )
+        .gte("event_time", options.range.startIso)
+        .lt("event_time", options.range.endIso)
+        .not("vehicle_id", "is", null)
+        .in("event_name", [
+          "vehicle_detail_view",
+          "whatsapp_click",
+          "cart_add",
+          "quote_download",
+        ])
+        .order("event_time", { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (page.error) {
+        error = page.error;
+        break;
+      }
+      const batch = (page.data ?? []) as EventRow[];
+      rows.push(...batch);
+      if (batch.length < pageSize) break;
+      from += pageSize;
+    }
 
     if (error) {
       logSafe(error);
@@ -157,7 +172,6 @@ export async function getVehicleHeatDashboard(options: {
       );
     }
 
-    const rows = (data ?? []) as EventRow[];
     if (rows.length === 0) {
       return emptyHeat(true, null);
     }
@@ -410,20 +424,35 @@ export async function getVehicleHeatDetail(
       block.ranking.find((r) => r.vehicleId === vehicleId) ?? null;
 
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("analytics_events")
-      .select("event_name, event_time, anonymous_visitor_id, vehicle_id")
-      .eq("vehicle_id", vehicleId)
-      .gte("event_time", range.startIso)
-      .lt("event_time", range.endIso)
-      .in("event_name", [
-        "vehicle_detail_view",
-        "whatsapp_click",
-        "cart_add",
-        "quote_download",
-      ])
-      .limit(5000);
-    if (error) throw error;
+    const data: {
+      event_name: string;
+      event_time: string;
+      anonymous_visitor_id: string | null;
+      vehicle_id: string | null;
+    }[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (from < 50_000) {
+      const page = await supabase
+        .from("analytics_events")
+        .select("event_name, event_time, anonymous_visitor_id, vehicle_id")
+        .eq("vehicle_id", vehicleId)
+        .gte("event_time", range.startIso)
+        .lt("event_time", range.endIso)
+        .in("event_name", [
+          "vehicle_detail_view",
+          "whatsapp_click",
+          "cart_add",
+          "quote_download",
+        ])
+        .order("event_time", { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (page.error) throw page.error;
+      const batch = page.data ?? [];
+      data.push(...batch);
+      if (batch.length < pageSize) break;
+      from += pageSize;
+    }
 
     const dayMap = new Map<
       string,
