@@ -100,8 +100,18 @@ function QualityLeadCard({
         </div>
         <div className="min-w-0">
           <dt className="text-slate-500">车型</dt>
-          <dd className="font-medium text-slate-800 truncate">
+          <dd className="font-medium text-slate-800 break-words">
+            {lead.multiVehicle ? (
+              <span className="mb-0.5 block text-[11px] font-semibold text-slate-600">
+                多车型询盘（{lead.vehicleCount}）
+              </span>
+            ) : null}
             {lead.vehicleTitle || "—"}
+            {lead.vehicleStock ? (
+              <span className="mt-0.5 block text-[11px] text-slate-600">
+                Stock ID: {lead.vehicleStock}
+              </span>
+            ) : null}
           </dd>
         </div>
       </dl>

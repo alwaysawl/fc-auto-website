@@ -18,6 +18,7 @@ import {
   type WhatsAppQualityDashboard,
   type WhatsAppQualityLead,
 } from "@/lib/admin/whatsapp-quality-types";
+import { formatQualityVehicleDisplay } from "@/lib/whatsapp-cart-vehicles";
 
 const ASSIGN_PAGE_SIZE = 1000;
 const ASSIGN_HARD_CAP = 5000;
@@ -67,6 +68,41 @@ function metaString(
   if (typeof v !== "string") return null;
   const t = v.trim();
   return t || null;
+}
+
+function metaNumber(
+  meta: Record<string, unknown> | null | undefined,
+  key: string
+): number | null {
+  const v = meta?.[key];
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
+function qualityVehicleFields(
+  row: AssignmentRow,
+  click: ClickRow | null,
+  lookupTitles: Map<string, string>
+) {
+  const meta = click?.metadata ?? null;
+  const vehicleId = click?.vehicle_id?.trim() || null;
+  const display = formatQualityVehicleDisplay({
+    assignmentTitle: row.vehicle_title,
+    assignmentStock: row.stock_number,
+    analyticsVehicleId: vehicleId,
+    lookupTitle: vehicleId ? lookupTitles.get(vehicleId) ?? null : null,
+    cartCount: metaNumber(meta, "cart_vehicle_count"),
+    cartTitles: metaString(meta, "cart_vehicle_titles"),
+    cartIds: metaString(meta, "cart_vehicle_ids"),
+  });
+  return {
+    vehicleTitle: display.title,
+    vehicleStock: display.stock,
+    vehicleCount: display.count,
+    multiVehicle: display.multi,
+    vehicleId,
+  };
 }
 
 function clickSource(row: ClickRow): TrafficSource {
@@ -208,12 +244,7 @@ export async function getWhatsAppQualityDashboard(options: {
   const leads: WhatsAppQualityLead[] = assignments.map((row) => {
     const inquiryId = (row.inquiry_id ?? "").trim();
     const click = inquiryId ? clickMap.get(inquiryId) ?? null : null;
-    const vehicleId = click?.vehicle_id?.trim() || null;
-    const vehicleTitle =
-      row.vehicle_title?.trim() ||
-      (vehicleId ? titles.get(vehicleId) ?? null : null) ||
-      row.stock_number?.trim() ||
-      null;
+    const vehicle = qualityVehicleFields(row, click, titles);
     const source: TrafficSource = click ? clickSource(click) : "unknown";
     const customerType = parseCustomerType(row.customer_type);
     const leadStage = parseLeadStage(row.lead_stage);
@@ -227,8 +258,11 @@ export async function getWhatsAppQualityDashboard(options: {
       sourceLabel: click ? trafficSourceLabel(source) : "未知来源",
       entry: whatsappEntryLabel(row.source_page),
       entryRaw: row.source_page,
-      vehicleTitle,
-      vehicleId,
+      vehicleTitle: vehicle.vehicleTitle,
+      vehicleStock: vehicle.vehicleStock,
+      vehicleCount: vehicle.vehicleCount,
+      multiVehicle: vehicle.multiVehicle,
+      vehicleId: vehicle.vehicleId,
       assignedContact: row.sales_agent_name?.trim() || null,
       customerType,
       leadStage,
@@ -294,7 +328,7 @@ export async function updateWhatsAppQuality(input: {
     const inquiryId = (row.inquiry_id ?? "").trim();
     let linked = false;
     let source: TrafficSource = "unknown";
-    let vehicleId: string | null = null;
+    let clickRow: ClickRow | null = null;
     if (inquiryId) {
       const { data: click } = await supabase
         .from("analytics_events")
@@ -305,14 +339,17 @@ export async function updateWhatsAppQuality(input: {
         .limit(1)
         .maybeSingle();
       if (click) {
+        clickRow = click as ClickRow;
         linked = true;
-        source = clickSource(click as ClickRow);
-        vehicleId = (click as ClickRow).vehicle_id?.trim() || null;
+        source = clickSource(clickRow);
       }
     }
 
-    const titles = await vehicleTitles(vehicleId ? [vehicleId] : []);
+    const titles = await vehicleTitles(
+      clickRow?.vehicle_id?.trim() ? [clickRow.vehicle_id.trim()] : []
+    );
     const leadStageParsed = parseLeadStage(row.lead_stage);
+    const vehicle = qualityVehicleFields(row, clickRow, titles);
     const lead: WhatsAppQualityLead = {
       id: String(row.id),
       inquiryId,
@@ -321,12 +358,11 @@ export async function updateWhatsAppQuality(input: {
       sourceLabel: linked ? trafficSourceLabel(source) : "未知来源",
       entry: whatsappEntryLabel(row.source_page),
       entryRaw: row.source_page,
-      vehicleTitle:
-        row.vehicle_title?.trim() ||
-        (vehicleId ? titles.get(vehicleId) ?? null : null) ||
-        row.stock_number?.trim() ||
-        null,
-      vehicleId,
+      vehicleTitle: vehicle.vehicleTitle,
+      vehicleStock: vehicle.vehicleStock,
+      vehicleCount: vehicle.vehicleCount,
+      multiVehicle: vehicle.multiVehicle,
+      vehicleId: vehicle.vehicleId,
       assignedContact: row.sales_agent_name?.trim() || null,
       customerType: parseCustomerType(row.customer_type),
       leadStage: leadStageParsed,

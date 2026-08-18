@@ -31,6 +31,7 @@ import {
   isCartFreightConfigured,
 } from "@/lib/shippingDestinations/cartFreightLookup";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
+import { buildWhatsAppCartVehiclePayload } from "@/lib/whatsapp-cart-vehicles";
 
 interface CartPageClientProps {
   locale: Locale;
@@ -251,6 +252,18 @@ export default function CartPageClient({
     : "";
   const methodLabel = t.shipping.methods.container;
   const formatUsdText = (value: number) => `$${value.toLocaleString("en-US")}`;
+
+  const cartVehiclePayload = useMemo(
+    () =>
+      buildWhatsAppCartVehiclePayload(
+        items.map((item) => ({
+          id: item.id,
+          title: item.title,
+          year: item.year,
+        }))
+      ),
+    [items]
+  );
 
   const inquiryNote = useMemo(() => {
     if (items.length === 0) return undefined;
@@ -956,6 +969,11 @@ export default function CartPageClient({
           <WhatsAppAssignLink
             sourcePage="cart-checkout"
             inquiryNote={inquiryNote}
+            vehicleId={cartVehiclePayload?.vehicleId}
+            vehicleTitle={cartVehiclePayload?.vehicleTitle}
+            vehicleYear={cartVehiclePayload?.vehicleYear}
+            stockNumber={cartVehiclePayload?.stockNumber}
+            analyticsMetadata={cartVehiclePayload?.analyticsMetadata}
             cartItemCount={items.length}
             countryId={shipping.countryId || undefined}
             portId={shipping.portId || undefined}
@@ -990,6 +1008,11 @@ export default function CartPageClient({
           <WhatsAppAssignLink
             sourcePage="cart-checkout-mobile"
             inquiryNote={inquiryNote}
+            vehicleId={cartVehiclePayload?.vehicleId}
+            vehicleTitle={cartVehiclePayload?.vehicleTitle}
+            vehicleYear={cartVehiclePayload?.vehicleYear}
+            stockNumber={cartVehiclePayload?.stockNumber}
+            analyticsMetadata={cartVehiclePayload?.analyticsMetadata}
             cartItemCount={items.length}
             countryId={shipping.countryId || undefined}
             portId={shipping.portId || undefined}

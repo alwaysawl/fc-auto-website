@@ -23,6 +23,7 @@ type WhatsAppAssignLinkProps = OpenAssignedWhatsAppInput & {
   cartItemCount?: number;
   countryId?: string;
   portId?: string;
+  analyticsMetadata?: Record<string, unknown> | null;
 };
 
 export default function WhatsAppAssignLink({
@@ -38,6 +39,7 @@ export default function WhatsAppAssignLink({
   cartItemCount,
   countryId,
   portId,
+  analyticsMetadata,
   "aria-label": ariaLabel,
   title,
 }: WhatsAppAssignLinkProps) {
@@ -73,8 +75,12 @@ export default function WhatsAppAssignLink({
 
       const page = sourcePage ?? "unknown";
       const inquiryId = opened.inquiryId?.trim() || null;
+      const analyticsVehicleId =
+        vehicleId?.trim() ||
+        (stockNumber && !stockNumber.includes(",") ? stockNumber : null) ||
+        null;
       trackAnalyticsEvent("whatsapp_click", {
-        vehicleId: vehicleId ?? stockNumber ?? null,
+        vehicleId: analyticsVehicleId,
         cartItemCount: cartItemCount ?? null,
         countryId: countryId ?? null,
         portId: portId ?? null,
@@ -83,6 +89,7 @@ export default function WhatsAppAssignLink({
           source_page: page.slice(0, 40),
           assigned_contact_name: opened.agentName?.slice(0, 40) ?? null,
           ...(inquiryId ? { inquiry_id: inquiryId.slice(0, 80) } : {}),
+          ...(analyticsMetadata ?? {}),
         },
         dedupeKey: `whatsapp_click|${page}|${Date.now()}`,
       });

@@ -112,6 +112,9 @@ export type WhatsAppQualityLead = {
   entry: string;
   entryRaw: string | null;
   vehicleTitle: string | null;
+  vehicleStock: string | null;
+  vehicleCount: number;
+  multiVehicle: boolean;
   vehicleId: string | null;
   assignedContact: string | null;
   customerType: CustomerType;
