@@ -469,9 +469,8 @@ export default function CartPageClient({
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 xl:gap-8 items-start pb-24 xl:pb-0">
-      <div className="flex flex-col-reverse xl:flex-col gap-5 min-w-0">
-        {/* Shipping selectors */}
-        <section className="bg-white border border-slate-100 rounded-2xl shadow-soft p-4 sm:p-5">
+        {/* Shipping selectors — mobile: after vehicle list, before order summary */}
+        <section className="order-2 xl:order-1 xl:col-start-1 bg-white border border-slate-100 rounded-2xl shadow-soft p-4 sm:p-5 min-w-0">
           <h2 className="text-base font-bold text-brand-slate mb-4">
             {t.cart.shippingOptions}
           </h2>
@@ -661,8 +660,8 @@ export default function CartPageClient({
           )}
         </section>
 
-        {/* Cart items */}
-        <ul className="space-y-4">
+        {/* Cart items — mobile first */}
+        <ul className="order-1 xl:order-2 xl:col-start-1 space-y-4 min-w-0">
           {lines.map(({ item, freight, subtotal }) => (
             <li
               key={item.id}
@@ -741,10 +740,7 @@ export default function CartPageClient({
                     }`}
                   >
                     <div className="rounded-lg bg-slate-50 px-3 py-2 min-w-0">
-                      <dt className="text-[11px] text-slate-500 font-semibold break-words">
-                        {t.cart.fobChina}
-                      </dt>
-                      <dd className="font-bold text-brand-slate mt-0.5 break-words">
+                      <dd className="font-bold text-brand-slate break-words">
                         {formatUsd(item.fobPrice)}
                       </dd>
                     </div>
@@ -785,10 +781,9 @@ export default function CartPageClient({
             </li>
           ))}
         </ul>
-      </div>
 
-      {/* Summary */}
-      <aside className="xl:sticky xl:top-24">
+      {/* Summary — mobile: after shipping block (incl. container notice) */}
+      <aside className="order-3 xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:sticky xl:top-24 min-w-0">
         <div className="bg-brand-slate text-white rounded-2xl shadow-elevated p-5 sm:p-6">
           <h2 className="text-lg font-bold mb-4">{t.cart.summaryTitle}</h2>
           <dl className="space-y-3 text-sm">
@@ -981,7 +976,7 @@ export default function CartPageClient({
       </aside>
 
       {/* Mobile sticky summary bar */}
-      <div className="xl:hidden fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur safe-area-pb px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+      <div className="order-4 xl:hidden fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur safe-area-pb px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
         <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
           <div className="min-w-0">
             <p className="text-[11px] text-slate-500 font-semibold">

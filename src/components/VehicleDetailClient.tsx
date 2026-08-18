@@ -414,12 +414,7 @@ export default function VehicleDetailClient({
             </p>
 
             <div className="mb-5 pb-5 border-b border-slate-100">
-              <p className="mb-1">
-                <span className="text-[18px] font-extrabold uppercase leading-none tracking-[0.04em] text-[#1f2937] md:text-[20px]">
-                  {t.inventory.fobChina}
-                </span>
-              </p>
-              <p className="text-3xl font-bold text-brand-slate mt-1">
+              <p className="text-3xl font-bold text-brand-slate">
                 {formatPrice(vehicle.fobPrice)}
               </p>
             </div>

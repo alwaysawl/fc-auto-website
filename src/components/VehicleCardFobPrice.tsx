@@ -1,5 +1,6 @@
 interface VehicleCardFobPriceProps {
-  label: string;
+  /** Kept for callers; frontend no longer shows a FOB / China-price label. */
+  label?: string;
   price: string;
   /** Light cards (inventory / homepage) use brand slate; dark premium cards use gold. */
   variant?: "light" | "dark";
@@ -12,21 +13,11 @@ interface VehicleCardFobPriceProps {
   className?: string;
 }
 
-/** Split "CHINA PRICE" / "PRIX CHINE" / "中国价格" for the existing two-weight label. */
-function splitPriceLabel(label: string): { lead: string; trail: string } | null {
-  const value = label.trim();
-  if (/^CHINA\s+PRICE$/i.test(value)) return { lead: "CHINA", trail: "PRICE" };
-  if (/^PRIX\s+CHINE$/i.test(value)) return { lead: "PRIX", trail: "CHINE" };
-  if (value === "中国价格") return { lead: "中国", trail: "价格" };
-  return null;
-}
-
 /**
- * Shared China-price block for vehicle list cards (homepage + inventory).
- * Typography only — callers own label copy and formatted price strings.
+ * Shared price block for vehicle list cards (homepage + inventory).
+ * Price only — no FOB / China-price label.
  */
 export default function VehicleCardFobPrice({
-  label,
   price,
   variant = "light",
   priceSize = "xl",
@@ -36,21 +27,10 @@ export default function VehicleCardFobPrice({
     variant === "dark" ? "text-gold font-display" : "text-brand-slate";
   const priceType =
     priceSize === "2xl" ? "text-2xl font-bold" : "text-xl font-bold";
-  const parts = splitPriceLabel(label);
 
   return (
     <div className={`min-w-0 ${className}`.trim()}>
-      {parts ? (
-        <span className="fob-label">
-          <span className="fob-text">{parts.lead}</span>
-          <span className="china-text">{parts.trail}</span>
-        </span>
-      ) : (
-        <span className="fob-label">
-          <span className="fob-text">{label}</span>
-        </span>
-      )}
-      <p className={`mt-1 ${priceType} ${priceColor}`}>{price}</p>
+      <p className={`${priceType} ${priceColor}`}>{price}</p>
     </div>
   );
 }
