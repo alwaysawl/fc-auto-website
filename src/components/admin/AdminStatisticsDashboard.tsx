@@ -77,6 +77,51 @@ function EmptyLine({ text }: { text: string }) {
   return <p className="text-sm text-slate-600 py-2">{text}</p>;
 }
 
+function ProportionList({
+  items,
+  ariaLabel,
+}: {
+  items: {
+    key: string;
+    label: string;
+    count: number;
+    percent: number;
+    visitors: number;
+  }[];
+  ariaLabel: string;
+}) {
+  return (
+    <ul className="space-y-3 min-w-0" role="img" aria-label={ariaLabel}>
+      {items.map((item) => (
+        <li key={item.key} className="min-w-0">
+          <div className="mb-1 flex items-start justify-between gap-3">
+            <span className="min-w-0 text-sm font-medium text-slate-700 break-words">
+              {item.label}
+            </span>
+            <span className="flex-shrink-0 text-right text-sm tabular-nums text-slate-800 leading-5">
+              {item.count} 次（{item.percent}%）
+            </span>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-[#1E293B]"
+              style={{
+                width:
+                  item.count > 0
+                    ? `${Math.min(100, Math.max(item.percent, 3))}%`
+                    : "0%",
+              }}
+            />
+          </div>
+          <p className="mt-1 text-[11px] tabular-nums text-slate-600">
+            {item.visitors} 匿名访客
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function StatusBarChart({
   items,
 }: {
@@ -554,7 +599,7 @@ export default function AdminStatisticsDashboard({
           </div>
         )}
         <p className="text-xs text-slate-600">
-          时间筛选仅作用于经营活动指标；库存状态卡片始终显示当前实时库存。
+          时间筛选同时作用于网站访问、来源渠道、设备类型、转化漏斗与经营活动指标；库存状态卡片始终显示当前实时库存。
         </p>
       </section>
 
@@ -902,65 +947,52 @@ export default function AdminStatisticsDashboard({
           </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0 overflow-hidden">
               <h2 className="text-base font-semibold text-slate-900">
                 来源渠道
               </h2>
               <p className="text-xs text-slate-600 mt-1 mb-3">
-                按 utm_source、fbclid/gclid 与 referrer 识别。空来源的历史记录计为未知来源，不会记成直接访问。
+                仅统计当前筛选范围（{data.range.startLabel} ~ {data.range.endLabel}）内的页面浏览。按
+                utm_source、fbclid/gclid 与 referrer 识别。没有可靠来源证据的访问保持未知来源，不会改写成
+                Facebook 或直接访问。
               </p>
               {(data.analytics.trafficSources ?? []).length === 0 ? (
                 <EmptyLine text="所选时间范围内暂无数据" />
               ) : (
-                <ul className="space-y-2">
-                  {(data.analytics.trafficSources ?? []).map((row) => (
-                    <li
-                      key={row.source}
-                      className="flex items-center justify-between gap-3 text-sm border-b border-slate-50 pb-2 last:border-0"
-                    >
-                      <span className="font-medium text-slate-700">
-                        {row.label}
-                      </span>
-                      <span className="tabular-nums text-slate-800 text-right">
-                        {row.events} 次（{row.percent}%）
-                        <span className="block text-[11px] text-slate-600">
-                          {row.visitors} 匿名访客
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <ProportionList
+                  ariaLabel="来源渠道占比"
+                  items={(data.analytics.trafficSources ?? []).map((row) => ({
+                    key: row.source,
+                    label: row.label,
+                    count: row.events,
+                    percent: row.percent,
+                    visitors: row.visitors,
+                  }))}
+                />
               )}
             </section>
 
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0 overflow-hidden">
               <h2 className="text-base font-semibold text-slate-900">
                 设备类型
               </h2>
               <p className="text-xs text-slate-600 mt-1 mb-3">
-                来自匿名 user_agent_category：mobile / desktop / tablet
+                仅统计当前筛选范围（{data.range.startLabel} ~ {data.range.endLabel}）内的页面浏览。来自匿名
+                user_agent_category：mobile / desktop / tablet。
               </p>
               {(data.analytics.devices ?? []).length === 0 ? (
                 <EmptyLine text="所选时间范围内暂无数据" />
               ) : (
-                <ul className="space-y-2">
-                  {(data.analytics.devices ?? []).map((row) => (
-                    <li
-                      key={row.device}
-                      className="flex items-center justify-between gap-3 text-sm border-b border-slate-50 pb-2 last:border-0"
-                    >
-                      <span className="font-medium text-slate-700">
-                        {row.label}
-                      </span>
-                      <span className="tabular-nums text-slate-800 text-right">
-                        {row.events} 次（{row.percent}%）
-                        <span className="block text-[11px] text-slate-600">
-                          {row.visitors} 匿名访客
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <ProportionList
+                  ariaLabel="设备类型占比"
+                  items={(data.analytics.devices ?? []).map((row) => ({
+                    key: row.device,
+                    label: row.label,
+                    count: row.events,
+                    percent: row.percent,
+                    visitors: row.visitors,
+                  }))}
+                />
               )}
             </section>
           </div>

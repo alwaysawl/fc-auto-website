@@ -773,7 +773,8 @@ export async function getAnalyticsDashboardBlock(options: {
     tablet: 0,
     other: 0,
   };
-  for (const r of rows) {
+  // Acquisition mix for the selected date range only (page views, not all events).
+  for (const r of pageViews) {
     const source = classifySource(r);
     sourceEventCounts.set(source, (sourceEventCounts.get(source) ?? 0) + 1);
     if (r.anonymous_visitor_id) {
@@ -790,7 +791,7 @@ export async function getAnalyticsDashboardBlock(options: {
       label: trafficSourceLabel(source),
       events,
       visitors: sourceVisitorSets.get(source)?.size ?? 0,
-      percent: pct(events, rows.length),
+      percent: pct(events, pageViews.length),
     };
   });
   const deviceLabels = {
@@ -805,7 +806,7 @@ export async function getAnalyticsDashboardBlock(options: {
       label: deviceLabels[device],
       events: deviceEventCounts[device],
       visitors: deviceVisitorSets[device].size,
-      percent: pct(deviceEventCounts[device], rows.length),
+      percent: pct(deviceEventCounts[device], pageViews.length),
     })
   );
 
