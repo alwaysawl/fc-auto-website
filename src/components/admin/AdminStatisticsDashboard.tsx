@@ -310,8 +310,49 @@ function percentChange(
 }
 
 function formatPercent(value: number | null): string {
-  if (value == null) return "—";
+  if (value == null || !Number.isFinite(value)) return "—";
   return `${value}%`;
+}
+
+function FunnelStage({
+  label,
+  count,
+  max,
+  hint,
+  unit = "人",
+}: {
+  label: string;
+  count: number;
+  max: number;
+  hint?: string;
+  unit?: string;
+}) {
+  const safeCount = Number.isFinite(count) ? Math.max(0, count) : 0;
+  const safeMax = Number.isFinite(max) && max > 0 ? max : 1;
+  const width =
+    safeCount > 0
+      ? Math.min(100, Math.max((safeCount / safeMax) * 100, 4))
+      : 0;
+  return (
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <span className="text-sm font-medium text-slate-800">{label}</span>
+        <span className="tabular-nums text-sm font-semibold text-slate-900">
+          {safeCount}
+          {unit}
+        </span>
+      </div>
+      <div className="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-[#1E293B]"
+          style={{ width: `${width}%` }}
+        />
+      </div>
+      {hint ? (
+        <p className="mt-1 text-[11px] leading-4 text-slate-600">{hint}</p>
+      ) : null}
+    </div>
+  );
 }
 
 function ChangeHint({
@@ -599,7 +640,7 @@ export default function AdminStatisticsDashboard({
           </div>
         )}
         <p className="text-xs text-slate-600">
-          时间筛选同时作用于网站访问、来源渠道、设备类型、转化漏斗与经营活动指标；库存状态卡片始终显示当前实时库存。
+          时间筛选同时作用于网站访问、来源渠道、设备类型、转化漏斗、来源渠道转化、车型转化排行与经营活动指标；库存状态卡片始终显示当前实时库存。
         </p>
       </section>
 
@@ -1087,7 +1128,12 @@ export default function AdminStatisticsDashboard({
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-base font-semibold text-slate-900">转化漏斗</h2>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-slate-900">转化漏斗</h2>
+                <p className="mt-1 text-xs text-slate-600">
+                  按匿名访客去重。WhatsApp 转化率 = 点击 WhatsApp 独立访客 ÷ 独立访客。漏斗数字跟随上方来源/设备筛选。
+                </p>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-slate-600">
                   来源：
@@ -1134,72 +1180,136 @@ export default function AdminStatisticsDashboard({
               </div>
             </div>
             <div className="space-y-3">
-              {/* Home */}
-              <div className="min-w-0">
+              <FunnelStage
+                label="独立访客"
+                count={funnel.uniqueVisitors}
+                max={funnel.uniqueVisitors}
+                hint="100%"
+              />
+              <FunnelStage
+                label="浏览车辆详情"
+                count={funnel.vehicleDetailVisitors}
+                max={funnel.uniqueVisitors}
+                hint={`较上一步 ${formatPercent(funnel.fromPrev.vehicleDetail)} · 较独立访客 ${formatPercent(funnel.fromTop.vehicleDetail)}`}
+              />
+              <FunnelStage
+                label="点击 WhatsApp"
+                count={funnel.whatsappClickVisitors}
+                max={funnel.uniqueVisitors}
+                hint={`较上一步 ${formatPercent(funnel.fromPrev.whatsappClick)} · 较独立访客 ${formatPercent(funnel.fromTop.whatsappClick)}`}
+              />
+              <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-700">
-                    首页访客
+                  <span className="text-sm font-medium text-slate-800">
+                    WhatsApp 转化率
                   </span>
-                  <span className="tabular-nums text-slate-800 text-sm">
-                    {funnel.homeVisitors}人
-                  </span>
-                  <span className="tabular-nums text-slate-700 text-sm">
-                    100%
+                  <span className="tabular-nums text-lg font-bold text-slate-900">
+                    {formatPercent(funnel.conversionRate)}
                   </span>
                 </div>
-              </div>
-              <div className="flex justify-center text-slate-400">↓</div>
-
-              {/* Vehicle Detail */}
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-700">
-                    车辆详情
-                  </span>
-                  <span className="tabular-nums text-slate-800 text-sm">
-                    {funnel.vehicleDetailVisitors}人
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-slate-600">
-                  较上一步 {formatPercent(funnel.fromPrev.vehicleDetail)} · 较首页{" "}
-                  {formatPercent(funnel.fromHome.vehicleDetail)}
-                </p>
-              </div>
-              <div className="flex justify-center text-slate-400">↓</div>
-
-              {/* Cart Add */}
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-700">
-                    加入购物车
-                  </span>
-                  <span className="tabular-nums text-slate-800 text-sm">
-                    {funnel.cartAddVisitors}人
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-slate-600">
-                  较上一步 {formatPercent(funnel.fromPrev.cartAdd)} · 较首页{" "}
-                  {formatPercent(funnel.fromHome.cartAdd)}
-                </p>
-              </div>
-              <div className="flex justify-center text-slate-400">↓</div>
-
-              {/* WhatsApp Click */}
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-700">
-                    WhatsApp 点击
-                  </span>
-                  <span className="tabular-nums text-slate-800 text-sm">
-                    {funnel.whatsappClickVisitors}人
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-slate-600">
-                  较上一步 {formatPercent(funnel.fromPrev.whatsappClick)} · 较首页{" "}
-                  {formatPercent(funnel.fromHome.whatsappClick)}
+                <p className="mt-0.5 text-[11px] text-slate-600">
+                  {funnel.whatsappClickVisitors} 人点击 WhatsApp ÷{" "}
+                  {funnel.uniqueVisitors} 名独立访客
                 </p>
               </div>
             </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+            <h2 className="text-base font-semibold text-slate-900">来源渠道转化</h2>
+            <p className="mt-1 text-xs text-slate-600">
+              按每位访客首次访问的来源归类，同一访客只计一次。始终显示全部渠道，只跟随日期筛选。
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs text-slate-600">
+                    <th className="py-2 pr-3 font-medium">来源渠道</th>
+                    <th className="py-2 px-2 font-medium text-right whitespace-nowrap">独立访客</th>
+                    <th className="py-2 px-2 font-medium text-right whitespace-nowrap">详情浏览访客</th>
+                    <th className="py-2 px-2 font-medium text-right whitespace-nowrap">WhatsApp 访客</th>
+                    <th className="py-2 pl-2 font-medium text-right whitespace-nowrap">转化率</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.analytics.sourceConversion ?? []).map((row) => (
+                    <tr key={row.source} className="border-b border-slate-50 last:border-0">
+                      <td className="py-2 pr-3 font-medium text-slate-800">{row.label}</td>
+                      <td className="py-2 px-2 text-right tabular-nums text-slate-800">
+                        {row.uniqueVisitors}
+                      </td>
+                      <td className="py-2 px-2 text-right tabular-nums text-slate-800">
+                        {row.vehicleDetailVisitors}
+                      </td>
+                      <td className="py-2 px-2 text-right tabular-nums text-slate-800">
+                        {row.whatsappClickVisitors}
+                      </td>
+                      <td className="py-2 pl-2 text-right tabular-nums font-semibold text-slate-900">
+                        {formatPercent(row.conversionRate)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+            <h2 className="text-base font-semibold text-slate-900">车型转化排行</h2>
+            <p className="mt-1 text-xs text-slate-600">
+              默认按 WhatsApp 点击独立访客从高到低。浏览 → WhatsApp 转化率 = 点击独立访客 ÷ 详情浏览独立访客。只跟随日期筛选。
+            </p>
+            {(data.analytics.vehicleConversion ?? []).length === 0 ? (
+              <EmptyLine text="所选时间范围内暂无已归属到具体车辆的浏览或 WhatsApp 数据" />
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs text-slate-600">
+                      <th className="py-2 pr-3 font-medium">车辆</th>
+                      <th className="py-2 px-2 font-medium text-right whitespace-nowrap">详情浏览</th>
+                      <th className="py-2 px-2 font-medium text-right whitespace-nowrap">独立浏览</th>
+                      <th className="py-2 px-2 font-medium text-right whitespace-nowrap">WhatsApp 次数</th>
+                      <th className="py-2 px-2 font-medium text-right whitespace-nowrap">WhatsApp 访客</th>
+                      <th className="py-2 px-2 font-medium text-right whitespace-nowrap">浏览→WA</th>
+                      <th className="py-2 pl-2 font-medium whitespace-nowrap">主要来源</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.analytics.vehicleConversion.map((row) => (
+                      <tr key={row.vehicleId} className="border-b border-slate-50 last:border-0">
+                        <td className="py-2 pr-3 min-w-0">
+                          <a
+                            href={`/admin/vehicles/${row.vehicleId}/edit`}
+                            className="block max-w-[12rem] truncate font-medium text-slate-800 hover:underline"
+                          >
+                            {row.title}
+                          </a>
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-slate-800">
+                          {row.detailViews}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-slate-800">
+                          {row.uniqueViewers}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-slate-800">
+                          {row.whatsappClicks}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-slate-800">
+                          {row.whatsappVisitors}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums font-semibold text-slate-900">
+                          {formatPercent(row.viewToWhatsappRate)}
+                        </td>
+                        <td className="py-2 pl-2 text-slate-700 whitespace-nowrap">
+                          {row.primarySourceLabel ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           <VehicleHeatSection

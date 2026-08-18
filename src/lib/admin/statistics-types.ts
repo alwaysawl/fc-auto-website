@@ -114,28 +114,52 @@ export type AnalyticsDashboard = {
   };
   /**
    * Conversion funnel (distinct visitors deduped by anonymous_visitor_id)
-   * Home → Vehicle Detail → Cart Add → WhatsApp Click
+   * Unique visitors → Vehicle Detail → WhatsApp Click
    */
-  funnel: {
-    filters: {
-      source: TrafficSourceFilter;
-      device: "all" | "mobile" | "desktop" | "tablet" | "other";
-    };
-    homeVisitors: number;
-    vehicleDetailVisitors: number;
-    cartAddVisitors: number;
-    whatsappClickVisitors: number;
-    fromPrev: {
-      vehicleDetail: number | null;
-      cartAdd: number | null;
-      whatsappClick: number | null;
-    };
-    fromHome: {
-      vehicleDetail: number | null;
-      cartAdd: number | null;
-      whatsappClick: number | null;
-    };
+  funnel: AnalyticsFunnel;
+  sourceConversion: SourceConversionRow[];
+  vehicleConversion: VehicleConversionRow[];
+};
+
+export type AnalyticsFunnel = {
+  filters: {
+    source: TrafficSourceFilter;
+    device: "all" | "mobile" | "desktop" | "tablet" | "other";
   };
+  uniqueVisitors: number;
+  vehicleDetailVisitors: number;
+  whatsappClickVisitors: number;
+  conversionRate: number | null;
+  fromPrev: {
+    vehicleDetail: number | null;
+    whatsappClick: number | null;
+  };
+  fromTop: {
+    vehicleDetail: number | null;
+    whatsappClick: number | null;
+  };
+};
+
+export type SourceConversionRow = {
+  source: TrafficSource;
+  label: string;
+  uniqueVisitors: number;
+  vehicleDetailVisitors: number;
+  whatsappClickVisitors: number;
+  conversionRate: number | null;
+};
+
+export type VehicleConversionRow = {
+  vehicleId: string;
+  title: string;
+  coverUrl: string | null;
+  detailViews: number;
+  uniqueViewers: number;
+  whatsappClicks: number;
+  whatsappVisitors: number;
+  viewToWhatsappRate: number | null;
+  primarySource: TrafficSource | null;
+  primarySourceLabel: string | null;
 };
 
 export type RankedItem = {

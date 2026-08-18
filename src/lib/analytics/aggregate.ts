@@ -1,7 +1,12 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import type { StatisticsRangePreset } from "@/lib/admin/statistics-types";
+import type {
+  AnalyticsFunnel,
+  SourceConversionRow,
+  StatisticsRangePreset,
+  VehicleConversionRow,
+} from "@/lib/admin/statistics-types";
 import {
   classifyTrafficSource,
   parseTrafficSourceFilter,
@@ -101,26 +106,9 @@ export type AnalyticsDashboardBlock = {
     prevCartConversionRate: number | null;
     prevQuoteDownloads: number | null;
   };
-  funnel: {
-    filters: {
-      source: TrafficSourceFilter;
-      device: "all" | "mobile" | "desktop" | "tablet" | "other";
-    };
-    homeVisitors: number;
-    vehicleDetailVisitors: number;
-    cartAddVisitors: number;
-    whatsappClickVisitors: number;
-    fromPrev: {
-      vehicleDetail: number | null;
-      cartAdd: number | null;
-      whatsappClick: number | null;
-    };
-    fromHome: {
-      vehicleDetail: number | null;
-      cartAdd: number | null;
-      whatsappClick: number | null;
-    };
-  };
+  funnel: AnalyticsFunnel;
+  sourceConversion: SourceConversionRow[];
+  vehicleConversion: VehicleConversionRow[];
 };
 
 type EventRow = {
@@ -163,6 +151,62 @@ function emptyDevices(): AnalyticsDashboardBlock["devices"] {
     { device: "tablet", label: "平板", events: 0, visitors: 0, percent: 0 },
     { device: "other", label: "其他", events: 0, visitors: 0, percent: 0 },
   ];
+}
+
+function emptyFunnel(
+  source: TrafficSourceFilter,
+  device: FunnelDeviceFilter
+): AnalyticsFunnel {
+  return {
+    filters: { source, device },
+    uniqueVisitors: 0,
+    vehicleDetailVisitors: 0,
+    whatsappClickVisitors: 0,
+    conversionRate: null,
+    fromPrev: {
+      vehicleDetail: null,
+      whatsappClick: null,
+    },
+    fromTop: {
+      vehicleDetail: null,
+      whatsappClick: null,
+    },
+  };
+}
+
+function emptySourceConversion(): SourceConversionRow[] {
+  return TRAFFIC_SOURCE_IDS.map((source) => ({
+    source,
+    label: trafficSourceLabel(source),
+    uniqueVisitors: 0,
+    vehicleDetailVisitors: 0,
+    whatsappClickVisitors: 0,
+    conversionRate: null,
+  }));
+}
+
+/**
+ * Only attribute a missing vehicle_id when the path is clearly a vehicle
+ * detail URL: /[locale]/inventory/[id] with exactly one id segment.
+ * Inventory list and other pages stay unattributed. Never writes back.
+ */
+function parseVehicleIdFromPath(path: string | null): string | null {
+  if (!path) return null;
+  const clean = path.split("?")[0]?.split("#")[0] ?? path;
+  const parts = clean.split("/").filter(Boolean);
+  const rest = parts[0]?.length === 2 ? parts.slice(1) : parts;
+  if (rest[0] !== "inventory" || rest.length !== 2) return null;
+  const id = rest[1]?.trim() ?? "";
+  if (!id || id.length > 80) return null;
+  if (id === "." || id === "..") return null;
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(id)) return null;
+  return id;
+}
+
+function resolvedVehicleId(row: EventRow): string | null {
+  const direct = row.vehicle_id?.trim();
+  if (direct) return direct;
+  return parseVehicleIdFromPath(row.page_path);
 }
 
 function shanghaiYmd(date: Date): string {
@@ -234,8 +278,19 @@ function friendlyPageLabel(canonicalKey: string): string {
 }
 
 function pct(part: number, total: number): number {
-  if (total <= 0) return 0;
-  return Math.round((part / total) * 1000) / 10;
+  if (!(total > 0) || !Number.isFinite(part) || !Number.isFinite(total)) return 0;
+  const raw = (Math.max(0, part) / total) * 100;
+  if (!Number.isFinite(raw)) return 0;
+  return Math.min(100, Math.round(raw * 10) / 10);
+}
+
+function pctOrNull(part: number, total: number): number | null {
+  if (!(total > 0) || !Number.isFinite(part) || !Number.isFinite(total)) {
+    return null;
+  }
+  const raw = (Math.max(0, part) / total) * 100;
+  if (!Number.isFinite(raw)) return null;
+  return Math.min(100, Math.round(raw * 10) / 10);
 }
 
 function distinct(values: Array<string | null | undefined>): number {
@@ -244,6 +299,33 @@ function distinct(values: Array<string | null | undefined>): number {
     if (v && v.trim()) set.add(v.trim());
   }
   return set.size;
+}
+
+function collectVisitorIds(
+  rows: EventRow[],
+  include?: (visitorId: string) => boolean
+): Set<string> {
+  const set = new Set<string>();
+  for (const r of rows) {
+    const id = r.anonymous_visitor_id?.trim();
+    if (!id) continue;
+    if (include && !include(id)) continue;
+    set.add(id);
+  }
+  return set;
+}
+
+function intersectSize(left: Set<string>, right: Set<string>): number {
+  let n = 0;
+  for (const id of left) {
+    if (right.has(id)) n += 1;
+  }
+  return n;
+}
+
+function hasFirstTouchMeta(row: EventRow): boolean {
+  const src = (row.metadata ?? {}).first_touch_source;
+  return typeof src === "string" && src.trim().length > 0;
 }
 
 function previousRange(startIso: string, endIso: string): { startIso: string; endIso: string } {
@@ -541,26 +623,9 @@ export async function getAnalyticsDashboardBlock(options: {
         prevCartConversionRate: null,
         prevQuoteDownloads: null,
       },
-      funnel: {
-        filters: {
-          source: sourceFilter,
-          device: deviceFilter,
-        },
-        homeVisitors: 0,
-        vehicleDetailVisitors: 0,
-        cartAddVisitors: 0,
-        whatsappClickVisitors: 0,
-        fromPrev: {
-          vehicleDetail: null,
-          cartAdd: null,
-          whatsappClick: null,
-        },
-        fromHome: {
-          vehicleDetail: null,
-          cartAdd: null,
-          whatsappClick: null,
-        },
-      },
+      funnel: emptyFunnel(sourceFilter, deviceFilter),
+      sourceConversion: emptySourceConversion(),
+      vehicleConversion: [],
     };
   }
 
@@ -601,9 +666,6 @@ export async function getAnalyticsDashboardBlock(options: {
   }
 
   function rowMatchesFunnelFilters(row: EventRow): boolean {
-    if (sourceFilter !== "all" && classifySource(row) !== sourceFilter) {
-      return false;
-    }
     if (deviceFilter !== "all" && classifyDevice(row) !== deviceFilter) {
       return false;
     }
@@ -615,50 +677,134 @@ export async function getAnalyticsDashboardBlock(options: {
   const funnelDetailViews = funnelRows.filter(
     (r) => r.event_name === "vehicle_detail_view"
   );
-  const funnelCartAdds = funnelRows.filter((r) => r.event_name === "cart_add");
   const funnelWhatsapp = funnelRows.filter(
     (r) => r.event_name === "whatsapp_click"
   );
 
-  // Conversion funnel: distinct visitors by stage (dedupe via anonymous_visitor_id).
-  const homeVisitors = distinct(
-    funnelPageViews
-      .filter((r) => normalizePagePath(r.page_path) === "/")
-      .map((r) => r.anonymous_visitor_id)
-  );
-  const vehicleDetailVisitors = distinct(
-    funnelDetailViews.map((r) => r.anonymous_visitor_id)
-  );
-  const cartAddVisitors = distinct(
-    funnelCartAdds.map((r) => r.anonymous_visitor_id)
-  );
-  const whatsappClickVisitors = distinct(
-    funnelWhatsapp.map((r) => r.anonymous_visitor_id)
-  );
+  const visitorSourceByEarliestPageView = new Map<string, TrafficSource>();
+  {
+    const chosen = new Map<string, EventRow>();
+    for (const r of pageViews) {
+      const id = r.anonymous_visitor_id?.trim();
+      if (!id) continue;
+      const prev = chosen.get(id);
+      if (!prev) {
+        chosen.set(id, r);
+        continue;
+      }
+      const rowHasFt = hasFirstTouchMeta(r);
+      const prevHasFt = hasFirstTouchMeta(prev);
+      if (rowHasFt !== prevHasFt) {
+        if (rowHasFt) chosen.set(id, r);
+        continue;
+      }
+      if (r.event_time < prev.event_time) chosen.set(id, r);
+    }
+    for (const [id, row] of chosen) {
+      visitorSourceByEarliestPageView.set(id, classifySource(row));
+    }
+  }
 
-  const pctOrNull = (part: number, total: number): number | null =>
-    total <= 0 ? null : pct(part, total);
+  function visitorMatchesSourceFilter(visitorId: string | null): boolean {
+    if (sourceFilter === "all") return true;
+    if (!visitorId) return false;
+    return visitorSourceByEarliestPageView.get(visitorId) === sourceFilter;
+  }
 
-  const funnel = {
+  const uniqueSet = collectVisitorIds(
+    funnelPageViews,
+    visitorMatchesSourceFilter
+  );
+  const detailSet = collectVisitorIds(
+    funnelDetailViews,
+    visitorMatchesSourceFilter
+  );
+  const waSet = collectVisitorIds(funnelWhatsapp, visitorMatchesSourceFilter);
+  const detailInFunnel = new Set(
+    [...detailSet].filter((id) => uniqueSet.has(id))
+  );
+  const waInFunnel = new Set([...waSet].filter((id) => uniqueSet.has(id)));
+
+  const funnelUniqueVisitors = uniqueSet.size;
+  const funnelVehicleDetailVisitors = detailInFunnel.size;
+  const funnelWhatsappClickVisitors = waInFunnel.size;
+
+  const funnel: AnalyticsFunnel = {
     filters: {
       source: sourceFilter,
       device: deviceFilter,
     },
-    homeVisitors,
-    vehicleDetailVisitors,
-    cartAddVisitors,
-    whatsappClickVisitors,
+    uniqueVisitors: funnelUniqueVisitors,
+    vehicleDetailVisitors: funnelVehicleDetailVisitors,
+    whatsappClickVisitors: funnelWhatsappClickVisitors,
+    conversionRate: pctOrNull(funnelWhatsappClickVisitors, funnelUniqueVisitors),
     fromPrev: {
-      vehicleDetail: pctOrNull(vehicleDetailVisitors, homeVisitors),
-      cartAdd: pctOrNull(cartAddVisitors, vehicleDetailVisitors),
-      whatsappClick: pctOrNull(whatsappClickVisitors, cartAddVisitors),
+      vehicleDetail: pctOrNull(
+        funnelVehicleDetailVisitors,
+        funnelUniqueVisitors
+      ),
+      whatsappClick: pctOrNull(
+        intersectSize(waSet, detailInFunnel),
+        funnelVehicleDetailVisitors
+      ),
     },
-    fromHome: {
-      vehicleDetail: pctOrNull(vehicleDetailVisitors, homeVisitors),
-      cartAdd: pctOrNull(cartAddVisitors, homeVisitors),
-      whatsappClick: pctOrNull(whatsappClickVisitors, homeVisitors),
+    fromTop: {
+      vehicleDetail: pctOrNull(
+        funnelVehicleDetailVisitors,
+        funnelUniqueVisitors
+      ),
+      whatsappClick: pctOrNull(
+        funnelWhatsappClickVisitors,
+        funnelUniqueVisitors
+      ),
     },
   };
+
+  const detailVisitorIds = new Set<string>();
+  for (const r of detailViews) {
+    const id = r.anonymous_visitor_id?.trim();
+    if (id) detailVisitorIds.add(id);
+  }
+  const waVisitorIds = new Set<string>();
+  for (const r of whatsapp) {
+    const id = r.anonymous_visitor_id?.trim();
+    if (id) waVisitorIds.add(id);
+  }
+
+  const sourceVisitorBuckets = new Map<
+    TrafficSource,
+    { visitors: Set<string>; detail: Set<string>; wa: Set<string> }
+  >();
+  for (const id of TRAFFIC_SOURCE_IDS) {
+    sourceVisitorBuckets.set(id, {
+      visitors: new Set(),
+      detail: new Set(),
+      wa: new Set(),
+    });
+  }
+  for (const [visitorId, source] of visitorSourceByEarliestPageView) {
+    const bucket = sourceVisitorBuckets.get(source);
+    if (!bucket) continue;
+    bucket.visitors.add(visitorId);
+    if (detailVisitorIds.has(visitorId)) bucket.detail.add(visitorId);
+    if (waVisitorIds.has(visitorId)) bucket.wa.add(visitorId);
+  }
+
+  const sourceConversion: SourceConversionRow[] = TRAFFIC_SOURCE_IDS.map(
+    (source) => {
+      const bucket = sourceVisitorBuckets.get(source)!;
+      const unique = bucket.visitors.size;
+      const waCount = bucket.wa.size;
+      return {
+        source,
+        label: trafficSourceLabel(source),
+        uniqueVisitors: unique,
+        vehicleDetailVisitors: bucket.detail.size,
+        whatsappClickVisitors: waCount,
+        conversionRate: pctOrNull(waCount, unique),
+      };
+    }
+  );
 
   const website = {
     pageViews: pageViews.length,
@@ -709,14 +855,55 @@ export async function getAnalyticsDashboardBlock(options: {
     quoteMap.set(r.vehicle_id, (quoteMap.get(r.vehicle_id) ?? 0) + 1);
   }
 
+  type VehicleConvAcc = {
+    detailViews: number;
+    viewers: Set<string>;
+    whatsappClicks: number;
+    waVisitors: Set<string>;
+  };
+  const conversionByVehicle = new Map<string, VehicleConvAcc>();
+  function conversionAcc(id: string): VehicleConvAcc {
+    const existing = conversionByVehicle.get(id);
+    if (existing) return existing;
+    const created: VehicleConvAcc = {
+      detailViews: 0,
+      viewers: new Set(),
+      whatsappClicks: 0,
+      waVisitors: new Set(),
+    };
+    conversionByVehicle.set(id, created);
+    return created;
+  }
+  for (const r of detailViews) {
+    const vid = resolvedVehicleId(r);
+    if (!vid) continue;
+    const acc = conversionAcc(vid);
+    acc.detailViews += 1;
+    const visitor = r.anonymous_visitor_id?.trim();
+    if (visitor) acc.viewers.add(visitor);
+  }
+  for (const r of whatsapp) {
+    const vid = resolvedVehicleId(r);
+    if (!vid) continue;
+    const acc = conversionAcc(vid);
+    acc.whatsappClicks += 1;
+    const visitor = r.anonymous_visitor_id?.trim();
+    if (visitor) acc.waVisitors.add(visitor);
+  }
+
+  const vehicleMetaIds = new Set([
+    ...vehicleIds,
+    ...conversionByVehicle.keys(),
+  ]);
+
   const vehicleMeta = new Map<string, { title: string; coverUrl: string | null }>();
-  if (vehicleIds.size > 0) {
+  if (vehicleMetaIds.size > 0) {
     try {
       const supabase = getSupabaseAdmin();
       const { data } = await supabase
         .from("vehicles")
         .select("id, brand, model, title_en, main_image_url, photos")
-        .in("id", [...vehicleIds].slice(0, 50));
+        .in("id", [...vehicleMetaIds].slice(0, 80));
       for (const v of data ?? []) {
         const title =
           (v.title_en as string | null)?.trim() ||
@@ -748,6 +935,51 @@ export async function getAnalyticsDashboardBlock(options: {
         (a.detailViews + a.whatsappClicks + a.quoteDownloads)
     )
     .slice(0, 8);
+
+  const vehicleConversion: VehicleConversionRow[] = [...conversionByVehicle.entries()]
+    .map(([vehicleId, acc]) => {
+      const uniqueViewers = acc.viewers.size;
+      const whatsappVisitors = acc.waVisitors.size;
+      const viewedThenWhatsapp = intersectSize(acc.waVisitors, acc.viewers);
+      const sourceCounts = new Map<TrafficSource, number>();
+      const sourceVisitors =
+        uniqueViewers > 0 ? acc.viewers : acc.waVisitors;
+      for (const visitorId of sourceVisitors) {
+        const source = visitorSourceByEarliestPageView.get(visitorId);
+        if (!source) continue;
+        sourceCounts.set(source, (sourceCounts.get(source) ?? 0) + 1);
+      }
+      let primarySource: TrafficSource | null = null;
+      let primaryCount = 0;
+      for (const [source, count] of sourceCounts) {
+        if (count > primaryCount) {
+          primarySource = source;
+          primaryCount = count;
+        }
+      }
+      return {
+        vehicleId,
+        title: vehicleMeta.get(vehicleId)?.title ?? vehicleId,
+        coverUrl: vehicleMeta.get(vehicleId)?.coverUrl ?? null,
+        detailViews: acc.detailViews,
+        uniqueViewers,
+        whatsappClicks: acc.whatsappClicks,
+        whatsappVisitors,
+        viewToWhatsappRate: pctOrNull(viewedThenWhatsapp, uniqueViewers),
+        primarySource,
+        primarySourceLabel: primarySource
+          ? trafficSourceLabel(primarySource)
+          : null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.whatsappVisitors - a.whatsappVisitors ||
+        (b.viewToWhatsappRate ?? -1) - (a.viewToWhatsappRate ?? -1) ||
+        b.uniqueViewers - a.uniqueViewers ||
+        b.whatsappClicks - a.whatsappClicks
+    )
+    .slice(0, 10);
 
   const sourceVisitorSets = new Map<TrafficSource, Set<string>>();
   const sourceEventCounts = new Map<TrafficSource, number>();
@@ -971,5 +1203,7 @@ export async function getAnalyticsDashboardBlock(options: {
       prevQuoteDownloads: previous.ok ? prevQuotes.length : null,
     },
     funnel,
+    sourceConversion,
+    vehicleConversion,
   };
 }

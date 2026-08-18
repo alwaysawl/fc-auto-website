@@ -3,6 +3,10 @@ import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAnalyticsDashboardBlock } from "@/lib/analytics/aggregate";
 import { getVehicleHeatDashboard } from "@/lib/analytics/vehicle-heat";
+import {
+  TRAFFIC_SOURCE_IDS,
+  trafficSourceLabel,
+} from "@/lib/analytics/source";
 import type { VehicleStatus } from "@/lib/types";
 import type {
   ActivityItem,
@@ -350,6 +354,8 @@ export async function getAdminStatistics(options: {
       quotes: block.quotes,
       summaryCards: block.summaryCards,
       funnel: block.funnel,
+      sourceConversion: block.sourceConversion,
+      vehicleConversion: block.vehicleConversion,
     };
 
     const baseDetail = block.emptyWaiting
@@ -472,21 +478,28 @@ export async function getAdminStatistics(options: {
           source: "all",
           device: "all",
         },
-        homeVisitors: 0,
+        uniqueVisitors: 0,
         vehicleDetailVisitors: 0,
-        cartAddVisitors: 0,
         whatsappClickVisitors: 0,
+        conversionRate: null,
         fromPrev: {
           vehicleDetail: null,
-          cartAdd: null,
           whatsappClick: null,
         },
-        fromHome: {
+        fromTop: {
           vehicleDetail: null,
-          cartAdd: null,
           whatsappClick: null,
         },
       },
+      sourceConversion: TRAFFIC_SOURCE_IDS.map((source) => ({
+        source,
+        label: trafficSourceLabel(source),
+        uniqueVisitors: 0,
+        vehicleDetailVisitors: 0,
+        whatsappClickVisitors: 0,
+        conversionRate: null,
+      })),
+      vehicleConversion: [],
     };
     sources.push({
       id: "analytics_events",
