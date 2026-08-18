@@ -93,12 +93,14 @@ function PriceEditor({ vehicleId, currentPrice, onSaved, onError }: PriceEditorP
 
   if (!editing) {
     return (
-      <div className="flex items-center gap-1 whitespace-nowrap">
-        <span className="text-slate-700">${currentPrice.toLocaleString()}</span>
+      <div className="flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
+        <span className="text-sm font-medium text-slate-800 truncate">
+          ${currentPrice.toLocaleString()}
+        </span>
         <button
           type="button"
           onClick={openEditor}
-          className="ml-1 px-1.5 py-0.5 text-[11px] rounded border border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700 transition-colors leading-none"
+          className="flex-shrink-0 px-1.5 py-0.5 text-[11px] rounded border border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700 transition-colors leading-none"
           title="调价"
         >
           调价
@@ -107,9 +109,10 @@ function PriceEditor({ vehicleId, currentPrice, onSaved, onError }: PriceEditorP
     );
   }
 
+  // Editing state — all controls stay within the price column
   return (
-    <div className="flex items-center gap-1 whitespace-nowrap">
-      <span className="text-slate-400 text-xs">$</span>
+    <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
+      <span className="flex-shrink-0 text-sm font-medium text-slate-700">$</span>
       <input
         ref={inputRef}
         type="number"
@@ -118,14 +121,14 @@ function PriceEditor({ vehicleId, currentPrice, onSaved, onError }: PriceEditorP
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKey}
-        className="w-20 px-1.5 py-0.5 text-xs border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
         disabled={saving}
+        className="w-[90px] flex-shrink-0 h-[30px] px-2 text-sm text-right font-medium text-slate-900 bg-white border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-60 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
       <button
         type="button"
         onClick={() => void save()}
         disabled={saving}
-        className="px-1.5 py-0.5 text-[11px] rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 leading-none"
+        className="flex-shrink-0 px-2 h-[28px] text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 leading-none whitespace-nowrap"
       >
         {saving ? "保存中…" : "保存"}
       </button>
@@ -133,7 +136,7 @@ function PriceEditor({ vehicleId, currentPrice, onSaved, onError }: PriceEditorP
         type="button"
         onClick={cancel}
         disabled={saving}
-        className="px-1.5 py-0.5 text-[11px] rounded border border-slate-300 text-slate-500 hover:bg-slate-100 disabled:opacity-50 leading-none"
+        className="flex-shrink-0 px-1.5 h-[28px] text-xs text-slate-500 hover:text-slate-700 disabled:opacity-50 leading-none whitespace-nowrap"
       >
         取消
       </button>
@@ -412,7 +415,7 @@ export default function VehicleManagementTable({
             <col style={{ width: "80px" }} />   {/* 品牌 */}
             <col style={{ width: "80px" }} />   {/* 车型 */}
             <col style={{ width: "48px" }} />   {/* 年份 */}
-            <col style={{ width: "140px" }} />  {/* 价格（含调价控件） */}
+            <col style={{ width: "168px" }} />  {/* 价格（含调价控件） */}
             <col style={{ width: "90px" }} />   {/* 里程 */}
             <col style={{ width: "68px" }} />   {/* 状态 */}
             <col style={{ width: "76px" }} />   {/* 创建 */}
