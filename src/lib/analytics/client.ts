@@ -14,6 +14,26 @@ const MAX_META_KEYS = 12;
 const MAX_META_STRING = 120;
 const DEDUPE_MS = 800;
 const recentKeys = new Map<string, number>();
+const FIRST_TOUCH_KEY = "__fc_auto_first_touch_v2";
+
+type FirstTouchSource =
+  | "facebook"
+  | "google"
+  | "direct"
+  | "other"
+  | "unknown";
+
+type FirstTouchAttribution = {
+  version: 2;
+  source: FirstTouchSource;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  fbclid: string | null;
+  gclid: string | null;
+  referrer_host: string | null;
+  direct_explicit: boolean;
+};
 
 function categorizeUserAgent(ua: string): string {
   const s = ua.toLowerCase();
@@ -77,6 +97,113 @@ function normalizePath(pathname: string): string | null {
   // Strip query/hash — never persist potentially private query strings
   const pathOnly = raw.split("?")[0]?.split("#")[0] ?? raw;
   return pathOnly.slice(0, 200) || null;
+}
+
+function cleanQueryValue(value: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, MAX_META_STRING);
+}
+
+function classifyFirstTouchSource(input: {
+  utm_source: string | null;
+  fbclid: string | null;
+  gclid: string | null;
+  referrer_host: string | null;
+}): { source: FirstTouchSource; directExplicit: boolean } {
+  const utm = (input.utm_source ?? "").toLowerCase();
+  const ref = (input.referrer_host ?? "").toLowerCase();
+
+  // Priority: utm_source -> fbclid -> gclid -> referrer_host -> direct -> unknown
+  if (utm.includes("facebook") || utm === "fb" || utm.includes("meta")) {
+    return { source: "facebook", directExplicit: false };
+  }
+  if (utm.includes("google")) {
+    return { source: "google", directExplicit: false };
+  }
+  if (input.fbclid) {
+    return { source: "facebook", directExplicit: false };
+  }
+  if (input.gclid) {
+    return { source: "google", directExplicit: false };
+  }
+  if (
+    ref.includes("facebook.com") ||
+    ref.includes("m.facebook.com") ||
+    ref.includes("l.facebook.com") ||
+    ref.includes("lm.facebook.com")
+  ) {
+    return { source: "facebook", directExplicit: false };
+  }
+  if (ref.includes("google.")) {
+    return { source: "google", directExplicit: false };
+  }
+  if (ref) {
+    return { source: "other", directExplicit: false };
+  }
+
+  // Explicit direct: no utm/fbclid/gclid and empty referrer on first capture.
+  if (!utm && !input.fbclid && !input.gclid && !ref) {
+    return { source: "direct", directExplicit: true };
+  }
+  return { source: "unknown", directExplicit: false };
+}
+
+function readStoredAttribution(): FirstTouchAttribution | null {
+  try {
+    const raw = window.localStorage.getItem(FIRST_TOUCH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<FirstTouchAttribution>;
+    if (parsed.version !== 2 || !parsed.source) return null;
+    return {
+      version: 2,
+      source: parsed.source,
+      utm_source: parsed.utm_source ?? null,
+      utm_medium: parsed.utm_medium ?? null,
+      utm_campaign: parsed.utm_campaign ?? null,
+      fbclid: parsed.fbclid ?? null,
+      gclid: parsed.gclid ?? null,
+      referrer_host: parsed.referrer_host ?? null,
+      direct_explicit: Boolean(parsed.direct_explicit),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function captureAndStoreFirstTouch(referrerHost: string | null): FirstTouchAttribution {
+  const params = new URLSearchParams(window.location.search || "");
+  const utm_source = cleanQueryValue(params.get("utm_source"));
+  const utm_medium = cleanQueryValue(params.get("utm_medium"));
+  const utm_campaign = cleanQueryValue(params.get("utm_campaign"));
+  const fbclid = cleanQueryValue(params.get("fbclid"));
+  const gclid = cleanQueryValue(params.get("gclid"));
+  const classified = classifyFirstTouchSource({
+    utm_source,
+    fbclid,
+    gclid,
+    referrer_host: referrerHost,
+  });
+
+  const payload: FirstTouchAttribution = {
+    version: 2,
+    source: classified.source,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    fbclid,
+    gclid,
+    referrer_host: referrerHost,
+    direct_explicit: classified.directExplicit,
+  };
+
+  try {
+    window.localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage errors
+  }
+  return payload;
 }
 
 function shouldDedupe(key: string): boolean {
@@ -144,6 +271,8 @@ export function trackAnalyticsEvent(
     } catch {
       referrerHost = null;
     }
+    const firstTouch =
+      readStoredAttribution() ?? captureAndStoreFirstTouch(referrerHost);
 
     // Prefer locale from path when not provided
     let locale = options?.locale?.trim().slice(0, 8) || null;
@@ -173,7 +302,18 @@ export function trackAnalyticsEvent(
         options.cartValueUsd >= 0
           ? Math.round(options.cartValueUsd * 100) / 100
           : null,
-      metadata: sanitizeMetadata(options?.metadata),
+      metadata: sanitizeMetadata({
+        attribution_version: firstTouch.version,
+        first_touch_source: firstTouch.source,
+        first_touch_direct: firstTouch.direct_explicit,
+        utm_source: firstTouch.utm_source,
+        utm_medium: firstTouch.utm_medium,
+        utm_campaign: firstTouch.utm_campaign,
+        fbclid: firstTouch.fbclid,
+        gclid: firstTouch.gclid,
+        first_touch_referrer_host: firstTouch.referrer_host,
+        ...(options?.metadata ?? {}),
+      }),
       user_agent_category: category,
     };
 

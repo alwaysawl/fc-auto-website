@@ -298,6 +298,8 @@ export async function getAdminStatistics(options: {
   preset?: string | null;
   start?: string | null;
   end?: string | null;
+  source?: string | null;
+  device?: string | null;
 }): Promise<StatisticsPayload> {
   const presetRaw = (options.preset ?? "30d") as StatisticsRangePreset;
   const preset: StatisticsRangePreset = [
@@ -323,6 +325,10 @@ export async function getAdminStatistics(options: {
     const block = await getAnalyticsDashboardBlock({
       range,
       loadedAtLabel: loadedAt,
+      funnelFilters: {
+        source: options.source ?? null,
+        device: options.device ?? null,
+      },
     });
     analytics = {
       available: block.available,
@@ -336,7 +342,7 @@ export async function getAdminStatistics(options: {
       cart: block.cart,
       quotes: block.quotes,
       summaryCards: block.summaryCards,
-        funnel: block.funnel,
+      funnel: block.funnel,
     };
 
     const baseDetail = block.emptyWaiting
@@ -448,6 +454,10 @@ export async function getAdminStatistics(options: {
         prevQuoteDownloads: null,
       },
       funnel: {
+        filters: {
+          source: "all",
+          device: "all",
+        },
         homeVisitors: 0,
         vehicleDetailVisitors: 0,
         cartAddVisitors: 0,

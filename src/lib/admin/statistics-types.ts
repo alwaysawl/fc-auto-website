@@ -97,6 +97,16 @@ export type AnalyticsDashboard = {
    * Home → Vehicle Detail → Cart Add → WhatsApp Click
    */
   funnel: {
+    filters: {
+      source:
+        | "all"
+        | "facebook"
+        | "google"
+        | "direct"
+        | "other"
+        | "unknown";
+      device: "all" | "mobile" | "desktop" | "tablet" | "other";
+    };
     homeVisitors: number;
     vehicleDetailVisitors: number;
     cartAddVisitors: number;

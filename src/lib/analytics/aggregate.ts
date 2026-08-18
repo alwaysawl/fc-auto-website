@@ -76,6 +76,16 @@ export type AnalyticsDashboardBlock = {
     prevQuoteDownloads: number | null;
   };
   funnel: {
+    filters: {
+      source:
+        | "all"
+        | "facebook"
+        | "google"
+        | "direct"
+        | "other"
+        | "unknown";
+      device: "all" | "mobile" | "desktop" | "tablet" | "other";
+    };
     homeVisitors: number;
     vehicleDetailVisitors: number;
     cartAddVisitors: number;
@@ -99,11 +109,22 @@ type EventRow = {
   session_id: string | null;
   anonymous_visitor_id: string | null;
   page_path: string | null;
+  referrer_host: string | null;
   vehicle_id: string | null;
   cart_item_count: number | null;
   cart_value_usd: number | string | null;
   metadata: Record<string, unknown> | null;
+  user_agent_category: string | null;
 };
+
+type FunnelSourceFilter =
+  | "all"
+  | "facebook"
+  | "google"
+  | "direct"
+  | "other"
+  | "unknown";
+type FunnelDeviceFilter = "all" | "mobile" | "desktop" | "tablet" | "other";
 
 function shanghaiYmd(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -292,7 +313,7 @@ async function loadEvents(
     const { data, error } = await supabase
       .from("analytics_events")
       .select(
-        "event_name, event_time, session_id, anonymous_visitor_id, page_path, vehicle_id, cart_item_count, cart_value_usd, metadata"
+        "event_name, event_time, session_id, anonymous_visitor_id, page_path, referrer_host, vehicle_id, cart_item_count, cart_value_usd, metadata, user_agent_category"
       )
       .gte("event_time", startIso)
       .lt("event_time", endIso)
@@ -344,8 +365,27 @@ export async function getAnalyticsDashboardBlock(options: {
     endLabel: string;
   };
   loadedAtLabel: string;
+  funnelFilters?: {
+    source?: string | null;
+    device?: string | null;
+  };
 }): Promise<AnalyticsDashboardBlock> {
   const { range, loadedAtLabel } = options;
+  const sourceFilter: FunnelSourceFilter =
+    options.funnelFilters?.source === "facebook" ||
+    options.funnelFilters?.source === "google" ||
+    options.funnelFilters?.source === "direct" ||
+    options.funnelFilters?.source === "other" ||
+    options.funnelFilters?.source === "unknown"
+      ? options.funnelFilters.source
+      : "all";
+  const deviceFilter: FunnelDeviceFilter =
+    options.funnelFilters?.device === "mobile" ||
+    options.funnelFilters?.device === "desktop" ||
+    options.funnelFilters?.device === "tablet" ||
+    options.funnelFilters?.device === "other"
+      ? options.funnelFilters.device
+      : "all";
   const current = await loadEvents(range.startIso, range.endIso);
   const prev = previousRange(range.startIso, range.endIso);
   const previous = current.ok
@@ -450,6 +490,10 @@ export async function getAnalyticsDashboardBlock(options: {
         prevQuoteDownloads: null,
       },
       funnel: {
+        filters: {
+          source: sourceFilter,
+          device: deviceFilter,
+        },
         homeVisitors: 0,
         vehicleDetailVisitors: 0,
         cartAddVisitors: 0,
@@ -480,24 +524,126 @@ export async function getAnalyticsDashboardBlock(options: {
   const sessions = distinct(pageViews.map((r) => r.session_id));
   const uniqueVisitors = distinct(pageViews.map((r) => r.anonymous_visitor_id));
 
+  function classifySource(row: EventRow): FunnelSourceFilter {
+    const meta = row.metadata ?? {};
+    const utm = String(
+      (meta as { utm_source?: string | null }).utm_source ?? ""
+    ).toLowerCase();
+    const fbclid = String(
+      (meta as { fbclid?: string | null }).fbclid ?? ""
+    ).toLowerCase();
+    const gclid = String(
+      (meta as { gclid?: string | null }).gclid ?? ""
+    ).toLowerCase();
+    const firstTouch = String(
+      (meta as { first_touch_source?: string | null }).first_touch_source ?? ""
+    ).toLowerCase();
+    const firstTouchDirect = Boolean(
+      (meta as { first_touch_direct?: boolean | null }).first_touch_direct
+    );
+    const attributionVersion = Number(
+      (meta as { attribution_version?: number | string | null })
+        .attribution_version ?? 0
+    );
+    const ref = (row.referrer_host ?? "").toLowerCase();
+    const hasRef = ref.length > 0;
+
+    // New-data first-touch source (from metadata) has highest confidence.
+    if (
+      firstTouch === "facebook" ||
+      firstTouch === "google" ||
+      firstTouch === "direct" ||
+      firstTouch === "other" ||
+      firstTouch === "unknown"
+    ) {
+      return firstTouch as FunnelSourceFilter;
+    }
+
+    // Priority fallback: utm_source -> fbclid -> gclid -> referrer -> direct -> unknown
+    if (utm.includes("facebook") || utm === "fb" || utm.includes("meta")) {
+      return "facebook";
+    }
+    if (utm.includes("google")) {
+      return "google";
+    }
+    if (fbclid) return "facebook";
+    if (gclid) return "google";
+    if (
+      ref.includes("facebook.com") ||
+      ref.includes("m.facebook.com") ||
+      ref.includes("l.facebook.com") ||
+      ref.includes("lm.facebook.com")
+    ) {
+      return "facebook";
+    }
+    if (ref.includes("google.")) {
+      return "google";
+    }
+    if (hasRef) {
+      return "other";
+    }
+
+    // Only new tracked direct traffic can be classified as direct.
+    if (attributionVersion >= 2 && firstTouchDirect) {
+      return "direct";
+    }
+
+    // Historical missing-source rows are unknown, not direct.
+    return "unknown";
+  }
+
+  function classifyDevice(row: EventRow): FunnelDeviceFilter {
+    const ua = (row.user_agent_category ?? "").toLowerCase();
+    if (ua === "mobile") return "mobile";
+    if (ua === "tablet") return "tablet";
+    if (ua === "desktop") return "desktop";
+    return "other";
+  }
+
+  function rowMatchesFunnelFilters(row: EventRow): boolean {
+    if (sourceFilter !== "all" && classifySource(row) !== sourceFilter) {
+      return false;
+    }
+    if (deviceFilter !== "all" && classifyDevice(row) !== deviceFilter) {
+      return false;
+    }
+    return true;
+  }
+
+  const funnelRows = rows.filter(rowMatchesFunnelFilters);
+  const funnelPageViews = funnelRows.filter((r) => r.event_name === "page_view");
+  const funnelDetailViews = funnelRows.filter(
+    (r) => r.event_name === "vehicle_detail_view"
+  );
+  const funnelCartAdds = funnelRows.filter((r) => r.event_name === "cart_add");
+  const funnelWhatsapp = funnelRows.filter(
+    (r) => r.event_name === "whatsapp_click"
+  );
+
   // Conversion funnel: distinct visitors by stage (dedupe via anonymous_visitor_id).
   const homeVisitors = distinct(
-    pageViews
+    funnelPageViews
       .filter((r) => normalizePagePath(r.page_path) === "/")
       .map((r) => r.anonymous_visitor_id)
   );
   const vehicleDetailVisitors = distinct(
-    detailViews.map((r) => r.anonymous_visitor_id)
+    funnelDetailViews.map((r) => r.anonymous_visitor_id)
   );
-  const cartAddVisitors = distinct(cartAdds.map((r) => r.anonymous_visitor_id));
+  const cartAddVisitors = distinct(
+    funnelCartAdds.map((r) => r.anonymous_visitor_id)
+  );
   const whatsappClickVisitors = distinct(
-    whatsapp.map((r) => r.anonymous_visitor_id)
+    funnelWhatsapp.map((r) => r.anonymous_visitor_id)
   );
 
   const pctOrNull = (part: number, total: number): number | null =>
     total <= 0 ? null : pct(part, total);
 
   const funnel = {
+    filters: {
+      source: sourceFilter,
+      device: deviceFilter,
+    },
     homeVisitors,
     vehicleDetailVisitors,
     cartAddVisitors,

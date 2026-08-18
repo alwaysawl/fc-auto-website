@@ -15,6 +15,8 @@ export async function GET(request: Request) {
       preset: searchParams.get("preset"),
       start: searchParams.get("start"),
       end: searchParams.get("end"),
+      source: searchParams.get("source"),
+      device: searchParams.get("device"),
     });
 
     return NextResponse.json(payload, {

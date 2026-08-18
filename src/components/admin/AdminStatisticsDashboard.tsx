@@ -362,6 +362,15 @@ export default function AdminStatisticsDashboard({
 }: {
   initial: StatisticsPayload;
 }) {
+  type FunnelSource =
+    | "all"
+    | "facebook"
+    | "google"
+    | "direct"
+    | "other"
+    | "unknown";
+  type FunnelDevice = "all" | "mobile" | "desktop" | "tablet" | "other";
+
   const [preset, setPreset] = useState<StatisticsRangePreset>(
     initial.range.preset
   );
@@ -370,10 +379,22 @@ export default function AdminStatisticsDashboard({
   const [data, setData] = useState<StatisticsPayload>(initial);
   const [state, setState] = useState<LoadState>("ready");
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [funnelSource, setFunnelSource] = useState<FunnelSource>(
+    initial.analytics.funnel.filters.source
+  );
+  const [funnelDevice, setFunnelDevice] = useState<FunnelDevice>(
+    initial.analytics.funnel.filters.device
+  );
   const funnel = data.analytics.funnel;
 
   const load = useCallback(
-    async (nextPreset: StatisticsRangePreset, start: string, end: string) => {
+    async (
+      nextPreset: StatisticsRangePreset,
+      start: string,
+      end: string,
+      source: FunnelSource,
+      device: FunnelDevice
+    ) => {
       setState("loading");
       try {
         const params = new URLSearchParams({ preset: nextPreset });
@@ -381,6 +402,8 @@ export default function AdminStatisticsDashboard({
           params.set("start", start);
           params.set("end", end);
         }
+        params.set("source", source);
+        params.set("device", device);
         const res = await fetch(`/api/admin/statistics?${params}`, {
           credentials: "include",
           cache: "no-store",
@@ -406,6 +429,11 @@ export default function AdminStatisticsDashboard({
       setCustomEnd(data.range.endLabel);
     }
   }, [preset, data.range.startLabel, data.range.endLabel]);
+
+  useEffect(() => {
+    setFunnelSource(data.analytics.funnel.filters.source);
+    setFunnelDevice(data.analytics.funnel.filters.device);
+  }, [data.analytics.funnel.filters.source, data.analytics.funnel.filters.device]);
 
   const periodCards = useMemo(
     () => [
@@ -449,7 +477,9 @@ export default function AdminStatisticsDashboard({
           <button
             type="button"
             disabled={state === "loading"}
-            onClick={() => void load(preset, customStart, customEnd)}
+            onClick={() =>
+              void load(preset, customStart, customEnd, funnelSource, funnelDevice)
+            }
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
           >
             {state === "loading" ? "刷新中…" : "刷新数据"}
@@ -471,7 +501,13 @@ export default function AdminStatisticsDashboard({
               onClick={() => {
                 setPreset(p.id);
                 if (p.id !== "custom") {
-                  void load(p.id, customStart, customEnd);
+                  void load(
+                    p.id,
+                    customStart,
+                    customEnd,
+                    funnelSource,
+                    funnelDevice
+                  );
                 }
               }}
               className={`rounded-lg px-3 py-2 text-sm font-medium border ${
@@ -506,7 +542,15 @@ export default function AdminStatisticsDashboard({
             </label>
             <button
               type="button"
-              onClick={() => void load("custom", customStart, customEnd)}
+              onClick={() =>
+                void load(
+                  "custom",
+                  customStart,
+                  customEnd,
+                  funnelSource,
+                  funnelDevice
+                )
+              }
               className="rounded-lg bg-[#FACC15] px-4 py-2 text-sm font-semibold text-slate-800 hover:brightness-95"
             >
               应用
@@ -940,9 +984,50 @@ export default function AdminStatisticsDashboard({
           </div>
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
-            <h2 className="text-base font-semibold text-slate-900 mb-3">
-              转化漏斗
-            </h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-slate-900">转化漏斗</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs text-slate-600">
+                  来源：
+                  <select
+                    className="ml-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800"
+                    value={funnelSource}
+                    disabled={state === "loading"}
+                    onChange={(e) => {
+                      const next = e.target.value as FunnelSource;
+                      setFunnelSource(next);
+                      void load(preset, customStart, customEnd, next, funnelDevice);
+                    }}
+                  >
+                    <option value="all">全部来源</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="google">Google</option>
+                    <option value="direct">直接访问</option>
+                    <option value="other">其他来源</option>
+                    <option value="unknown">未知来源</option>
+                  </select>
+                </label>
+                <label className="text-xs text-slate-600">
+                  设备：
+                  <select
+                    className="ml-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800"
+                    value={funnelDevice}
+                    disabled={state === "loading"}
+                    onChange={(e) => {
+                      const next = e.target.value as FunnelDevice;
+                      setFunnelDevice(next);
+                      void load(preset, customStart, customEnd, funnelSource, next);
+                    }}
+                  >
+                    <option value="all">全部设备</option>
+                    <option value="mobile">移动端</option>
+                    <option value="desktop">电脑端</option>
+                    <option value="tablet">平板</option>
+                    <option value="other">其他</option>
+                  </select>
+                </label>
+              </div>
+            </div>
             <div className="space-y-3">
               {/* Home */}
               <div className="min-w-0">
