@@ -108,26 +108,53 @@ function shanghaiHour(date: Date): number {
   );
 }
 
-function friendlyPageLabel(path: string): string {
-  const parts = path.split("/").filter(Boolean);
-  const rest = parts[0]?.length === 2 ? parts.slice(1) : parts;
-  if (rest.length === 0) return "首页";
-  if (rest[0] === "inventory" && rest[1]) return `车辆详情 / ${rest[1]}`;
-  if (rest[0] === "inventory") return "库存列表";
-  if (rest[0] === "cart") return "购物车";
-  if (rest[0] === "about") return "关于我们";
-  if (rest[0] === "contact") return "联系我们";
-  if (rest[0] === "shipping-calculator") return "运费估算";
-  return path;
-}
-
+/**
+ * Strip the locale prefix (/en, /fr, /zh …) and any query string, then
+ * collapse vehicle detail paths to a single key so all language variants
+ * and all vehicle IDs are merged before aggregation.
+ *
+ * Returns a canonical key such as:
+ *   /           – home
+ *   /inventory  – inventory list
+ *   /inventory/[id] – any vehicle detail
+ *   /cart
+ *   /about
+ *   /contact
+ *   /car-sourcing
+ *   /shipping-calculator
+ *   (unknown paths are returned without locale prefix but otherwise as-is)
+ */
 function normalizePagePath(path: string | null): string {
   if (!path) return "/";
-  const parts = path.split("/").filter(Boolean);
-  if (parts[0]?.length === 2 && parts[1] === "inventory" && parts[2]) {
-    return `/${parts[0]}/inventory/[id]`;
-  }
-  return path.split("?")[0] ?? path;
+  // Strip query string
+  const clean = path.split("?")[0] ?? path;
+  // Split into non-empty segments
+  const parts = clean.split("/").filter(Boolean);
+  // Drop leading locale segment (2-letter code)
+  const rest = parts[0]?.length === 2 ? parts.slice(1) : parts;
+
+  if (rest.length === 0) return "/";
+  // Vehicle detail: /[locale]/inventory/[vehicleId]
+  if (rest[0] === "inventory" && rest.length >= 2) return "/inventory/[id]";
+  // Other known segments
+  return "/" + rest.join("/");
+}
+
+/**
+ * Map a canonical key (output of normalizePagePath) to a human-readable
+ * Chinese label for display in the dashboard.
+ */
+function friendlyPageLabel(canonicalKey: string): string {
+  if (canonicalKey === "/") return "首页";
+  if (canonicalKey === "/inventory") return "库存列表";
+  if (canonicalKey === "/inventory/[id]") return "车辆详情";
+  if (canonicalKey === "/cart") return "购物车";
+  if (canonicalKey === "/about") return "关于我们";
+  if (canonicalKey === "/contact") return "联系我们";
+  if (canonicalKey === "/car-sourcing") return "车辆采购";
+  if (canonicalKey === "/shipping-calculator") return "运费估算";
+  // Fallback: display the canonical key directly
+  return canonicalKey;
 }
 
 function pct(part: number, total: number): number {
