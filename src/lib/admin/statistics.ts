@@ -336,6 +336,7 @@ export async function getAdminStatistics(options: {
       cart: block.cart,
       quotes: block.quotes,
       summaryCards: block.summaryCards,
+        funnel: block.funnel,
     };
 
     const baseDetail = block.emptyWaiting
@@ -445,6 +446,22 @@ export async function getAdminStatistics(options: {
         prevWhatsappClicks: null,
         prevCartConversionRate: null,
         prevQuoteDownloads: null,
+      },
+      funnel: {
+        homeVisitors: 0,
+        vehicleDetailVisitors: 0,
+        cartAddVisitors: 0,
+        whatsappClickVisitors: 0,
+        fromPrev: {
+          vehicleDetail: null,
+          cartAdd: null,
+          whatsappClick: null,
+        },
+        fromHome: {
+          vehicleDetail: null,
+          cartAdd: null,
+          whatsappClick: null,
+        },
       },
     };
     sources.push({

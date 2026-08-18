@@ -75,6 +75,22 @@ export type AnalyticsDashboardBlock = {
     prevCartConversionRate: number | null;
     prevQuoteDownloads: number | null;
   };
+  funnel: {
+    homeVisitors: number;
+    vehicleDetailVisitors: number;
+    cartAddVisitors: number;
+    whatsappClickVisitors: number;
+    fromPrev: {
+      vehicleDetail: number | null;
+      cartAdd: number | null;
+      whatsappClick: number | null;
+    };
+    fromHome: {
+      vehicleDetail: number | null;
+      cartAdd: number | null;
+      whatsappClick: number | null;
+    };
+  };
 };
 
 type EventRow = {
@@ -433,6 +449,22 @@ export async function getAnalyticsDashboardBlock(options: {
         prevCartConversionRate: null,
         prevQuoteDownloads: null,
       },
+      funnel: {
+        homeVisitors: 0,
+        vehicleDetailVisitors: 0,
+        cartAddVisitors: 0,
+        whatsappClickVisitors: 0,
+        fromPrev: {
+          vehicleDetail: null,
+          cartAdd: null,
+          whatsappClick: null,
+        },
+        fromHome: {
+          vehicleDetail: null,
+          cartAdd: null,
+          whatsappClick: null,
+        },
+      },
     };
   }
 
@@ -447,6 +479,40 @@ export async function getAnalyticsDashboardBlock(options: {
 
   const sessions = distinct(pageViews.map((r) => r.session_id));
   const uniqueVisitors = distinct(pageViews.map((r) => r.anonymous_visitor_id));
+
+  // Conversion funnel: distinct visitors by stage (dedupe via anonymous_visitor_id).
+  const homeVisitors = distinct(
+    pageViews
+      .filter((r) => normalizePagePath(r.page_path) === "/")
+      .map((r) => r.anonymous_visitor_id)
+  );
+  const vehicleDetailVisitors = distinct(
+    detailViews.map((r) => r.anonymous_visitor_id)
+  );
+  const cartAddVisitors = distinct(cartAdds.map((r) => r.anonymous_visitor_id));
+  const whatsappClickVisitors = distinct(
+    whatsapp.map((r) => r.anonymous_visitor_id)
+  );
+
+  const pctOrNull = (part: number, total: number): number | null =>
+    total <= 0 ? null : pct(part, total);
+
+  const funnel = {
+    homeVisitors,
+    vehicleDetailVisitors,
+    cartAddVisitors,
+    whatsappClickVisitors,
+    fromPrev: {
+      vehicleDetail: pctOrNull(vehicleDetailVisitors, homeVisitors),
+      cartAdd: pctOrNull(cartAddVisitors, vehicleDetailVisitors),
+      whatsappClick: pctOrNull(whatsappClickVisitors, cartAddVisitors),
+    },
+    fromHome: {
+      vehicleDetail: pctOrNull(vehicleDetailVisitors, homeVisitors),
+      cartAdd: pctOrNull(cartAddVisitors, homeVisitors),
+      whatsappClick: pctOrNull(whatsappClickVisitors, homeVisitors),
+    },
+  };
 
   const website = {
     pageViews: pageViews.length,
@@ -691,5 +757,6 @@ export async function getAnalyticsDashboardBlock(options: {
           : null,
       prevQuoteDownloads: previous.ok ? prevQuotes.length : null,
     },
+    funnel,
   };
 }

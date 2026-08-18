@@ -262,6 +262,11 @@ function percentChange(
   return `${sign}${rounded}%`;
 }
 
+function formatPercent(value: number | null): string {
+  if (value == null) return "—";
+  return `${value}%`;
+}
+
 function ChangeHint({
   current,
   previous,
@@ -365,6 +370,7 @@ export default function AdminStatisticsDashboard({
   const [data, setData] = useState<StatisticsPayload>(initial);
   const [state, setState] = useState<LoadState>("ready");
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const funnel = data.analytics.funnel;
 
   const load = useCallback(
     async (nextPreset: StatisticsRangePreset, start: string, end: string) => {
@@ -932,6 +938,79 @@ export default function AdminStatisticsDashboard({
               )}
             </section>
           </div>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
+            <h2 className="text-base font-semibold text-slate-900 mb-3">
+              转化漏斗
+            </h2>
+            <div className="space-y-3">
+              {/* Home */}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    首页访客
+                  </span>
+                  <span className="tabular-nums text-slate-800 text-sm">
+                    {funnel.homeVisitors}人
+                  </span>
+                  <span className="tabular-nums text-slate-700 text-sm">
+                    100%
+                  </span>
+                </div>
+              </div>
+              <div className="flex justify-center text-slate-400">↓</div>
+
+              {/* Vehicle Detail */}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    车辆详情
+                  </span>
+                  <span className="tabular-nums text-slate-800 text-sm">
+                    {funnel.vehicleDetailVisitors}人
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  较上一步 {formatPercent(funnel.fromPrev.vehicleDetail)} · 较首页{" "}
+                  {formatPercent(funnel.fromHome.vehicleDetail)}
+                </p>
+              </div>
+              <div className="flex justify-center text-slate-400">↓</div>
+
+              {/* Cart Add */}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    加入购物车
+                  </span>
+                  <span className="tabular-nums text-slate-800 text-sm">
+                    {funnel.cartAddVisitors}人
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  较上一步 {formatPercent(funnel.fromPrev.cartAdd)} · 较首页{" "}
+                  {formatPercent(funnel.fromHome.cartAdd)}
+                </p>
+              </div>
+              <div className="flex justify-center text-slate-400">↓</div>
+
+              {/* WhatsApp Click */}
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    WhatsApp 点击
+                  </span>
+                  <span className="tabular-nums text-slate-800 text-sm">
+                    {funnel.whatsappClickVisitors}人
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  较上一步 {formatPercent(funnel.fromPrev.whatsappClick)} · 较首页{" "}
+                  {formatPercent(funnel.fromHome.whatsappClick)}
+                </p>
+              </div>
+            </div>
+          </section>
 
           <VehicleHeatSection
             data={data.vehicleHeat}

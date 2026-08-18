@@ -92,6 +92,26 @@ export type AnalyticsDashboard = {
     prevCartConversionRate: number | null;
     prevQuoteDownloads: number | null;
   };
+  /**
+   * Conversion funnel (distinct visitors deduped by anonymous_visitor_id)
+   * Home → Vehicle Detail → Cart Add → WhatsApp Click
+   */
+  funnel: {
+    homeVisitors: number;
+    vehicleDetailVisitors: number;
+    cartAddVisitors: number;
+    whatsappClickVisitors: number;
+    fromPrev: {
+      vehicleDetail: number | null;
+      cartAdd: number | null;
+      whatsappClick: number | null;
+    };
+    fromHome: {
+      vehicleDetail: number | null;
+      cartAdd: number | null;
+      whatsappClick: number | null;
+    };
+  };
 };
 
 export type RankedItem = {
