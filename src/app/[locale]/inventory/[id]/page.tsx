@@ -31,36 +31,38 @@ export async function generateMetadata({
   const locale = localeParam as Locale;
   const t = getTranslations(locale);
 
+  let vehicle: Awaited<ReturnType<typeof dbGetPublicVehicleById>> = null;
   try {
-    const vehicle = await dbGetPublicVehicleById(id);
-    if (vehicle) {
-      let catalog: Awaited<ReturnType<typeof dbGetPublicVehicles>> = [];
-      try {
-        catalog = await dbGetPublicVehicles();
-      } catch {
-        catalog = [];
-      }
-      const { title, description } = buildVehicleSeoCopy(vehicle, locale, catalog);
-      const cover = vehicleCoverImage(vehicle);
-      return buildPageMetadata({
-        locale,
-        path: `/inventory/${vehicle.id}`,
-        title,
-        description,
-        image: cover,
-        imageAlt: vehicleDetailImageAlt(vehicle, locale, 0, 1),
-      });
-    }
+    vehicle = await dbGetPublicVehicleById(id);
   } catch {
-    // fall through
+    return buildPageMetadata({
+      locale,
+      path: `/inventory/${id}`,
+      title: `${t.vehicleDetail.pageTitle} | FC Auto Export`,
+      description: t.seo.inventoryDescription,
+      noIndex: true,
+    });
   }
 
+  if (!vehicle) {
+    notFound();
+  }
+
+  let catalog: Awaited<ReturnType<typeof dbGetPublicVehicles>> = [];
+  try {
+    catalog = await dbGetPublicVehicles();
+  } catch {
+    catalog = [];
+  }
+  const { title, description } = buildVehicleSeoCopy(vehicle, locale, catalog);
+  const cover = vehicleCoverImage(vehicle);
   return buildPageMetadata({
     locale,
-    path: `/inventory/${id}`,
-    title: `${t.vehicleDetail.pageTitle} | FC Auto Export`,
-    description: t.seo.inventoryDescription,
-    noIndex: true,
+    path: `/inventory/${vehicle.id}`,
+    title,
+    description,
+    image: cover,
+    imageAlt: vehicleDetailImageAlt(vehicle, locale, 0, 1),
   });
 }
 

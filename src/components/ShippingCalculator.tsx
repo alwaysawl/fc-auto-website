@@ -106,13 +106,13 @@ export default function ShippingCalculator({
       `Port: ${portLabel}`,
       `Vehicle type: ${vehicleLabel}`,
       `Shipping method: ${methodLabel}`,
-      `Estimated ocean freight: ${formatUsd(freight)} ${SHIPPING_CURRENCY}`,
+      `Estimated ocean freight: ${formatUsd(freight)}`,
     ];
     if (fobPrice != null) {
-      lines.push(`Optional China price: ${formatUsd(fobPrice)} ${SHIPPING_CURRENCY}`);
+      lines.push(`Optional vehicle price: ${formatUsd(fobPrice)}`);
       if (fobPlusFreight != null) {
         lines.push(
-          `Estimated China price + freight: ${formatUsd(fobPlusFreight)} ${SHIPPING_CURRENCY}`
+          `Estimated vehicle price + freight: ${formatUsd(fobPlusFreight)}`
         );
       }
     }

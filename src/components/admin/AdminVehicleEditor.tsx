@@ -65,7 +65,7 @@ export default function AdminVehicleEditor() {
     { key: "transmission", label: "Transmission", type: "text" },
     { key: "steering", label: "Steering", type: "text" },
     { key: "vin", label: "VIN", type: "text" },
-    { key: "fobPrice", label: "FOB Price ($)", type: "number" },
+    { key: "fobPrice", label: "Vehicle Price ($)", type: "number" },
   ];
 
   return (

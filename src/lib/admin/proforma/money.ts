@@ -1,4 +1,4 @@
-/** Consistent USD display: "USD 3,500.00" (never "3500USD"). */
+/** Consistent USD display: "$3,500.00". */
 
 export function roundMoney(n: number): number {
   if (!Number.isFinite(n)) return 0;
@@ -11,7 +11,7 @@ export function formatUsd(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
-  return `USD ${body}`;
+  return `$${body}`;
 }
 
 export function calcLineTotal(unitPrice: number, quantity: number): number {

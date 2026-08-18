@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Locale, locales, Vehicle } from "@/lib/types";
+import { driveTypeLabel, isDriveTypeValue } from "@/lib/drive-type";
 import { getLocalizedPath } from "@/lib/i18n";
 import {
   buildVehicleMetaDescription,
@@ -78,6 +79,7 @@ export function buildAlternates(
   const languages: Record<string, string> = {
     en: localeAbsoluteUrl(pathWithoutLocale, "en"),
     fr: localeAbsoluteUrl(pathWithoutLocale, "fr"),
+    zh: localeAbsoluteUrl(pathWithoutLocale, "zh"),
     "zh-CN": localeAbsoluteUrl(pathWithoutLocale, "zh"),
     "x-default": localeAbsoluteUrl(pathWithoutLocale, DEFAULT_LOCALE),
   };
@@ -213,30 +215,46 @@ export function vehicleImageAlt(
   return vehicleCardImageAlt(vehicle, locale, photoIndex);
 }
 
+export function organizationJsonLd() {
+  const site = getSiteUrl();
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${site}/#organization`,
+    name: SITE_NAME,
+    url: site,
+    logo: absoluteUrl("/images/fc-logo.png"),
+  };
+}
+
 export function homeGraphJsonLd() {
   const enHome = localeAbsoluteUrl("/", DEFAULT_LOCALE);
   const site = getSiteUrl();
 
+  // Organization JSON-LD is emitted once in the locale layout.
   return {
     "@context": "https://schema.org",
     "@graph": [
-      {
-        "@type": "Organization",
-        "@id": `${site}/#organization`,
-        name: SITE_NAME,
-        url: site,
-        logo: absoluteUrl("/images/fc-logo.png"),
-      },
       {
         "@type": "WebSite",
         "@id": `${enHome}#website`,
         name: SITE_NAME,
         url: enHome,
-        inLanguage: ["en", "fr", "zh-CN"],
+        inLanguage: ["en", "fr", "zh"],
         publisher: { "@id": `${site}/#organization` },
       },
     ],
   };
+}
+
+function driveWheelConfigurationValue(value: string): string {
+  const raw = value.trim();
+  if (raw === "FWD") return "https://schema.org/FrontWheelDriveConfiguration";
+  if (raw === "RWD") return "https://schema.org/RearWheelDriveConfiguration";
+  if (raw === "4WD") return "https://schema.org/FourWheelDriveConfiguration";
+  if (raw === "AWD") return "https://schema.org/AllWheelDriveConfiguration";
+  if (isDriveTypeValue(raw)) return driveTypeLabel(raw, "en");
+  return raw;
 }
 
 /** Car structured data — only fields that exist on the vehicle record. */
@@ -311,7 +329,9 @@ export function vehicleJsonLd(
   if (vehicle.color?.trim()) data.color = vehicle.color.trim();
   if (vehicle.bodyType?.trim()) data.bodyType = vehicle.bodyType.trim();
   if (vehicle.driveType?.trim()) {
-    data.driveWheelConfiguration = vehicle.driveType.trim();
+    data.driveWheelConfiguration = driveWheelConfigurationValue(
+      vehicle.driveType
+    );
   }
   if (vehicle.displacement?.trim()) {
     data.vehicleEngine = {

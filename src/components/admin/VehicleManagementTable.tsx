@@ -306,7 +306,7 @@ export default function VehicleManagementTable({
                 "品牌",
                 "车型",
                 "年份",
-                "FOB",
+                "价格",
                 "里程",
                 "状态",
                 "创建",

@@ -1,0 +1,16 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "www.fcautoexport.com" }],
+      "destination": "https://fcautoexport.com/",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.fcautoexport.com" }],
+      "destination": "https://fcautoexport.com/:path*",
+      "permanent": true
+    }
+  ]
+}

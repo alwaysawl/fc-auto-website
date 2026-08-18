@@ -7,7 +7,9 @@ import LocaleDocumentSync from "@/components/LocaleDocumentSync";
 import { CartProvider } from "@/components/CartProvider";
 import CartToast from "@/components/CartToast";
 import FloatingActionStack from "@/components/FloatingActionStack";
+import JsonLd from "@/components/JsonLd";
 import AnalyticsPageTracker from "@/components/AnalyticsPageTracker";
+import { organizationJsonLd } from "@/lib/seo";
 import { notFound } from "next/navigation";
 
 export function generateStaticParams() {
@@ -32,6 +34,7 @@ export default async function LocaleLayout({
 
   return (
     <CartProvider>
+      <JsonLd data={organizationJsonLd()} />
       <LocaleDocumentSync locale={locale} />
       <AnalyticsPageTracker locale={locale} />
       <HeaderWrapper locale={locale} t={t} />

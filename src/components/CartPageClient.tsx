@@ -250,12 +250,13 @@ export default function CartPageClient({
     ? getLocalizedName(port.portName, nameLocale)
     : "";
   const methodLabel = t.shipping.methods.container;
+  const formatUsdText = (value: number) => `$${value.toLocaleString("en-US")}`;
 
   const inquiryNote = useMemo(() => {
     if (items.length === 0) return undefined;
 
     if (isOwnAgent) {
-      const fob = `USD ${vehicleTotal.toLocaleString("en-US")}`;
+      const fob = formatUsdText(vehicleTotal);
       const countryDisplay =
         countryLabel ||
         (locale === "zh"
@@ -283,7 +284,7 @@ export default function CartPageClient({
             "库存编号",
             item.id,
             t.cart.fobChina,
-            `USD ${item.fobPrice.toLocaleString("en-US")}`,
+            formatUsdText(item.fobPrice),
             "",
           ]),
           `运输安排：${t.cart.arrangementOwnAgent}`,
@@ -308,12 +309,12 @@ export default function CartPageClient({
             "N° de stock",
             item.id,
             t.cart.fobChina,
-            `USD ${item.fobPrice.toLocaleString("en-US")}`,
+            formatUsdText(item.fobPrice),
             "",
           ]),
           `Organisation du transport : ${t.cart.arrangementOwnAgent}`,
           `Fret : Organisé par l'agent du client`,
-          `Total des véhicules : ${vehicleTotal.toLocaleString("fr-FR")} USD`,
+          `Total des véhicules : ${formatUsdText(vehicleTotal)}`,
           `Pays de destination : ${countryDisplay}`,
           `Port de destination : ${portDisplay}`,
           "",
@@ -332,7 +333,7 @@ export default function CartPageClient({
           "Stock ID",
           item.id,
           t.cart.fobChina,
-          `USD ${item.fobPrice.toLocaleString("en-US")}`,
+          formatUsdText(item.fobPrice),
           "",
         ]),
         `Shipping arrangement: ${t.cart.arrangementOwnAgent}`,
@@ -360,7 +361,7 @@ export default function CartPageClient({
       linesOut.push(`Stock ID`);
       linesOut.push(item.id);
       linesOut.push(t.cart.fobChina);
-      linesOut.push(`USD ${item.fobPrice.toLocaleString("en-US")}`);
+      linesOut.push(formatUsdText(item.fobPrice));
       linesOut.push("");
     });
 
@@ -388,23 +389,23 @@ export default function CartPageClient({
     }
 
     linesOut.push(`Vehicle Total`);
-    linesOut.push(`USD ${vehicleTotal.toLocaleString("en-US")}`);
+    linesOut.push(formatUsdText(vehicleTotal));
     if (freightPending) {
       linesOut.push(`Estimated Freight`);
       linesOut.push(t.cart.freightPendingLabel);
       linesOut.push(t.cart.freightUnconfiguredNotice);
       linesOut.push(t.cart.waFreightPendingConfirm);
       linesOut.push(`Estimated Total`);
-      linesOut.push(`USD ${vehicleTotal.toLocaleString("en-US")}`);
+      linesOut.push(formatUsdText(vehicleTotal));
       linesOut.push(t.cart.estimatedTotalExcludesPendingFreight);
     } else {
       if (shippingTotal != null) {
         linesOut.push(`Estimated Freight`);
-        linesOut.push(`USD ${shippingTotal.toLocaleString("en-US")}`);
+        linesOut.push(formatUsdText(shippingTotal));
       }
       if (grandTotal != null) {
         linesOut.push(`Estimated Total`);
-        linesOut.push(`USD ${grandTotal.toLocaleString("en-US")}`);
+        linesOut.push(formatUsdText(grandTotal));
       }
     }
     linesOut.push("");

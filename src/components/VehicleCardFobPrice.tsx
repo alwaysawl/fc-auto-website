@@ -1,5 +1,5 @@
 interface VehicleCardFobPriceProps {
-  /** Kept for callers; frontend no longer shows a FOB / China-price label. */
+  /** Optional; no longer rendered. Kept so existing callers do not break. */
   label?: string;
   price: string;
   /** Light cards (inventory / homepage) use brand slate; dark premium cards use gold. */
@@ -15,7 +15,7 @@ interface VehicleCardFobPriceProps {
 
 /**
  * Shared price block for vehicle list cards (homepage + inventory).
- * Price only — no FOB / China-price label.
+ * Renders the formatted price only.
  */
 export default function VehicleCardFobPrice({
   price,

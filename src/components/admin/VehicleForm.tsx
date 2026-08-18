@@ -221,7 +221,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
         throw new Error("里程必须为大于或等于 0 的数字。");
       }
       if (form.fobPrice == null || Number.isNaN(Number(form.fobPrice)) || form.fobPrice < 0) {
-        throw new Error("FOB 价格必须为大于或等于 0 的数字。");
+        throw new Error("价格必须为大于或等于 0 的数字。");
       }
 
       if (targetStatus === "已售") {
@@ -502,7 +502,7 @@ export default function VehicleForm({ initial = {}, mode }: VehicleFormProps) {
         <h2 className={sectionTitleCls}>出口与价格信息</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className={labelCls}>FOB 价格 <span className="text-red-500">*</span></label>
+            <label className={labelCls}>车辆价格 <span className="text-red-500">*</span></label>
             <input type="number" className={fieldCls} value={form.fobPrice ?? ""}
               onChange={(e) => set("fobPrice", parseFloat(e.target.value) || 0)} min={0} required />
           </div>

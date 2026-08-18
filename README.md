@@ -6,7 +6,7 @@ A modern bilingual (English/French) used car export website built with **Next.js
 
 - **Bilingual Support** — English and French with language switcher in the header
 - **Premium Design** — Black, white, and gold color scheme, mobile-friendly
-- **Vehicle Inventory** — Browse vehicles with photos, specs, FOB pricing, and VIN
+- **Vehicle Inventory** — Browse vehicles with photos, specs, pricing, and VIN
 - **Tier-Based Shipping Calculator** — Shipping prices follow per-vehicle tier tables (not per-unit multiplication)
 - **Admin Panel** — Edit shipping prices and vehicle details at `/admin`
 - **WhatsApp Integration** — Floating button and contact links (+86 166 7636 4929)

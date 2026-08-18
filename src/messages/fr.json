@@ -84,7 +84,7 @@
       },
       {
         "title": "Prix Transparents",
-        "description": "Prix Chine clairs sans frais cachés. Sachez exactement ce que vous payez."
+        "description": "Prix du véhicule clairs, sans frais cachés. Sachez exactement ce que vous payez."
       },
       {
         "title": "Spécialistes de l'Afrique",
@@ -109,8 +109,8 @@
         "description": "Des inspections indépendantes peuvent être organisées pour plus de confiance."
       },
       {
-        "title": "Prix Chine transparents",
-        "description": "Prix Chine clairs, sans frais cachés sur l'annonce."
+        "title": "Prix transparents",
+        "description": "Prix du véhicule clairs, sans frais cachés sur l'annonce."
       },
       {
         "title": "Expérience d'exportation professionnelle",
@@ -139,7 +139,7 @@
       },
       {
         "title": "Obtenez un Devis",
-        "description": "Utilisez notre calculateur d'expédition pour des prix Chine + expédition transparents."
+        "description": "Utilisez notre calculateur d'expédition pour des prix du véhicule et d'expédition transparents."
       },
       {
         "title": "Confirmez et Payez",
@@ -191,7 +191,7 @@
     "noResults": "Aucun véhicule trouvé correspondant à vos critères.",
     "calculateShipping": "Calculer l'Expédition",
     "viewDetails": "Voir les Détails",
-    "fobPrice": "Prix",
+    "fobPrice": "Prix du véhicule",
     "mileage": "Kilométrage",
     "year": "Année",
     "fuel": "Carburant",
@@ -206,7 +206,7 @@
     "emptyInventory": "Aucun véhicule disponible.",
     "loadError": "Échec du chargement de l'inventaire",
     "loadingVehicles": "Chargement des véhicules",
-    "fobChina": "Prix",
+    "fobChina": "Prix du véhicule",
     "popular": "Populaire",
     "galleryPrevious": "Image précédente",
     "galleryNext": "Image suivante",
@@ -219,7 +219,7 @@
     "shippingTable": "Tableau des Prix d'Expédition",
     "quantity": "Quantité",
     "shippingCost": "Coût d'Expédition",
-    "totalCost": "Coût Total (Prix Chine + Expédition)",
+    "totalCost": "Coût Total (Prix du véhicule + Expédition)",
     "contactUs": "Contactez-nous sur WhatsApp",
     "vehicles": "véhicules",
     "vehicle": "véhicule",
@@ -234,7 +234,7 @@
     "quoteDownloadSuccess": "Devis du véhicule téléchargé",
     "quoteDownloadError": "Impossible de générer le devis. Veuillez réessayer.",
     "closePdfPreview": "Fermer l’aperçu",
-    "getBestFob": "Obtenir le meilleur prix Chine",
+    "getBestFob": "Obtenir le meilleur prix du véhicule",
     "contactWhatsapp": "Contacter sur WhatsApp",
     "whatsappInquiry": "Demande WhatsApp",
     "checkoutNow": "Passer au paiement",
@@ -274,7 +274,7 @@
     "destinationPort": "Port de destination",
     "vehicleType": "Type de véhicule",
     "shippingMethod": "Méthode d'expédition",
-    "optionalFob": "Prix Chine du véhicule (optionnel, USD)",
+    "optionalFob": "Prix du véhicule (optionnel, USD)",
     "optionalFobHint": "Laissez vide si vous souhaitez uniquement une estimation du fret.",
     "selectCountry": "Sélectionner un pays",
     "selectPort": "Sélectionner un port",
@@ -282,8 +282,8 @@
     "resultTitle": "Estimation d'expédition indicative",
     "sampleBadge": "Estimation EXEMPLE",
     "estimatedFreight": "Fret maritime estimé",
-    "fobPrice": "Prix Chine du véhicule",
-    "fobPlusFreight": "Total estimé prix Chine + fret",
+    "fobPrice": "Prix du véhicule",
+    "fobPlusFreight": "Total estimé prix du véhicule + fret",
     "currency": "Devise",
     "requestQuote": "Demander un devis d'expédition définitif",
     "whatsappCta": "WhatsApp",
@@ -457,7 +457,7 @@
     "browseInventory": "Parcourir l'inventaire",
     "shippingOptions": "Destination d'expédition",
     "stockId": "N° de stock",
-    "fobChina": "Prix",
+    "fobChina": "Prix du véhicule",
     "estimatedFreight": "Fret estimé",
     "subtotal": "Sous-total",
     "remove": "Retirer",

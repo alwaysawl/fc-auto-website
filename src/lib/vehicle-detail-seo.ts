@@ -168,8 +168,9 @@ export function pickVehicleTitleDisambiguator(
 
 /**
  * SEO title from live vehicle fields.
- * Example: 2016 Landwind X7 LHD Used Car for Sale | FC Auto
+ * Example: 2016 Landwind X7 2.0T Automatic Used Car for Export | FC Auto
  * Model is used as stored; brand display may normalize Land Wind → Landwind.
+ * Engine and transmission are included only when those fields exist.
  */
 export function buildVehicleSeoTitle(
   vehicle: VehicleSeoInput,
@@ -177,17 +178,25 @@ export function buildVehicleSeoTitle(
   catalog: VehicleTitleCatalogItem[] = []
 ): string {
   const ybm = yearBrandModelForSeoTitle(vehicle);
+  const engine = vehicle.displacement?.trim() || "";
+  const transmission = transmissionLabel(vehicle.transmission, locale);
   const extra = pickVehicleTitleDisambiguator(vehicle, catalog, locale);
   const steering = steeringTitleToken(vehicle.steering, locale);
-  const head = [ybm, extra, steering].filter(Boolean).join(" ");
+  const alreadyInTitle = new Set(
+    [engine, transmission].filter((token) => token.length > 0)
+  );
+  const uniqueExtra = extra && !alreadyInTitle.has(extra) ? extra : "";
+  const head = [ybm, engine, transmission, uniqueExtra, steering]
+    .filter(Boolean)
+    .join(" ");
 
   if (locale === "zh") {
-    return `${head} 二手车在售｜${SEO_TITLE_BRAND}`;
+    return `${head} 出口二手车｜${SEO_TITLE_BRAND}`;
   }
   if (locale === "fr") {
-    return `${head} voiture d'occasion à vendre | ${SEO_TITLE_BRAND}`;
+    return `${head} voiture d'occasion à l'export | ${SEO_TITLE_BRAND}`;
   }
-  return `${head} Used Car for Sale | ${SEO_TITLE_BRAND}`;
+  return `${head} Used Car for Export | ${SEO_TITLE_BRAND}`;
 }
 
 function capMetaDescription(text: string, max = 160): string {
@@ -205,42 +214,50 @@ export function buildVehicleMetaDescription(vehicle: VehicleSeoInput, locale: Lo
   const ybm = yearBrandModelForSeoTitle(vehicle);
   const steer = steeringTitleToken(vehicle.steering, locale);
   const lead = [ybm, steer].filter(Boolean).join(" ");
+  const engine = vehicle.displacement?.trim() || "";
   const fuel = fuelLabel(vehicle.fuel, locale);
   const transmission = transmissionLabel(vehicle.transmission, locale);
+  const drive = driveTypeLabel(vehicle.driveType, locale);
   const mileage = hasMileageKm(vehicle)
     ? formatVehicleMileage(locale, vehicle.mileage)
     : "";
 
   if (locale === "zh") {
     const facts: string[] = [];
+    if (engine) facts.push(engine);
+    if (transmission) facts.push(transmission);
+    if (drive) facts.push(drive);
     if (mileage) facts.push(`里程 ${mileage} 公里`);
     if (fuel) facts.push(fuel);
-    if (transmission) facts.push(transmission);
     const factText = facts.length > 0 ? `，${facts.join("，")}` : "";
     return capMetaDescription(
-      `${lead} 二手车在售${factText}。查看车辆详情并联系 FC Auto，中国二手车出口商。`
+      `${lead} 中国出口二手车${factText}。查看详情并联系 FC Auto。`
     );
   }
 
   if (locale === "fr") {
     const facts: string[] = [];
+    if (engine) facts.push(engine);
+    if (transmission) facts.push(transmission.toLowerCase());
+    if (drive) facts.push(drive.toLowerCase());
     if (mileage) facts.push(`${mileage} km`);
     if (fuel) facts.push(fuel.toLowerCase());
-    if (transmission) facts.push(transmission.toLowerCase());
     const withFacts =
-      facts.length > 0 ? ` avec ${facts.join(", ")}` : "";
+      facts.length > 0 ? `, ${facts.join(", ")}` : "";
     return capMetaDescription(
-      `${lead} voiture d'occasion à vendre${withFacts}. Consultez les détails et contactez FC Auto, exportateur de voitures d'occasion depuis la Chine.`
+      `${lead} voiture d'occasion à l'export depuis la Chine${withFacts}. Consultez les détails et contactez FC Auto.`
     );
   }
 
   const extras: string[] = [];
-  if (fuel) extras.push(fuel.toLowerCase());
-  if (transmission) extras.push(transmission.toLowerCase());
+  if (engine) extras.push(engine);
+  if (transmission) extras.push(transmission);
+  if (drive) extras.push(drive);
+  if (fuel) extras.push(fuel);
   const mileageBit = mileage ? ` with ${mileage} km` : "";
   const extraBit = extras.length > 0 ? `, ${extras.join(", ")}` : "";
   return capMetaDescription(
-    `${lead} used car for sale${mileageBit}${extraBit}. View details and contact FC Auto, a used car exporter from China.`
+    `${lead} used car for export from China${mileageBit}${extraBit}. View details and contact FC Auto.`
   );
 }
 

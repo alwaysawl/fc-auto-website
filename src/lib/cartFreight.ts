@@ -127,7 +127,7 @@ export function buildWhatsAppFreightSummary(
   result: GroupedFreightResult,
   locale: Locale
 ): string[] {
-  const freight = `USD ${result.totalFreight.toLocaleString("en-US")}`;
+  const freight = `$${result.totalFreight.toLocaleString("en-US")}`;
 
   if (locale === "zh") {
     return [
@@ -141,7 +141,7 @@ export function buildWhatsAppFreightSummary(
     return [
       `Nombre de véhicules : ${result.vehicleCount}`,
       `Calcul du transport : ${result.calculationLabel}`,
-      `Fret estimé : ${result.totalFreight.toLocaleString("fr-FR")} USD`,
+      `Fret estimé : $${result.totalFreight.toLocaleString("en-US")}`,
     ];
   }
 

@@ -15,10 +15,15 @@ function permanentRedirect(url: URL, locale: string) {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const host = request.headers.get("host") ?? "";
+  const rawHost = request.headers.get("host") ?? "";
+  const host = rawHost.split(":")[0].toLowerCase();
+  const proto = (
+    request.headers.get("x-forwarded-proto") ||
+    request.nextUrl.protocol.replace(":", "")
+  ).toLowerCase();
 
-  // Canonical host: apex only (production)
-  if (host === "www.fcautoexport.com") {
+  // Canonical host + HTTPS for production (www and http are duplicate URLs).
+  if (host === "www.fcautoexport.com" || (host === "fcautoexport.com" && proto === "http")) {
     const url = request.nextUrl.clone();
     url.host = "fcautoexport.com";
     url.protocol = "https:";
@@ -72,5 +77,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|admin|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

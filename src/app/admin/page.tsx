@@ -151,7 +151,7 @@ function RecentVehiclesTable({
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200">
-            {["主图", "库存编号", "品牌 / 车型", "年份", "FOB", "状态", "更新时间", "操作"].map(
+            {["主图", "库存编号", "品牌 / 车型", "年份", "价格", "状态", "更新时间", "操作"].map(
               (h) => (
                 <th
                   key={h}

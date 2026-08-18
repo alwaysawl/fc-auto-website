@@ -79,7 +79,7 @@ export function buildWhatsAppMessage(context: WhatsAppMessageContext): string {
     if (inquiryId) lines.push(`Inquiry ID: ${inquiryId}`);
     if (pageUrl) lines.push(`Page: ${pageUrl}`);
     lines.push("");
-    lines.push("Please send me the best China price and shipping details.");
+    lines.push("Please send me the best vehicle price and shipping details.");
   } else {
     lines.push("I would like more information about FC Auto Export.");
     lines.push("");

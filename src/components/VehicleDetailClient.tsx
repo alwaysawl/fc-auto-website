@@ -118,7 +118,13 @@ export default function VehicleDetailClient({
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat(
-      locale === "zh" ? "zh-CN" : locale === "fr" ? "fr-FR" : "en-US",
+      currency === "USD"
+        ? "en-US"
+        : locale === "zh"
+          ? "zh-CN"
+          : locale === "fr"
+            ? "fr-FR"
+            : "en-US",
       {
         style: "currency",
         currency,

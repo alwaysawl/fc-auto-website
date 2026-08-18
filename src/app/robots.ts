@@ -22,6 +22,7 @@ export default function robots(): MetadataRoute.Robots {
           "/admin",
           "/admin/",
           // App Router API routes
+          "/api",
           "/api/",
           // Locale-prefixed private / non-indexable storefront tools
           "/*/cart",

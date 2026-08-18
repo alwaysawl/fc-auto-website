@@ -20,6 +20,13 @@ const PRESETS: { id: StatisticsRangePreset; label: string }[] = [
 function formatMoney(value: number | null, currency: string): string {
   if (value == null) return "—";
   try {
+    if ((currency || "USD").toUpperCase() === "USD") {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      }).format(value);
+    }
     return new Intl.NumberFormat("zh-CN", {
       style: "currency",
       currency: currency || "USD",
